@@ -1,5 +1,3 @@
-// script.js (システムの脳みそ・計算ロジック)
-
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
 
@@ -9,7 +7,9 @@ const cx = 920.6859;
 const cy = 1191.4759;
 
 let activeBrush = "#38bdf8"; 
-let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV3')) || {};
+// データをリセットして新バージョン(V4)として保存します
+let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV4')) || {};
+let concentricRings = []; // SVGから自動取得する円の半径リスト
 
 // 1. SVGの読み込み
 fetch('calendar.svg')
@@ -20,6 +20,20 @@ fetch('calendar.svg')
     svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
     
     svg.querySelectorAll('*[fill="#fff"]').forEach(el => el.setAttribute('fill', 'none'));
+
+    // ★魔法の追加：Illustratorのデータを読み取り、すべての円の半径を自動でリスト化する
+    const radii = [];
+    svg.querySelectorAll('circle').forEach(c => {
+      const r = parseFloat(c.getAttribute('r'));
+      const cx_val = parseFloat(c.getAttribute('cx'));
+      const cy_val = parseFloat(c.getAttribute('cy'));
+      // カレンダーの中心にある円だけを抽出
+      if (r && Math.abs(cx_val - cx) < 1 && Math.abs(cy_val - cy) < 1) {
+        radii.push(r);
+      }
+    });
+    // 重複を消して、内側から外側（小さい順）に並び替える
+    concentricRings = [...new Set(radii)].sort((a, b) => a - b);
 
     dataLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     dataLayer.setAttribute("id", "data-layer");
@@ -66,23 +80,22 @@ function drawCell(rIn, rOut, startAngle, endAngle, color) {
   dataLayer.appendChild(path);
 }
 
-// --- 同心円の「年輪1本1本」を判定するロジック ---
+// --- 距離から「どの層（レイヤー）」にいるかを自動判定する ---
 function getRingInfo(distance) {
-  // Illustratorの精密な半径データ（内側から外側へ5段階）
-  const waterRings = [141.73, 155.90, 170.07, 184.25, 198.42, 212.59];
-  const plantsRings = [226.77, 240.94, 255.11, 269.29, 283.46, 297.63];
-  const tideRings = [368.50, 411.02, 453.54, 496.06, 538.58, 581.10];
-
-  for (let i = 0; i < 5; i++) {
-    if (distance > waterRings[i] && distance <= waterRings[i+1]) return { layer: `water_${i+1}`, name: `海(層${i+1})`, rIn: waterRings[i], rOut: waterRings[i+1] };
-    if (distance > plantsRings[i] && distance <= plantsRings[i+1]) return { layer: `plants_${i+1}`, name: `植物(層${i+1})`, rIn: plantsRings[i], rOut: plantsRings[i+1] };
-    if (distance > tideRings[i] && distance <= tideRings[i+1]) return { layer: `tide_${i+1}`, name: `潮汐(層${i+1})`, rIn: tideRings[i], rOut: tideRings[i+1] };
+  if (concentricRings.length === 0) return null;
+  
+  for (let i = 0; i < concentricRings.length - 1; i++) {
+    if (distance > concentricRings[i] && distance <= concentricRings[i+1]) {
+      // どの層か（内側から何番目か）を返す
+      return { 
+        layerId: `layer_${i}`, 
+        name: `階層 ${i+1}`, 
+        rIn: concentricRings[i], 
+        rOut: concentricRings[i+1] 
+      };
+    }
   }
-  
-  // メモ用リング（分割なしの1層）
-  if (distance > 297.63 && distance <= 340.15) return { layer: "comment", name: "メモ", rIn: 297.63, rOut: 340.15 };
-  
-  return null;
+  return null; // 外側すぎたり内側すぎる場合
 }
 
 // --- パレット選択 ---
@@ -115,7 +128,7 @@ function initInteractions() {
   container.addEventListener('mousedown', (e) => {
     isPanning = true; dragDistance = 0;
     startPos = { x: e.clientX, y: e.clientY };
-    container.classList.add('is-dragging'); // カーソルを「掴む」にする
+    container.classList.add('is-dragging');
   });
   
   window.addEventListener('mousemove', (e) => {
@@ -128,7 +141,7 @@ function initInteractions() {
       startPos = { x: e.clientX, y: e.clientY };
     }
 
-    // ホバー中の空間認識（ステータスバー）
+    // ホバー中の空間認識
     const pt = svg.createSVGPoint();
     pt.x = e.clientX; pt.y = e.clientY;
     const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
@@ -141,6 +154,7 @@ function initInteractions() {
     const day = Math.floor(segmentIndex / 4) + 1;
     const timeSlot = segmentIndex % 4;
     const timeLabels = ["0:00〜6:00", "6:00〜12:00", "12:00〜18:00", "18:00〜24:00"];
+    
     const ringInfo = getRingInfo(distance);
     
     if (ringInfo) {
@@ -151,9 +165,10 @@ function initInteractions() {
       statusBar.style.color = "#8b949e";
     }
   });
+  
   window.addEventListener('mouseup', () => {
     isPanning = false;
-    container.classList.remove('is-dragging'); // 十字カーソルに戻す
+    container.classList.remove('is-dragging');
   });
 
   // ペイント（クリック時）
@@ -178,7 +193,7 @@ function initInteractions() {
 
     const day = Math.floor(segmentIndex / 4) + 1;
     const timeSlot = segmentIndex % 4;
-    const cellKey = `day${day}_slot${timeSlot}_${ringInfo.layer}`;
+    const cellKey = `day${day}_slot${timeSlot}_${ringInfo.layerId}`;
 
     if (activeBrush === "erase") {
       delete calendarData[cellKey];
@@ -190,7 +205,7 @@ function initInteractions() {
       };
     }
     
-    localStorage.setItem('polarCalendarDataV3', JSON.stringify(calendarData));
+    localStorage.setItem('polarCalendarDataV4', JSON.stringify(calendarData));
     renderSavedData();
   });
 }
