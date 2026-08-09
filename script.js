@@ -7,9 +7,8 @@ const cx = 920.6859;
 const cy = 1191.4759;
 
 let activeBrush = "#38bdf8"; 
-// データをリセットして新バージョン(V4)として保存します
 let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV4')) || {};
-let concentricRings = []; // SVGから自動取得する円の半径リスト
+let concentricRings = []; 
 
 // 1. SVGの読み込み
 fetch('calendar.svg')
@@ -21,28 +20,76 @@ fetch('calendar.svg')
     
     svg.querySelectorAll('*[fill="#fff"]').forEach(el => el.setAttribute('fill', 'none'));
 
-    // ★魔法の追加：Illustratorのデータを読み取り、すべての円の半径を自動でリスト化する
+    // 円の半径を自動取得
     const radii = [];
     svg.querySelectorAll('circle').forEach(c => {
       const r = parseFloat(c.getAttribute('r'));
       const cx_val = parseFloat(c.getAttribute('cx'));
       const cy_val = parseFloat(c.getAttribute('cy'));
-      // カレンダーの中心にある円だけを抽出
       if (r && Math.abs(cx_val - cx) < 1 && Math.abs(cy_val - cy) < 1) {
         radii.push(r);
       }
     });
-    // 重複を消して、内側から外側（小さい順）に並び替える
     concentricRings = [...new Set(radii)].sort((a, b) => a - b);
 
+    // 色塗り用レイヤーの追加
     dataLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     dataLayer.setAttribute("id", "data-layer");
     svg.insertBefore(dataLayer, svg.firstChild);
+
+    // ★新規：太陽暦の日付を自動描画する
+    drawSolarDates();
 
     renderSavedData();
     initInteractions();
   })
   .catch(err => console.error("SVG読み込みエラー:", err));
+
+// --- ★太陽暦の自動印字ロジック ---
+function drawSolarDates() {
+  let dateLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  dateLayer.setAttribute("id", "solar-dates-layer");
+  svg.appendChild(dateLayer); // SVGの末尾（一番上）に追加
+
+  let currentMonth = 8;
+  let currentDay = 13; // ご指定のスタート日（8月13日）
+  const daysInMonth = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+  // 階層33（一番外側の隙間）の半径を取得
+  // concentricRings は34本の線なので、インデックス32〜33が一番外側の階層
+  const rIn = concentricRings[concentricRings.length - 2];
+  const rOut = concentricRings[concentricRings.length - 1];
+  const rMid = (rIn + rOut) / 2; // セルのど真ん中
+
+  for (let day = 1; day <= 30; day++) {
+    // 1番左のセル ＝ 0:00〜6:00のマス
+    // 1マスは3度なので、0〜3度の真ん中である「1.5度」に文字を置く
+    const angle = (day - 1) * 12 + 1.5;
+    const pt = polarToCartesian(cx, cy, rMid, angle);
+
+    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    text.setAttribute("x", pt.x);
+    text.setAttribute("y", pt.y);
+    text.setAttribute("text-anchor", "middle"); // 左右の真ん中
+    text.setAttribute("dominant-baseline", "central"); // 上下の真ん中
+    text.setAttribute("fill", "#727171"); // Illustratorの線と同じグレー
+    text.setAttribute("font-size", "14px"); // 文字サイズ
+    text.setAttribute("font-family", "'Shippori Mincho', serif");
+    
+    // 文字を円のカーブに合わせて回転させる
+    text.setAttribute("transform", `rotate(${angle}, ${pt.x}, ${pt.y})`);
+    
+    text.textContent = currentDay;
+    dateLayer.appendChild(text);
+
+    // 翌日の計算（月をまたぐ場合の処理）
+    currentDay++;
+    if (currentDay > daysInMonth[currentMonth - 1]) {
+      currentDay = 1;
+      currentMonth++;
+    }
+  }
+}
 
 // --- 色の描画 ---
 function renderSavedData() {
@@ -80,22 +127,15 @@ function drawCell(rIn, rOut, startAngle, endAngle, color) {
   dataLayer.appendChild(path);
 }
 
-// --- 距離から「どの層（レイヤー）」にいるかを自動判定する ---
+// --- 自動階層判定 ---
 function getRingInfo(distance) {
   if (concentricRings.length === 0) return null;
-  
   for (let i = 0; i < concentricRings.length - 1; i++) {
     if (distance > concentricRings[i] && distance <= concentricRings[i+1]) {
-      // どの層か（内側から何番目か）を返す
-      return { 
-        layerId: `layer_${i}`, 
-        name: `階層 ${i+1}`, 
-        rIn: concentricRings[i], 
-        rOut: concentricRings[i+1] 
-      };
+      return { layerId: `layer_${i}`, name: `階層 ${i+1}`, rIn: concentricRings[i], rOut: concentricRings[i+1] };
     }
   }
-  return null; // 外側すぎたり内側すぎる場合
+  return null;
 }
 
 // --- パレット選択 ---
@@ -107,9 +147,8 @@ document.querySelectorAll('.color-tag').forEach(tag => {
   });
 });
 
-// --- インタラクション（ズーム・移動・ペイント） ---
+// --- インタラクション ---
 function initInteractions() {
-  // ズーム
   container.addEventListener('wheel', (e) => {
     e.preventDefault();
     const zoomFactor = e.deltaY > 0 ? 1.05 : 0.95;
@@ -123,7 +162,6 @@ function initInteractions() {
     svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
   }, { passive: false });
 
-  // ドラッグ移動
   let isPanning = false, startPos = { x: 0, y: 0 }, dragDistance = 0;
   container.addEventListener('mousedown', (e) => {
     isPanning = true; dragDistance = 0;
@@ -141,7 +179,6 @@ function initInteractions() {
       startPos = { x: e.clientX, y: e.clientY };
     }
 
-    // ホバー中の空間認識
     const pt = svg.createSVGPoint();
     pt.x = e.clientX; pt.y = e.clientY;
     const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
@@ -156,7 +193,6 @@ function initInteractions() {
     const timeLabels = ["0:00〜6:00", "6:00〜12:00", "12:00〜18:00", "18:00〜24:00"];
     
     const ringInfo = getRingInfo(distance);
-    
     if (ringInfo) {
       statusBar.innerText = `第 ${day} 日目 ｜ ${timeLabels[timeSlot]} ｜ ${ringInfo.name}`;
       statusBar.style.color = "#fff";
@@ -171,7 +207,6 @@ function initInteractions() {
     container.classList.remove('is-dragging');
   });
 
-  // ペイント（クリック時）
   svg.addEventListener('click', (e) => {
     if (dragDistance > 5) return;
 
