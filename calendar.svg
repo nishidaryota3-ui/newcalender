@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1841.3719 2382.9518">
+  <g id="_太陽暦DATE" data-name="太陽暦DATE">
+    <circle cx="920.6859" cy="1191.4759" r="779.5276" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width="2"/>
+    <circle cx="920.6859" cy="1191.4759" r="737.0079" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+  </g>
+  <g id="_世界の祝祭日" data-name="世界の祝祭日">
+    <circle cx="920.6859" cy="1191.4759" r="722.8346" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <circle cx="920.6859" cy="1191.4759" r="708.6614" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <circle cx="920.6859" cy="1191.4759" r="694.4882" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <circle cx="920.6859" cy="1191.4759" r="680.315" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+  </g>
+  <g id="_外円3" data-name="外円3">
+    <g id="_外円4_風_" data-name="外円4（風）">
+      <circle cx="920.6859" cy="1191.4759" r="644.8819" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".5"/>
+    </g>
+    <circle cx="920.6859" cy="1191.4759" r="666.1417" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+  </g>
+  <g id="_外円_" data-name="外円５">
+    <circle cx="920.6859" cy="1191.4759" r="623.622" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+  </g>
+  <g id="tide_chart" data-name="tide chart">
+    <circle cx="920.6859" cy="1191.4759" r="581.1024" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <circle cx="920.6859" cy="1191.4759" r="538.5827" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <circle cx="920.6859" cy="1191.4759" r="496.063" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <circle cx="920.6859" cy="1191.4759" r="453.5433" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <circle cx="920.6859" cy="1191.4759" r="411.0236" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <circle cx="920.6859" cy="1191.4759" r="368.5039" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+  </g>
+  <g id="_内円_こメント_" data-name="内円５（こメント）">
+    <circle cx="920.6859" cy="1191.4759" r="340.1575" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+  </g>
+  <g id="_縦線120" data-name="縦線120">
+    <line x1="530.9225" y1="516.4339" x2="1310.4494" y2="1866.6156" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="566.788" y1="496.9606" x2="1274.5839" y2="1886.089" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="496.1251" y1="537.7578" x2="1345.2468" y2="1845.2918" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="430.1139" y1="585.7176" x2="1411.2579" y2="1797.332" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="399.0806" y1="612.2225" x2="1442.2913" y2="1770.827" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="369.477" y1="640.3153" x2="1471.8948" y2="1742.7343" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="314.8795" y1="700.9519" x2="1526.4924" y2="1682.0977" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="290.0352" y1="733.3295" x2="1551.3366" y2="1649.7201" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="266.9196" y1="766.9629" x2="1574.4523" y2="1616.0866" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="226.1223" y1="837.6256" x2="1615.2495" y2="1545.424" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="208.5525" y1="874.4614" x2="1632.8194" y2="1508.5881" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="192.9346" y1="912.1663" x2="1648.4373" y2="1470.8833" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="167.7203" y1="989.7674" x2="1673.6515" y2="1393.2822" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="158.1931" y1="1029.4509" x2="1683.1787" y2="1353.5987" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="150.7558" y1="1069.5786" x2="1690.616" y2="1313.471" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="142.2268" y1="1150.7259" x2="1699.1451" y2="1232.3237" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="141.1584" y1="1191.5234" x2="1700.2135" y2="1191.5262" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="142.2266" y1="1232.3206" x2="1699.1452" y2="1150.7289" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="150.7554" y1="1313.4681" x2="1690.6165" y2="1069.5814" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="158.1925" y1="1353.5959" x2="1683.1793" y2="1029.4537" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="167.7196" y1="1393.2794" x2="1673.6523" y2="989.7702" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="192.9336" y1="1470.8808" x2="1648.4383" y2="912.1688" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="208.5513" y1="1508.5856" x2="1632.8205" y2="874.464" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="226.1209" y1="1545.4212" x2="1615.2509" y2="837.6284" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="266.918" y1="1616.0842" x2="1574.4539" y2="766.9654" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="290.0335" y1="1649.7176" x2="1551.3384" y2="733.332" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="314.8779" y1="1682.0957" x2="1526.494" y2="700.9538" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="369.4754" y1="1742.7327" x2="1471.8965" y2="640.3169" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="399.0788" y1="1770.8254" x2="1442.2931" y2="612.2242" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="430.1118" y1="1797.3303" x2="1411.26" y2="585.7193" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="496.123" y1="1845.2905" x2="1345.2488" y2="537.7591" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="530.92" y1="1866.6142" x2="1310.4518" y2="516.4353" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="566.786" y1="1886.088" x2="1274.5859" y2="496.9616" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="641.3265" y1="1919.2758" x2="1200.0454" y2="463.7738" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="679.7968" y1="1932.8989" x2="1161.5751" y2="450.1506" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="718.9276" y1="1944.4901" x2="1122.4443" y2="438.5595" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="798.739" y1="1961.4548" x2="1042.6329" y2="421.5948" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="839.2008" y1="1966.7818" x2="1002.1711" y2="416.2678" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="879.8866" y1="1969.9839" x2="961.4852" y2="413.0656" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="961.4815" y1="1969.9841" x2="879.8903" y2="413.0655" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="1002.1671" y1="1966.7822" x2="839.2048" y2="416.2674" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="1042.6292" y1="1961.4553" x2="798.7426" y2="421.5942" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="1122.4407" y1="1944.4911" x2="718.9311" y2="438.5585" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="1161.5712" y1="1932.9002" x2="679.8007" y2="450.1494" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="1200.042" y1="1919.2771" x2="641.3299" y2="463.7725" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+  </g>
+  <g id="_内円4_plants_" data-name="内円4(plants)">
+    <g id="plants_chart" data-name="plants chart">
+      <circle cx="920.6859" cy="1191.4759" r="297.6378" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+      <circle cx="920.6859" cy="1191.4759" r="283.4646" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+      <circle cx="920.6859" cy="1191.4759" r="269.2913" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+      <circle cx="920.6859" cy="1191.4759" r="255.1181" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+      <circle cx="920.6859" cy="1191.4759" r="240.9449" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+      <circle cx="920.6859" cy="1191.4759" r="226.7717" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    </g>
+  </g>
+  <g id="_内円_underwater_" data-name="内円３（underwater)">
+    <circle cx="920.6859" cy="1191.4759" r="212.5984" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <circle cx="920.6859" cy="1191.4759" r="198.4252" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <circle cx="920.6859" cy="1191.4759" r="184.252" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <circle cx="920.6859" cy="1191.4759" r="170.0787" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <circle cx="920.6859" cy="1191.4759" r="155.9055" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <circle cx="920.6859" cy="1191.4759" r="141.7323" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+  </g>
+  <g id="_縦線30" data-name="縦線30">
+    <line x1="1082.7595" y1="1953.9688" x2="758.6124" y2="428.983" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="920.6865" y1="1971.0035" x2="920.6854" y2="411.9483" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="758.6138" y1="1953.9691" x2="1082.758" y2="428.9827" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="603.6241" y1="1903.61" x2="1237.7477" y2="479.3418" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="462.4919" y1="1822.1275" x2="1378.88" y2="560.8243" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="341.3846" y1="1713.0822" x2="1499.9873" y2="669.8696" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="245.5957" y1="1581.2405" x2="1595.7761" y2="801.7113" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="179.3114" y1="1432.3639" x2="1662.0604" y2="950.5879" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="145.4288" y1="1272.9597" x2="1695.943" y2="1109.9921" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="145.4286" y1="1109.9939" x2="1695.9432" y2="1272.9579" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="179.311" y1="950.5891" x2="1662.0608" y2="1432.3627" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="245.595" y1="801.7126" x2="1595.7768" y2="1581.2393" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="341.384" y1="669.8703" x2="1499.9879" y2="1713.0816" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="462.491" y1="560.825" x2="1378.8809" y2="1822.1269" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <line x1="603.6237" y1="479.342" x2="1237.7481" y2="1903.6099" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+  </g>
+  <g id="_内円_節気_" data-name="内円２（２４節気）">
+    <circle cx="920.6859" cy="1191.4759" r="106.2992" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+    <circle cx="920.6859" cy="1191.4759" r="127.5591" fill="none" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+  </g>
+  <g id="_内円_星_" data-name="内円（星）">
+    <circle cx="920.6859" cy="1191.4759" r="85.0394" fill="#fff" stroke="#727171" stroke-miterlimit="10" stroke-width=".25"/>
+  </g>
+  <g id="_中心" data-name="中心">
+    <path d="M920.6859,1193.9759c3.2173,0,3.2226-5,0-5-3.2173,0-3.2226,5,0,5h0Z" fill="#727171"/>
+  </g>
+</svg>
