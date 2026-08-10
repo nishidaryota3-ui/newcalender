@@ -1,4 +1,4 @@
-// script.js (潮汐グラフ テスト描画版)
+// script.js (超高密度・完全滑らかな波 描画版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
@@ -52,12 +52,10 @@ fetch('calendar.svg')
     dataLayer.setAttribute("id", "data-layer");
     svg.insertBefore(dataLayer, svg.firstChild);
 
-    // 潮汐グラフ用レイヤー
     tideLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     tideLayer.setAttribute("id", "tide-layer");
     svg.appendChild(tideLayer);
 
-    // 太線用レイヤー
     linesLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     linesLayer.setAttribute("id", "dynamic-lines-layer");
     svg.appendChild(linesLayer);
@@ -67,7 +65,6 @@ fetch('calendar.svg')
   })
   .catch(err => console.error("SVG読み込みエラー:", err));
 
-// サイクル更新
 function updateCalendarCycle() {
   const totalElapsedDays = currentCycle * synodicMonth;
   const startDate = new Date(baseDate.getTime() + totalElapsedDays * 24 * 60 * 60 * 1000);
@@ -80,16 +77,15 @@ function updateCalendarCycle() {
   document.getElementById('cycleDisplay').innerHTML = `${y}年 ${m}月<br><span style="font-size:11px; color:#8b949e;">新月: ${m}月${d}日〜</span>`;
 
   drawSolarDates(startDate);
-  drawTideGraph();    // ★潮汐グラフを描画
-  drawDynamicLines(); // 太線を描画
+  drawTideGraph();    
+  drawDynamicLines(); 
   renderSavedData();
 }
 
-// ★潮汐波の自動描画エンジン
+// ★潮汐波の自動描画エンジン（超高密度化）
 function drawTideGraph() {
   tideLayer.innerHTML = ""; 
   
-  // 階層17（インデックス16）から、階層22の外側（インデックス22）までを使用
   if (concentricRings.length < 23) return; 
   const rMin = concentricRings[16]; 
   const rMax = concentricRings[22]; 
@@ -98,21 +94,19 @@ function drawTideGraph() {
   const maxTide = 7.5;
   const range = maxTide - minTide;
 
-  // 1. ガイドライン（点線）の描画
-  const guideTides = [0, 3, 6];
+  // 1. ガイドライン（1.5ft刻みに変更）
+  const guideTides = [0, 1.5, 3.0, 4.5, 6.0];
   guideTides.forEach(ft => {
     const r = rMin + (rMax - rMin) * ((ft - minTide) / range);
     
-    // 点線の円
     const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     circle.setAttribute("cx", cx); circle.setAttribute("cy", cy); circle.setAttribute("r", r);
     circle.setAttribute("fill", "none");
-    circle.setAttribute("stroke", "rgba(114, 113, 113, 0.5)"); // 半透明のグレー
+    circle.setAttribute("stroke", "rgba(114, 113, 113, 0.4)"); 
     circle.setAttribute("stroke-width", "0.5");
-    circle.setAttribute("stroke-dasharray", "4,4"); // 点線
+    circle.setAttribute("stroke-dasharray", "4,4"); 
     tideLayer.appendChild(circle);
     
-    // 「0ft」などの文字ラベル（スタート位置に配置）
     const labelAngle = currentStartSegment * 3 - 2;
     const labelPt = polarToCartesian(cx, cy, r, labelAngle); 
     const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
@@ -126,22 +120,20 @@ function drawTideGraph() {
     tideLayer.appendChild(text);
   });
 
-  // 2. 波（テスト用サインカーブ）の描画
+  // 2. 波の描画（解像度を10倍にアップ）
   let pathD = "";
-  // 30日 × 24時間 = 720時間分（1時間ごとに点を打つ）
-  for (let h = 0; h <= 720; h++) {
-    // 架空の潮位計算（12.42時間周期と24.84時間周期を混ぜた自然な波）
-    const t = h; 
+  const resolution = 10; // 1時間を10分割（6分ごとに点を打つ）
+  const totalHours = 720;
+  
+  for (let i = 0; i <= totalHours * resolution; i++) {
+    const t = i / resolution; 
     const tide = 3.0 + 3.5 * Math.sin(t * 2 * Math.PI / 12.42) + 1.0 * Math.cos(t * 2 * Math.PI / 24.84);
     
-    // 潮位を半径にマッピング
     const r = rMin + (rMax - rMin) * ((tide - minTide) / range);
-    
-    // 角度の計算（1時間 = 0.5度）。スタート位置から足していく
-    const angle = (currentStartSegment * 3) + (h * 0.5);
+    const angle = (currentStartSegment * 3) + (t * 0.5);
     const pt = polarToCartesian(cx, cy, r, angle);
     
-    if (h === 0) {
+    if (i === 0) {
       pathD += `M ${pt.x},${pt.y} `;
     } else {
       pathD += `L ${pt.x},${pt.y} `;
@@ -151,12 +143,11 @@ function drawTideGraph() {
   const wavePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   wavePath.setAttribute("d", pathD);
   wavePath.setAttribute("fill", "none");
-  wavePath.setAttribute("stroke", "#3b82f6"); // 海のような美しいブルー
+  wavePath.setAttribute("stroke", "#3b82f6"); 
   wavePath.setAttribute("stroke-width", "1.5");
   tideLayer.appendChild(wavePath);
 }
 
-// 動的太線
 function drawDynamicLines() {
   linesLayer.innerHTML = ""; 
   const rMin = concentricRings[0]; const rMax = concentricRings[concentricRings.length - 1];
@@ -172,7 +163,6 @@ function drawDynamicLines() {
   }
 }
 
-// 日付と曜日
 function drawSolarDates(startDate) {
   let dateLayer = document.getElementById("solar-dates-layer");
   if(dateLayer) { dateLayer.innerHTML = ""; } 
@@ -212,7 +202,6 @@ function drawSolarDates(startDate) {
   }
 }
 
-// 色塗り関連
 function renderSavedData() {
   dataLayer.innerHTML = "";
   const cyclePrefix = `c${currentCycle}_`;
@@ -253,7 +242,6 @@ function getRingInfo(distance) {
   return null;
 }
 
-// パレット＆インタラクション
 document.querySelectorAll('.color-tag').forEach(tag => {
   tag.addEventListener('click', (e) => {
     document.querySelectorAll('.color-tag').forEach(t => t.classList.remove('selected'));
