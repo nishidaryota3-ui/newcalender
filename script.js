@@ -1,25 +1,24 @@
-// script.js (スリンキー回転・自動暦エンジン版)
+// script.js (動的太線エンジン搭載版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
 
-let svg, dataLayer;
+let svg, dataLayer, linesLayer;
 let viewBox = { x: 0, y: 0, w: 1841.3719, h: 2382.9518 };
 const cx = 920.6859;
 const cy = 1191.4759;
 let activeBrush = "#38bdf8"; 
 
-// データを管理する巨大な記憶庫
 let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV5')) || {};
 let concentricRings = []; 
 
-// ★天文エンジン（時間の計算）
-const baseDate = new Date(2026, 7, 13); // 基準の第0サイクル：2026年8月13日
-const synodicMonth = 29.530589; // 1朔望月の日数
-let currentCycle = 0; // 現在何段目の輪（月）にいるか
-let currentStartSegment = 0; // 現在の輪の「1日目」のスタート位置（絶対マス番号）
+// 天文エンジン
+const baseDate = new Date(2026, 7, 13);
+const synodicMonth = 29.530589;
+let currentCycle = 0; 
+let currentStartSegment = 0; 
 
-// 1. UI（次の月・前の月ボタン）を画面に自動追加
+// UI追加
 const navDiv = document.createElement('div');
 navDiv.style = "position:fixed; top:30px; right:30px; background:rgba(25,30,40,0.85); padding:15px; border-radius:12px; color:#d4af37; z-index:100; display:flex; gap:15px; align-items:center; border: 1px solid rgba(212,175,55,0.3); backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.2);";
 navDiv.innerHTML = `
@@ -32,7 +31,7 @@ document.body.appendChild(navDiv);
 document.getElementById('prevBtn').addEventListener('click', () => { currentCycle--; updateCalendarCycle(); });
 document.getElementById('nextBtn').addEventListener('click', () => { currentCycle++; updateCalendarCycle(); });
 
-// 2. SVGの読み込み
+// SVG読み込み
 fetch('calendar.svg')
   .then(response => response.text())
   .then(svgCode => {
@@ -51,42 +50,73 @@ fetch('calendar.svg')
     });
     concentricRings = [...new Set(radii)].sort((a, b) => a - b);
 
+    // 色塗り用レイヤー
     dataLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     dataLayer.setAttribute("id", "data-layer");
     svg.insertBefore(dataLayer, svg.firstChild);
 
-    // 初回のサイクル計算を実行
+    // ★太線用レイヤー
+    linesLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    linesLayer.setAttribute("id", "dynamic-lines-layer");
+    svg.appendChild(linesLayer);
+
     updateCalendarCycle();
     initInteractions();
   })
   .catch(err => console.error("SVG読み込みエラー:", err));
 
-// --- ★サイクル（輪）の更新と日付算出 ---
+// サイクル更新
 function updateCalendarCycle() {
-  // 経過日数を計算
   const totalElapsedDays = currentCycle * synodicMonth;
-  // この輪のスタート日(太陽暦)を算出
   const startDate = new Date(baseDate.getTime() + totalElapsedDays * 24 * 60 * 60 * 1000);
   
-  // スタート位置のマス(セグメント)を算出 (1マス=0.25日)
-  // 月を経るごとに、少しずつ手前(反時計回り)にズレていく
   currentStartSegment = Math.round((totalElapsedDays % 30) / 0.25);
   
-  // 画面のテキスト更新
   const y = startDate.getFullYear();
   const m = startDate.getMonth() + 1;
   const d = startDate.getDate();
   document.getElementById('cycleDisplay').innerHTML = `${y}年 ${m}月<br><span style="font-size:11px; color:#8b949e;">新月: ${m}月${d}日〜</span>`;
 
   drawSolarDates(startDate);
+  drawDynamicLines(); // ★太線を引く
   renderSavedData();
 }
 
+// ★動的太線の描画
+function drawDynamicLines() {
+  linesLayer.innerHTML = ""; // 前の月の線をリセット
+
+  // 一番内側の円から、一番外側の円まで線を引く
+  const rMin = concentricRings[0];
+  const rMax = concentricRings[concentricRings.length - 1];
+
+  for (let i = 0; i < 30; i++) {
+    // 現在のスタート位置から4マス（1日）ごとに線を引く
+    const absoluteSegment = (currentStartSegment + i * 4) % 120;
+    const angle = absoluteSegment * 3;
+    
+    const ptInner = polarToCartesian(cx, cy, rMin, angle);
+    const ptOuter = polarToCartesian(cx, cy, rMax, angle);
+
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", ptInner.x);
+    line.setAttribute("y1", ptInner.y);
+    line.setAttribute("x2", ptOuter.x);
+    line.setAttribute("y2", ptOuter.y);
+    
+    // 線のデザイン（太さと色）
+    line.setAttribute("stroke", "#555555"); // 少し濃いグレー
+    line.setAttribute("stroke-width", "1.5"); // 太線
+    
+    linesLayer.appendChild(line);
+  }
+}
+
+// 日付と曜日の描画
 function drawSolarDates(startDate) {
   let dateLayer = document.getElementById("solar-dates-layer");
-  if(dateLayer) {
-    dateLayer.innerHTML = ""; 
-  } else {
+  if(dateLayer) { dateLayer.innerHTML = ""; } 
+  else {
     dateLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     dateLayer.setAttribute("id", "solar-dates-layer");
     svg.appendChild(dateLayer);
@@ -94,20 +124,16 @@ function drawSolarDates(startDate) {
 
   const rIn = concentricRings[concentricRings.length - 2];
   const rOut = concentricRings[concentricRings.length - 1];
-  const rMidDate = rIn + (rOut - rIn) * 0.7; // 数字の高さ
-  const rMidDay = rIn + (rOut - rIn) * 0.25; // 曜日の高さ
+  const rMidDate = rIn + (rOut - rIn) * 0.7; 
+  const rMidDay = rIn + (rOut - rIn) * 0.25; 
 
   const daysStr = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
   for (let i = 0; i < 30; i++) {
-    // 描画する日付
     const loopDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
-    // マスの絶対位置（スタートマスから 1日=4マス 進む）
     const absoluteSegment = (currentStartSegment + i * 4) % 120;
-    // 角度（マスのど真ん中 +1.5度）
     const angle = absoluteSegment * 3 + 1.5;
     
-    // 日付の印字
     const ptDate = polarToCartesian(cx, cy, rMidDate, angle);
     const textDate = document.createElementNS("http://www.w3.org/2000/svg", "text");
     textDate.setAttribute("x", ptDate.x); textDate.setAttribute("y", ptDate.y);
@@ -117,7 +143,6 @@ function drawSolarDates(startDate) {
     textDate.textContent = loopDate.getDate();
     dateLayer.appendChild(textDate);
 
-    // 曜日の印字
     const ptDay = polarToCartesian(cx, cy, rMidDay, angle);
     const textDay = document.createElementNS("http://www.w3.org/2000/svg", "text");
     textDay.setAttribute("x", ptDay.x); textDay.setAttribute("y", ptDay.y);
@@ -129,15 +154,13 @@ function drawSolarDates(startDate) {
   }
 }
 
-// --- 色の描画 ---
+// 色塗り関連
 function renderSavedData() {
   dataLayer.innerHTML = "";
-  // 現在のサイクル(currentCycle)に一致するデータだけを描画する
   const cyclePrefix = `c${currentCycle}_`;
   for (const key in calendarData) {
     if (key.startsWith(cyclePrefix)) {
       const data = calendarData[key];
-      // 保存されている絶対セグメント番号から角度を逆算
       const startAngle = data.absSegment * 3;
       const endAngle = (data.absSegment + 1) * 3;
       drawCell(data.rIn, data.rOut, startAngle, endAngle, data.color);
@@ -172,7 +195,7 @@ function getRingInfo(distance) {
   return null;
 }
 
-// --- パレット選択 ---
+// パレット
 document.querySelectorAll('.color-tag').forEach(tag => {
   tag.addEventListener('click', (e) => {
     document.querySelectorAll('.color-tag').forEach(t => t.classList.remove('selected'));
@@ -181,7 +204,7 @@ document.querySelectorAll('.color-tag').forEach(tag => {
   });
 });
 
-// --- インタラクション ---
+// インタラクション
 function initInteractions() {
   container.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -217,7 +240,6 @@ function initInteractions() {
     const ringInfo = getRingInfo(distance);
     
     if (ringInfo) {
-      // 回転のズレを考慮した相対的な日数を計算
       const relSegment = (absSegment - currentStartSegment + 120) % 120;
       const day = Math.floor(relSegment / 4) + 1;
       const timeSlot = relSegment % 4;
@@ -242,7 +264,6 @@ function initInteractions() {
     const ringInfo = getRingInfo(distance);
     if (!ringInfo) return;
 
-    // データキーには現在のサイクルと、絶対マス番号を持たせる
     const cellKey = `c${currentCycle}_abs${absSegment}_${ringInfo.layerId}`;
 
     if (activeBrush === "erase") {
