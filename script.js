@@ -1,4 +1,4 @@
-// script.js (超高密度・完全滑らかな波 描画版)
+// script.js (リアルデータ＆コサイン補間エンジン搭載版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
@@ -17,7 +17,26 @@ const synodicMonth = 29.530589;
 let currentCycle = 0; 
 let currentStartSegment = 0; 
 
-// UI
+// ★テスト用：パラオのリアルな満潮・干潮データ（最初の4日分）
+// 将来的にはこれをCSVやAPIから自動で読み込むようにします
+const realTideData = [
+  { day: 1, time: "04:12", tide: 6.2 }, { day: 1, time: "10:30", tide: -0.1 },
+  { day: 1, time: "16:45", tide: 6.5 }, { day: 1, time: "23:05", tide: 0.2 },
+  { day: 2, time: "05:05", tide: 6.0 }, { day: 2, time: "11:20", tide: 0.0 },
+  { day: 2, time: "17:35", tide: 6.4 }, { day: 2, time: "23:55", tide: 0.4 },
+  { day: 3, time: "06:00", tide: 5.8 }, { day: 3, time: "12:15", tide: 0.2 },
+  { day: 3, time: "18:30", tide: 6.2 }, { day: 4, time: "00:50", tide: 0.6 },
+  { day: 4, time: "06:55", tide: 5.5 }, { day: 4, time: "13:10", tide: 0.5 },
+  { day: 4, time: "19:25", tide: 6.0 }
+];
+
+// データを「時間（絶対値）」に変換
+const tidePoints = realTideData.map(d => {
+  const [hh, mm] = d.time.split(':').map(Number);
+  const hours = (d.day - 1) * 24 + hh + (mm / 60);
+  return { t: hours, h: d.tide };
+});
+
 const navDiv = document.createElement('div');
 navDiv.style = "position:fixed; top:30px; right:30px; background:rgba(25,30,40,0.85); padding:15px; border-radius:12px; color:#d4af37; z-index:100; display:flex; gap:15px; align-items:center; border: 1px solid rgba(212,175,55,0.3); backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.2);";
 navDiv.innerHTML = `
@@ -30,7 +49,6 @@ document.body.appendChild(navDiv);
 document.getElementById('prevBtn').addEventListener('click', () => { currentCycle--; updateCalendarCycle(); });
 document.getElementById('nextBtn').addEventListener('click', () => { currentCycle++; updateCalendarCycle(); });
 
-// SVGロード
 fetch('calendar.svg')
   .then(response => response.text())
   .then(svgCode => {
@@ -68,7 +86,6 @@ fetch('calendar.svg')
 function updateCalendarCycle() {
   const totalElapsedDays = currentCycle * synodicMonth;
   const startDate = new Date(baseDate.getTime() + totalElapsedDays * 24 * 60 * 60 * 1000);
-  
   currentStartSegment = Math.round((totalElapsedDays % 30) / 0.25);
   
   const y = startDate.getFullYear();
@@ -82,69 +99,68 @@ function updateCalendarCycle() {
   renderSavedData();
 }
 
-// ★潮汐波の自動描画エンジン（超高密度化）
 function drawTideGraph() {
   tideLayer.innerHTML = ""; 
-  
   if (concentricRings.length < 23) return; 
   const rMin = concentricRings[16]; 
   const rMax = concentricRings[22]; 
-  
-  const minTide = -1.5;
-  const maxTide = 7.5;
-  const range = maxTide - minTide;
+  const minTide = -1.5; const maxTide = 7.5; const range = maxTide - minTide;
 
-  // 1. ガイドライン（1.5ft刻みに変更）
   const guideTides = [0, 1.5, 3.0, 4.5, 6.0];
   guideTides.forEach(ft => {
     const r = rMin + (rMax - rMin) * ((ft - minTide) / range);
-    
     const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     circle.setAttribute("cx", cx); circle.setAttribute("cy", cy); circle.setAttribute("r", r);
-    circle.setAttribute("fill", "none");
-    circle.setAttribute("stroke", "rgba(114, 113, 113, 0.4)"); 
-    circle.setAttribute("stroke-width", "0.5");
-    circle.setAttribute("stroke-dasharray", "4,4"); 
+    circle.setAttribute("fill", "none"); circle.setAttribute("stroke", "rgba(114, 113, 113, 0.4)"); 
+    circle.setAttribute("stroke-width", "0.5"); circle.setAttribute("stroke-dasharray", "4,4"); 
     tideLayer.appendChild(circle);
     
     const labelAngle = currentStartSegment * 3 - 2;
     const labelPt = polarToCartesian(cx, cy, r, labelAngle); 
     const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
     text.setAttribute("x", labelPt.x); text.setAttribute("y", labelPt.y);
-    text.setAttribute("fill", "rgba(114, 113, 113, 0.8)");
-    text.setAttribute("font-size", "7px");
-    text.setAttribute("text-anchor", "end");
-    text.setAttribute("dominant-baseline", "bottom");
+    text.setAttribute("fill", "rgba(114, 113, 113, 0.8)"); text.setAttribute("font-size", "7px");
+    text.setAttribute("text-anchor", "end"); text.setAttribute("dominant-baseline", "bottom");
     text.setAttribute("transform", `rotate(${labelAngle}, ${labelPt.x}, ${labelPt.y})`);
     text.textContent = ft + "ft";
     tideLayer.appendChild(text);
   });
 
-  // 2. 波の描画（解像度を10倍にアップ）
   let pathD = "";
-  const resolution = 10; // 1時間を10分割（6分ごとに点を打つ）
+  const resolution = 10; 
   const totalHours = 720;
   
   for (let i = 0; i <= totalHours * resolution; i++) {
     const t = i / resolution; 
-    const tide = 3.0 + 3.5 * Math.sin(t * 2 * Math.PI / 12.42) + 1.0 * Math.cos(t * 2 * Math.PI / 24.84);
+    let tide = 0;
+
+    // ★コサイン補間エンジン：頂点と頂点の間の美しいカーブを自動計算
+    let p1 = null, p2 = null;
+    for (let j = 0; j < tidePoints.length - 1; j++) {
+      if (t >= tidePoints[j].t && t <= tidePoints[j + 1].t) {
+        p1 = tidePoints[j]; p2 = tidePoints[j+1]; break;
+      }
+    }
+
+    if (p1 && p2) {
+      // リアルデータがある期間：頂点の間を海のように滑らかに繋ぐ数式
+      tide = (p1.h + p2.h)/2 + (p1.h - p2.h)/2 * Math.cos( Math.PI * (t - p1.t)/(p2.t - p1.t) );
+    } else {
+      // データがない期間：架空の波
+      tide = 3.0 + 3.5 * Math.sin(t * 2 * Math.PI / 12.42) + 1.0 * Math.cos(t * 2 * Math.PI / 24.84);
+    }
     
     const r = rMin + (rMax - rMin) * ((tide - minTide) / range);
     const angle = (currentStartSegment * 3) + (t * 0.5);
     const pt = polarToCartesian(cx, cy, r, angle);
     
-    if (i === 0) {
-      pathD += `M ${pt.x},${pt.y} `;
-    } else {
-      pathD += `L ${pt.x},${pt.y} `;
-    }
+    if (i === 0) pathD += `M ${pt.x},${pt.y} `;
+    else pathD += `L ${pt.x},${pt.y} `;
   }
 
   const wavePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  wavePath.setAttribute("d", pathD);
-  wavePath.setAttribute("fill", "none");
-  wavePath.setAttribute("stroke", "#3b82f6"); 
-  wavePath.setAttribute("stroke-width", "1.5");
+  wavePath.setAttribute("d", pathD); wavePath.setAttribute("fill", "none");
+  wavePath.setAttribute("stroke", "#3b82f6"); wavePath.setAttribute("stroke-width", "1.5");
   tideLayer.appendChild(wavePath);
 }
 
