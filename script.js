@@ -1,9 +1,9 @@
-// script.js (リアルデータ＆コサイン補間エンジン搭載版)
+// script.js (二十四節気・七十二候 自動グラデーション＆指示棒エンジン搭載版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
 
-let svg, dataLayer, linesLayer, tideLayer;
+let svg, dataLayer, linesLayer, tideLayer, seasonLayer, textPathDefs;
 let viewBox = { x: 0, y: 0, w: 1841.3719, h: 2382.9518 };
 const cx = 920.6859;
 const cy = 1191.4759;
@@ -17,8 +17,13 @@ const synodicMonth = 29.530589;
 let currentCycle = 0; 
 let currentStartSegment = 0; 
 
-// ★テスト用：パラオのリアルな満潮・干潮データ（最初の4日分）
-// 将来的にはこれをCSVやAPIから自動で読み込むようにします
+// ★二十四節気と七十二候のマスターデータ（数式用）
+const sekkiNames = "立春,雨水,啓蟄,春分,清明,穀雨,立夏,小満,芒種,夏至,小暑,大暑,立秋,処暑,白露,秋分,寒露,霜降,立冬,小雪,大雪,冬至,小寒,大寒".split(',');
+const kouNames = "東風解凍,黄鶯睍睆,魚上氷,土脉潤起,霞始靆,草木萠動,蟄虫啓戸,桃始笑,菜虫化蝶,雀始巣,桜始開,雷乃発声,玄鳥至,雁音北,虹始見,葭始生,霜止出苗,牡丹華,蛙始鳴,蚯蚓出,竹笋生,蚕起食桑,紅花栄,麦秋至,螳螂生,鵙乃鳴,梅子黄,乃東枯,菖蒲華,半夏生,温風至,蓮始開,鷹乃学習,桐始結花,土潤溽暑,大雨時行,涼風至,寒蝉鳴,蒙霧升降,綿柎開,天地始粛,禾乃登,草露白,鶺鴒鳴,玄鳥去,雷乃収声,蟄虫坏戸,水始涸,鴻雁来,菊花開,蟋蟀在戸,霜始降,霎時施,楓蔦黄,山茶始開,地始凍,金盞香,虹蔵不見,朔風払葉,橘始黄,閉塞成冬,熊蟄穴,鱖魚群,乃東生,麋角解,雪下出麦,芹乃栄,水泉動,雉始雊,款冬華,水沢腹堅,鶏始乳".split(',');
+
+let generatedSeasons = []; // 3年分の季節データを格納する箱
+
+// テスト用：パラオのリアルな満潮・干潮データ
 const realTideData = [
   { day: 1, time: "04:12", tide: 6.2 }, { day: 1, time: "10:30", tide: -0.1 },
   { day: 1, time: "16:45", tide: 6.5 }, { day: 1, time: "23:05", tide: 0.2 },
@@ -29,8 +34,6 @@ const realTideData = [
   { day: 4, time: "06:55", tide: 5.5 }, { day: 4, time: "13:10", tide: 0.5 },
   { day: 4, time: "19:25", tide: 6.0 }
 ];
-
-// データを「時間（絶対値）」に変換
 const tidePoints = realTideData.map(d => {
   const [hh, mm] = d.time.split(':').map(Number);
   const hours = (d.day - 1) * 24 + hh + (mm / 60);
@@ -66,9 +69,19 @@ fetch('calendar.svg')
     });
     concentricRings = [...new Set(radii)].sort((a, b) => a - b);
 
+    // ★カーブ文字の定義用レイヤー（透明）
+    textPathDefs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    textPathDefs.setAttribute("id", "text-path-defs");
+    svg.insertBefore(textPathDefs, svg.firstChild);
+
+    // ★二十四節気・七十二候レイヤー（グリッド線の下に潜り込ませる）
+    seasonLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    seasonLayer.setAttribute("id", "season-layer");
+    svg.insertBefore(seasonLayer, svg.firstChild.nextSibling);
+
     dataLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     dataLayer.setAttribute("id", "data-layer");
-    svg.insertBefore(dataLayer, svg.firstChild);
+    svg.insertBefore(dataLayer, seasonLayer.nextSibling);
 
     tideLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     tideLayer.setAttribute("id", "tide-layer");
@@ -78,10 +91,37 @@ fetch('calendar.svg')
     linesLayer.setAttribute("id", "dynamic-lines-layer");
     svg.appendChild(linesLayer);
 
+    generateAstronomicalData(); // 季節データの生成
     updateCalendarCycle();
     initInteractions();
   })
   .catch(err => console.error("SVG読み込みエラー:", err));
+
+// ★太陽の動きから季節データを3年分生成するエンジン
+function generateAstronomicalData() {
+  const yearDays = 365.242;
+  const dayMs = 86400000;
+  
+  for (let year = 2025; year <= 2027; year++) {
+    const risshunTime = new Date(year, 1, 4).getTime(); // 立春基準
+    
+    // 24節気（約15日ごと）
+    sekkiNames.forEach((name, i) => {
+      const start = risshunTime + i * (yearDays / 24) * dayMs;
+      const end = risshunTime + (i + 1) * (yearDays / 24) * dayMs;
+      const hue = (80 + (i / 24) * 360) % 360; // 春(80)を起点に1年で色が1周
+      generatedSeasons.push({ type: 'sekki', name, start, end, color: `hsla(${hue}, 65%, 65%, 0.7)` });
+    });
+
+    // 72候（約5日ごと）
+    kouNames.forEach((name, i) => {
+      const start = risshunTime + i * (yearDays / 72) * dayMs;
+      const end = risshunTime + (i + 1) * (yearDays / 72) * dayMs;
+      const hue = (80 + (Math.floor(i / 3) / 24) * 360) % 360; 
+      generatedSeasons.push({ type: 'kou', name, start, end, color: `hsla(${hue}, 50%, 80%, 0.7)` });
+    });
+  }
+}
 
 function updateCalendarCycle() {
   const totalElapsedDays = currentCycle * synodicMonth;
@@ -94,16 +134,129 @@ function updateCalendarCycle() {
   document.getElementById('cycleDisplay').innerHTML = `${y}年 ${m}月<br><span style="font-size:11px; color:#8b949e;">新月: ${m}月${d}日〜</span>`;
 
   drawSolarDates(startDate);
+  drawSeasonsBlocks(startDate.getTime()); // ★季節ブロックの描画
   drawTideGraph();    
   drawDynamicLines(); 
   renderSavedData();
 }
 
+// ★二十四節気・七十二候のブロック＆文字描画エンジン
+function drawSeasonsBlocks(cycleStartTime) {
+  seasonLayer.innerHTML = ""; 
+  textPathDefs.innerHTML = ""; 
+
+  if (concentricRings.length < 3) return;
+  
+  const cycleLengthMs = 30 * 86400000;
+  const cycleEndTime = cycleStartTime + cycleLengthMs;
+
+  generatedSeasons.forEach((season, index) => {
+    // 今の月（輪）の期間と重なっているかチェック
+    if (season.end > cycleStartTime && season.start < cycleEndTime) {
+      
+      // 今の輪の中での相対的な日数を計算
+      const startRelMs = Math.max(0, season.start - cycleStartTime);
+      const endRelMs = Math.min(cycleLengthMs, season.end - cycleStartTime);
+      
+      const startDay = startRelMs / 86400000;
+      const endDay = endRelMs / 86400000;
+      const spanDays = endDay - startDay; // この月での表示日数
+      
+      const startAngle = currentStartSegment * 3 + startDay * 12;
+      const endAngle = currentStartSegment * 3 + endDay * 12;
+      
+      // 階層の設定（1:節気, 2:候）
+      const isSekki = season.type === 'sekki';
+      const rIn = isSekki ? concentricRings[0] : concentricRings[1];
+      const rOut = isSekki ? concentricRings[1] : concentricRings[2];
+      const rMid = (rIn + rOut) / 2;
+
+      // 1. 背景色のブロックを描画（グラデーション対応）
+      drawSeasonArc(rIn, rOut, startAngle, endAngle, season.color);
+
+      // 2. 文字の配置処理（指示棒かカーブ文字か）
+      const midAngle = startAngle + (endAngle - startAngle) / 2;
+      
+      if (spanDays >= 2.0) { 
+        // 2日分以上（スペースあり）なら、ブロックに沿って美しくカーブさせる
+        const pathId = `path_${season.type}_${index}`;
+        const textPathArc = document.createElementNS("http://www.w3.org/2000/svg", "path");
+        textPathArc.setAttribute("id", pathId);
+        
+        // テキスト用の弧を生成
+        const pStart = polarToCartesian(cx, cy, rMid, startAngle);
+        const pEnd = polarToCartesian(cx, cy, rMid, endAngle);
+        const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+        const d = `M ${pStart.x} ${pStart.y} A ${rMid} ${rMid} 0 ${largeArcFlag} 1 ${pEnd.x} ${pEnd.y}`;
+        textPathArc.setAttribute("d", d);
+        textPathDefs.appendChild(textPathArc);
+
+        const textEl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        textEl.setAttribute("font-size", isSekki ? "12px" : "8px");
+        textEl.setAttribute("fill", "#2c3e50"); // 墨色
+        textEl.setAttribute("font-family", "'Shippori Mincho', serif");
+
+        const textPathEl = document.createElementNS("http://www.w3.org/2000/svg", "textPath");
+        textPathEl.setAttribute("href", "#" + pathId);
+        textPathEl.setAttribute("startOffset", "50%");
+        textPathEl.setAttribute("text-anchor", "middle");
+        textPathEl.setAttribute("dominant-baseline", "central");
+        textPathEl.textContent = season.name;
+        
+        textEl.appendChild(textPathEl);
+        seasonLayer.appendChild(textEl);
+        
+      } else {
+        // ★スペース不足（月またぎ等）：内側へ向かう上品な「指示棒」を出す
+        const pStart = polarToCartesian(cx, cy, rMid, midAngle);
+        // 指示棒は内側の円（星図の邪魔にならない程度）へ引き出す
+        const pullDistance = isSekki ? 30 : 15;
+        const rEnd = rIn - pullDistance; 
+        const pEnd = polarToCartesian(cx, cy, rEnd, midAngle);
+        
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", pStart.x); line.setAttribute("y1", pStart.y);
+        line.setAttribute("x2", pEnd.x); line.setAttribute("y2", pEnd.y);
+        line.setAttribute("stroke", "#727171"); 
+        line.setAttribute("stroke-width", "0.5");
+        seasonLayer.appendChild(line);
+        
+        const textEl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        // テキスト位置は線の終点のさらに少し内側
+        const pText = polarToCartesian(cx, cy, rEnd - 5, midAngle);
+        textEl.setAttribute("x", pText.x); textEl.setAttribute("y", pText.y);
+        textEl.setAttribute("font-size", isSekki ? "10px" : "7px");
+        textEl.setAttribute("fill", "#2c3e50");
+        textEl.setAttribute("font-family", "'Shippori Mincho', serif");
+        
+        // 角度によって左右のアンカーを調整
+        const relAngle = midAngle % 360;
+        textEl.setAttribute("text-anchor", (relAngle > 180) ? "end" : "start");
+        textEl.setAttribute("dominant-baseline", "middle");
+        textEl.textContent = season.name;
+        seasonLayer.appendChild(textEl);
+      }
+    }
+  });
+}
+
+function drawSeasonArc(rIn, rOut, startAngle, endAngle, color) {
+  const startIn = polarToCartesian(cx, cy, rIn, endAngle);
+  const endIn = polarToCartesian(cx, cy, rIn, startAngle);
+  const startOut = polarToCartesian(cx, cy, rOut, endAngle);
+  const endOut = polarToCartesian(cx, cy, rOut, startAngle);
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+  const d = ["M", startOut.x, startOut.y, "A", rOut, rOut, 0, largeArcFlag, 0, endOut.x, endOut.y, "L", endIn.x, endIn.y, "A", rIn, rIn, 0, largeArcFlag, 1, startIn.x, startIn.y, "Z"].join(" ");
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", d); path.setAttribute("fill", color);
+  seasonLayer.appendChild(path);
+}
+
+// 潮汐・太線・日付・塗り等の既存機能（変更なし）
 function drawTideGraph() {
   tideLayer.innerHTML = ""; 
   if (concentricRings.length < 23) return; 
-  const rMin = concentricRings[16]; 
-  const rMax = concentricRings[22]; 
+  const rMin = concentricRings[16]; const rMax = concentricRings[22]; 
   const minTide = -1.5; const maxTide = 7.5; const range = maxTide - minTide;
 
   const guideTides = [0, 1.5, 3.0, 4.5, 6.0];
@@ -127,37 +280,24 @@ function drawTideGraph() {
   });
 
   let pathD = "";
-  const resolution = 10; 
-  const totalHours = 720;
-  
+  const resolution = 10; const totalHours = 720;
   for (let i = 0; i <= totalHours * resolution; i++) {
     const t = i / resolution; 
     let tide = 0;
-
-    // ★コサイン補間エンジン：頂点と頂点の間の美しいカーブを自動計算
     let p1 = null, p2 = null;
     for (let j = 0; j < tidePoints.length - 1; j++) {
       if (t >= tidePoints[j].t && t <= tidePoints[j + 1].t) {
         p1 = tidePoints[j]; p2 = tidePoints[j+1]; break;
       }
     }
-
-    if (p1 && p2) {
-      // リアルデータがある期間：頂点の間を海のように滑らかに繋ぐ数式
-      tide = (p1.h + p2.h)/2 + (p1.h - p2.h)/2 * Math.cos( Math.PI * (t - p1.t)/(p2.t - p1.t) );
-    } else {
-      // データがない期間：架空の波
-      tide = 3.0 + 3.5 * Math.sin(t * 2 * Math.PI / 12.42) + 1.0 * Math.cos(t * 2 * Math.PI / 24.84);
-    }
+    if (p1 && p2) tide = (p1.h + p2.h)/2 + (p1.h - p2.h)/2 * Math.cos( Math.PI * (t - p1.t)/(p2.t - p1.t) );
+    else tide = 3.0 + 3.5 * Math.sin(t * 2 * Math.PI / 12.42) + 1.0 * Math.cos(t * 2 * Math.PI / 24.84);
     
     const r = rMin + (rMax - rMin) * ((tide - minTide) / range);
     const angle = (currentStartSegment * 3) + (t * 0.5);
     const pt = polarToCartesian(cx, cy, r, angle);
-    
-    if (i === 0) pathD += `M ${pt.x},${pt.y} `;
-    else pathD += `L ${pt.x},${pt.y} `;
+    if (i === 0) pathD += `M ${pt.x},${pt.y} `; else pathD += `L ${pt.x},${pt.y} `;
   }
-
   const wavePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   wavePath.setAttribute("d", pathD); wavePath.setAttribute("fill", "none");
   wavePath.setAttribute("stroke", "#3b82f6"); wavePath.setAttribute("stroke-width", "1.5");
