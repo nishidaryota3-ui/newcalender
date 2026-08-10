@@ -1,4 +1,4 @@
-// script.js (レイヤー完全修正・太線追加・タイドチャート分離版)
+// script.js (天文精度の維持・潮汐面塗り復活・一括クリアボタン搭載版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
@@ -38,6 +38,7 @@ const tidePoints = realTideData.map(d => {
   return { t: hours, h: d.tide };
 });
 
+// UI（ナビゲーション）
 const navDiv = document.createElement('div');
 navDiv.style = "position:fixed; top:30px; right:30px; background:rgba(25,30,40,0.85); padding:15px; border-radius:12px; color:#d4af37; z-index:100; display:flex; gap:15px; align-items:center; border: 1px solid rgba(212,175,55,0.3); backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.2);";
 navDiv.innerHTML = `
@@ -47,8 +48,31 @@ navDiv.innerHTML = `
 `;
 document.body.appendChild(navDiv);
 
+// ★UI（一括クリアボタン）の追加
+const clearBtn = document.createElement('button');
+clearBtn.innerHTML = "🧹 選択中の色をクリア";
+clearBtn.style = "position:fixed; bottom:30px; right:30px; background:rgba(25,30,40,0.85); color:#fff; border:1px solid rgba(255,255,255,0.2); padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:bold; backdrop-filter:blur(10px); z-index:100; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition:0.2s;";
+document.body.appendChild(clearBtn);
+
 document.getElementById('prevBtn').addEventListener('click', () => { currentCycle--; updateCalendarCycle(); });
 document.getElementById('nextBtn').addEventListener('click', () => { currentCycle++; updateCalendarCycle(); });
+
+clearBtn.addEventListener('click', () => {
+  if (activeBrush === "erase") {
+    alert("消しゴムが選択されています。クリアしたい色を選択してください。");
+    return;
+  }
+  if (confirm(`現在の月（輪）から、選択中の色をすべて削除しますか？`)) {
+    const cyclePrefix = `c${currentCycle}_`;
+    for (const key in calendarData) {
+      if (key.startsWith(cyclePrefix) && calendarData[key].color === activeBrush) {
+        delete calendarData[key];
+      }
+    }
+    localStorage.setItem('polarCalendarDataV5', JSON.stringify(calendarData));
+    renderSavedData();
+  }
+});
 
 fetch('calendar.svg')
   .then(response => response.text())
@@ -67,7 +91,6 @@ fetch('calendar.svg')
     });
     concentricRings = [...new Set(radii)].sort((a, b) => a - b);
 
-    // ★レイヤー順序の完全修正（すべて appendChild で手前に追加）
     textPathDefs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
     textPathDefs.setAttribute("id", "text-path-defs");
     svg.appendChild(textPathDefs);
@@ -84,7 +107,6 @@ fetch('calendar.svg')
     linesLayer.setAttribute("id", "dynamic-lines-layer");
     svg.appendChild(linesLayer);
 
-    // 季節レイヤーを一番最後（最前面）に追加して、下の線を完全に隠す
     seasonLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     seasonLayer.setAttribute("id", "season-layer");
     svg.appendChild(seasonLayer);
@@ -304,7 +326,7 @@ function drawSeasonArc(rIn, rOut, startAngle, endAngle, color) {
   seasonLayer.appendChild(path);
 }
 
-// ★無理な接続(面)をやめて、純粋な波のパスだけを描画
+// ★潮汐グラフ：塗りつぶし（面）を復活させ、断面を美しく処理
 function drawTideGraph() {
   tideLayer.innerHTML = ""; 
   if (concentricRings.length < 23) return; 
@@ -333,7 +355,7 @@ function drawTideGraph() {
 
   let pathD = "";
   const resolution = 10; 
-  const totalHours = 720;
+  const totalHours = 720; // 30日分
   const startAngle = currentStartSegment * 3;
 
   for (let i = 0; i <= totalHours * resolution; i++) {
@@ -352,16 +374,25 @@ function drawTideGraph() {
     const angle = startAngle + (t * 0.5);
     const pt = polarToCartesian(cx, cy, r, angle);
     
-    if (i === 0) {
-      pathD += `M ${pt.x},${pt.y} `;
-    } else {
-      pathD += `L ${pt.x},${pt.y} `;
-    }
+    if (i === 0) pathD += `M ${pt.x},${pt.y} `; 
+    else pathD += `L ${pt.x},${pt.y} `;
   }
 
+  // ★塗りつぶし用（海面の下）の閉じたパスを生成
+  // 360度地点から内側のベース(0ft)に直線で落とし、そのままスタート地点に戻って面を閉じる
+  const baseR = rMin + (rMax - rMin) * ((0 - minTide) / range); 
+  const pEndBase = polarToCartesian(cx, cy, baseR, startAngle + 360);
+  const fillD = pathD + ` L ${pEndBase.x},${pEndBase.y} Z`;
+
+  const fillArea = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  fillArea.setAttribute("d", fillD);
+  fillArea.setAttribute("fill", "rgba(59, 130, 246, 0.15)"); // 美しい水色の半透明
+  tideLayer.appendChild(fillArea);
+
+  // 波の主線（線だけなのでガタつきの壁は描画されない）
   const wavePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   wavePath.setAttribute("d", pathD); 
-  wavePath.setAttribute("fill", "none"); // 塗りを一旦解除
+  wavePath.setAttribute("fill", "none"); 
   wavePath.setAttribute("stroke", "#3b82f6"); 
   wavePath.setAttribute("stroke-width", "1.5");
   tideLayer.appendChild(wavePath);
@@ -372,7 +403,6 @@ function drawDynamicLines() {
   const rMin = concentricRings[2]; 
   const rMax = concentricRings[concentricRings.length - 1];
   
-  // ★階層1の内側に太線を引く
   const ring1 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
   ring1.setAttribute("cx", cx); ring1.setAttribute("cy", cy);
   ring1.setAttribute("r", concentricRings[0]);
@@ -381,7 +411,6 @@ function drawDynamicLines() {
   ring1.setAttribute("stroke-width", "1.5");
   linesLayer.appendChild(ring1);
 
-  // ★階層3の内側に太線を引く
   const ring3 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
   ring3.setAttribute("cx", cx); ring3.setAttribute("cy", cy);
   ring3.setAttribute("r", concentricRings[2]);
@@ -390,7 +419,6 @@ function drawDynamicLines() {
   ring3.setAttribute("stroke-width", "1.5");
   linesLayer.appendChild(ring3);
 
-  // 1日ごとの区切り線
   for (let i = 0; i < 30; i++) {
     const absoluteSegment = (currentStartSegment + i * 4) % 120;
     const angle = absoluteSegment * 3;
