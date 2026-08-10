@@ -1,4 +1,4 @@
-// script.js (二十四節気・七十二候 自動グラデーション＆指示棒エンジン搭載版)
+// script.js (天文学エンジン・四季グラデーション完全版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
@@ -17,13 +17,13 @@ const synodicMonth = 29.530589;
 let currentCycle = 0; 
 let currentStartSegment = 0; 
 
-// ★二十四節気と七十二候のマスターデータ（数式用）
+// ★二十四節気・七十二候マスター（黄経315度＝立春スタート）
 const sekkiNames = "立春,雨水,啓蟄,春分,清明,穀雨,立夏,小満,芒種,夏至,小暑,大暑,立秋,処暑,白露,秋分,寒露,霜降,立冬,小雪,大雪,冬至,小寒,大寒".split(',');
 const kouNames = "東風解凍,黄鶯睍睆,魚上氷,土脉潤起,霞始靆,草木萠動,蟄虫啓戸,桃始笑,菜虫化蝶,雀始巣,桜始開,雷乃発声,玄鳥至,雁音北,虹始見,葭始生,霜止出苗,牡丹華,蛙始鳴,蚯蚓出,竹笋生,蚕起食桑,紅花栄,麦秋至,螳螂生,鵙乃鳴,梅子黄,乃東枯,菖蒲華,半夏生,温風至,蓮始開,鷹乃学習,桐始結花,土潤溽暑,大雨時行,涼風至,寒蝉鳴,蒙霧升降,綿柎開,天地始粛,禾乃登,草露白,鶺鴒鳴,玄鳥去,雷乃収声,蟄虫坏戸,水始涸,鴻雁来,菊花開,蟋蟀在戸,霜始降,霎時施,楓蔦黄,山茶始開,地始凍,金盞香,虹蔵不見,朔風払葉,橘始黄,閉塞成冬,熊蟄穴,鱖魚群,乃東生,麋角解,雪下出麦,芹乃栄,水泉動,雉始雊,款冬華,水沢腹堅,鶏始乳".split(',');
 
-let generatedSeasons = []; // 3年分の季節データを格納する箱
+let generatedSeasons = []; 
 
-// テスト用：パラオのリアルな満潮・干潮データ
+// テスト用潮汐データ
 const realTideData = [
   { day: 1, time: "04:12", tide: 6.2 }, { day: 1, time: "10:30", tide: -0.1 },
   { day: 1, time: "16:45", tide: 6.5 }, { day: 1, time: "23:05", tide: 0.2 },
@@ -69,12 +69,10 @@ fetch('calendar.svg')
     });
     concentricRings = [...new Set(radii)].sort((a, b) => a - b);
 
-    // ★カーブ文字の定義用レイヤー（透明）
     textPathDefs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
     textPathDefs.setAttribute("id", "text-path-defs");
     svg.insertBefore(textPathDefs, svg.firstChild);
 
-    // ★二十四節気・七十二候レイヤー（グリッド線の下に潜り込ませる）
     seasonLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     seasonLayer.setAttribute("id", "season-layer");
     svg.insertBefore(seasonLayer, svg.firstChild.nextSibling);
@@ -91,35 +89,109 @@ fetch('calendar.svg')
     linesLayer.setAttribute("id", "dynamic-lines-layer");
     svg.appendChild(linesLayer);
 
-    generateAstronomicalData(); // 季節データの生成
+    generateAstronomicalData();
     updateCalendarCycle();
     initInteractions();
   })
   .catch(err => console.error("SVG読み込みエラー:", err));
 
-// ★太陽の動きから季節データを3年分生成するエンジン
-function generateAstronomicalData() {
-  const yearDays = 365.242;
-  const dayMs = 86400000;
-  
-  for (let year = 2025; year <= 2027; year++) {
-    const risshunTime = new Date(year, 1, 4).getTime(); // 立春基準
-    
-    // 24節気（約15日ごと）
-    sekkiNames.forEach((name, i) => {
-      const start = risshunTime + i * (yearDays / 24) * dayMs;
-      const end = risshunTime + (i + 1) * (yearDays / 24) * dayMs;
-      const hue = (80 + (i / 24) * 360) % 360; // 春(80)を起点に1年で色が1周
-      generatedSeasons.push({ type: 'sekki', name, start, end, color: `hsla(${hue}, 65%, 65%, 0.7)` });
-    });
+// ★本物の天文計算エンジン (メーウス法による太陽の視黄経)
+function getSolarLongitude(timeMs) {
+  let jd = timeMs / 86400000 + 2440587.5;
+  let t = (jd - 2451545.0) / 36525;
+  let l0 = 280.46646 + 36000.76983 * t + 0.0003032 * t * t;
+  let m = 357.52911 + 35999.05029 * t - 0.0001537 * t * t;
+  let rad = Math.PI / 180;
+  let c = (1.914602 - 0.004817 * t - 0.000014 * t * t) * Math.sin(m * rad)
+        + (0.019993 - 0.000101 * t) * Math.sin(2 * m * rad)
+        + 0.000289 * Math.sin(3 * m * rad);
+  let trueLon = l0 + c;
+  let omega = 125.04 - 1934.136 * t;
+  let apparentLon = trueLon - 0.00569 - 0.00478 * Math.sin(omega * rad);
+  let lon = apparentLon % 360;
+  if (lon < 0) lon += 360;
+  return lon;
+}
 
-    // 72候（約5日ごと）
-    kouNames.forEach((name, i) => {
-      const start = risshunTime + i * (yearDays / 72) * dayMs;
-      const end = risshunTime + (i + 1) * (yearDays / 72) * dayMs;
-      const hue = (80 + (Math.floor(i / 3) / 24) * 360) % 360; 
-      generatedSeasons.push({ type: 'kou', name, start, end, color: `hsla(${hue}, 50%, 80%, 0.7)` });
-    });
+// 角度に到達する正確な時間を二分探索で特定する
+function findTimeForLongitude(targetLon, left, right) {
+  while (right - left > 60000) { 
+    let mid = (left + right) / 2;
+    let midLon = getSolarLongitude(mid);
+    let diff = midLon - targetLon;
+    if (diff > 180) diff -= 360;
+    if (diff < -180) diff += 360;
+    if (diff > 0) right = mid;
+    else left = mid;
+  }
+  return left;
+}
+
+// 季節ごとの美しい色を計算
+function getSeasonColor(deg, isSekki) {
+  let t;
+  if (deg >= 315 || deg < 45) { // 春 (若草〜桜)
+    t = deg >= 315 ? (deg - 315) / 90 : (deg + 45) / 90;
+    return isSekki ? `hsl(${140 - t*90}, 60%, 75%)` : `hsl(${140 - t*90}, 40%, 88%)`;
+  } else if (deg >= 45 && deg < 135) { // 夏 (青葉〜青空)
+    t = (deg - 45) / 90;
+    return isSekki ? `hsl(${180 + t*40}, 70%, 70%)` : `hsl(${180 + t*40}, 50%, 85%)`;
+  } else if (deg >= 135 && deg < 225) { // 秋 (黄金〜紅葉)
+    t = (deg - 135) / 90;
+    return isSekki ? `hsl(${45 - t*45}, 80%, 70%)` : `hsl(${45 - t*45}, 60%, 85%)`;
+  } else { // 冬 (銀灰〜氷)
+    t = (deg - 225) / 90;
+    return isSekki ? `hsl(${220 + t*40}, 30%, 80%)` : `hsl(${220 + t*40}, 20%, 90%)`;
+  }
+}
+
+// ★暦データを生成
+function generateAstronomicalData() {
+  generatedSeasons = [];
+  let startTime = new Date(2025, 0, 1).getTime(); 
+  let endTime = new Date(2028, 0, 1).getTime(); 
+  
+  let kouPoints = [];
+  let currentTime = startTime;
+  let prevLon = getSolarLongitude(currentTime);
+  
+  while (currentTime < endTime) {
+    let nextTime = currentTime + 86400000; // 1日進める
+    let nextLon = getSolarLongitude(nextTime);
+    
+    let floorPrev = Math.floor(prevLon / 5) * 5;
+    let floorNext = Math.floor(nextLon / 5) * 5;
+    
+    if (floorPrev !== floorNext) {
+      let targetLon = (floorPrev === 355 && floorNext === 0) ? 0 : floorNext;
+      if (targetLon === 360) targetLon = 0;
+      let exactTime = findTimeForLongitude(targetLon, currentTime, nextTime);
+      kouPoints.push({ time: exactTime, lon: targetLon });
+    }
+    currentTime = nextTime;
+    prevLon = nextLon;
+  }
+
+  for (let i = 0; i < kouPoints.length - 1; i++) {
+    let p1 = kouPoints[i];
+    let p2 = kouPoints[i+1];
+    let deg = p1.lon;
+    
+    // 黄経315度（立春）を起点としたインデックス
+    let kouIndex = Math.floor(((deg - 315 + 360) % 360) / 5);
+    let kouName = kouNames[kouIndex];
+    let isSekkiStart = (deg % 15 === 0);
+    
+    let kouColor = getSeasonColor(deg, false);
+    let sekkiColor = getSeasonColor(deg, true);
+
+    generatedSeasons.push({ type: 'kou', name: kouName, start: p1.time, end: p2.time, color: kouColor });
+    
+    if (isSekkiStart && i + 3 < kouPoints.length) {
+      let sekkiIndex = Math.floor(((deg - 315 + 360) % 360) / 15);
+      let pSekkiEnd = kouPoints[i+3];
+      generatedSeasons.push({ type: 'sekki', name: sekkiNames[sekkiIndex], start: p1.time, end: pSekkiEnd.time, color: sekkiColor });
+    }
   }
 }
 
@@ -134,56 +206,46 @@ function updateCalendarCycle() {
   document.getElementById('cycleDisplay').innerHTML = `${y}年 ${m}月<br><span style="font-size:11px; color:#8b949e;">新月: ${m}月${d}日〜</span>`;
 
   drawSolarDates(startDate);
-  drawSeasonsBlocks(startDate.getTime()); // ★季節ブロックの描画
+  drawSeasonsBlocks(startDate.getTime()); 
   drawTideGraph();    
   drawDynamicLines(); 
   renderSavedData();
 }
 
-// ★二十四節気・七十二候のブロック＆文字描画エンジン
 function drawSeasonsBlocks(cycleStartTime) {
   seasonLayer.innerHTML = ""; 
   textPathDefs.innerHTML = ""; 
-
   if (concentricRings.length < 3) return;
   
   const cycleLengthMs = 30 * 86400000;
   const cycleEndTime = cycleStartTime + cycleLengthMs;
 
   generatedSeasons.forEach((season, index) => {
-    // 今の月（輪）の期間と重なっているかチェック
     if (season.end > cycleStartTime && season.start < cycleEndTime) {
-      
-      // 今の輪の中での相対的な日数を計算
       const startRelMs = Math.max(0, season.start - cycleStartTime);
       const endRelMs = Math.min(cycleLengthMs, season.end - cycleStartTime);
       
       const startDay = startRelMs / 86400000;
       const endDay = endRelMs / 86400000;
-      const spanDays = endDay - startDay; // この月での表示日数
+      const spanDays = endDay - startDay; 
       
       const startAngle = currentStartSegment * 3 + startDay * 12;
       const endAngle = currentStartSegment * 3 + endDay * 12;
       
-      // 階層の設定（1:節気, 2:候）
       const isSekki = season.type === 'sekki';
       const rIn = isSekki ? concentricRings[0] : concentricRings[1];
       const rOut = isSekki ? concentricRings[1] : concentricRings[2];
       const rMid = (rIn + rOut) / 2;
 
-      // 1. 背景色のブロックを描画（グラデーション対応）
       drawSeasonArc(rIn, rOut, startAngle, endAngle, season.color);
 
-      // 2. 文字の配置処理（指示棒かカーブ文字か）
       const midAngle = startAngle + (endAngle - startAngle) / 2;
       
       if (spanDays >= 2.0) { 
-        // 2日分以上（スペースあり）なら、ブロックに沿って美しくカーブさせる
         const pathId = `path_${season.type}_${index}`;
         const textPathArc = document.createElementNS("http://www.w3.org/2000/svg", "path");
         textPathArc.setAttribute("id", pathId);
         
-        // テキスト用の弧を生成
         const pStart = polarToCartesian(cx, cy, rMid, startAngle);
         const pEnd = polarToCartesian(cx, cy, rMid, endAngle);
         const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
@@ -193,7 +255,7 @@ function drawSeasonsBlocks(cycleStartTime) {
 
         const textEl = document.createElementNS("http://www.w3.org/2000/svg", "text");
         textEl.setAttribute("font-size", isSekki ? "12px" : "8px");
-        textEl.setAttribute("fill", "#2c3e50"); // 墨色
+        textEl.setAttribute("fill", "#2c3e50"); 
         textEl.setAttribute("font-family", "'Shippori Mincho', serif");
 
         const textPathEl = document.createElementNS("http://www.w3.org/2000/svg", "textPath");
@@ -205,31 +267,27 @@ function drawSeasonsBlocks(cycleStartTime) {
         
         textEl.appendChild(textPathEl);
         seasonLayer.appendChild(textEl);
-        
       } else {
-        // ★スペース不足（月またぎ等）：内側へ向かう上品な「指示棒」を出す
         const pStart = polarToCartesian(cx, cy, rMid, midAngle);
-        // 指示棒は内側の円（星図の邪魔にならない程度）へ引き出す
-        const pullDistance = isSekki ? 30 : 15;
+        // 重ならないよう指示棒の長さを変える
+        const pullDistance = isSekki ? 35 : 15;
         const rEnd = rIn - pullDistance; 
         const pEnd = polarToCartesian(cx, cy, rEnd, midAngle);
         
         const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
         line.setAttribute("x1", pStart.x); line.setAttribute("y1", pStart.y);
         line.setAttribute("x2", pEnd.x); line.setAttribute("y2", pEnd.y);
-        line.setAttribute("stroke", "#727171"); 
+        line.setAttribute("stroke", "#555555"); 
         line.setAttribute("stroke-width", "0.5");
         seasonLayer.appendChild(line);
         
         const textEl = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        // テキスト位置は線の終点のさらに少し内側
         const pText = polarToCartesian(cx, cy, rEnd - 5, midAngle);
         textEl.setAttribute("x", pText.x); textEl.setAttribute("y", pText.y);
         textEl.setAttribute("font-size", isSekki ? "10px" : "7px");
         textEl.setAttribute("fill", "#2c3e50");
         textEl.setAttribute("font-family", "'Shippori Mincho', serif");
         
-        // 角度によって左右のアンカーを調整
         const relAngle = midAngle % 360;
         textEl.setAttribute("text-anchor", (relAngle > 180) ? "end" : "start");
         textEl.setAttribute("dominant-baseline", "middle");
@@ -240,6 +298,7 @@ function drawSeasonsBlocks(cycleStartTime) {
   });
 }
 
+// ★パキッとした白い境界線を追加
 function drawSeasonArc(rIn, rOut, startAngle, endAngle, color) {
   const startIn = polarToCartesian(cx, cy, rIn, endAngle);
   const endIn = polarToCartesian(cx, cy, rIn, startAngle);
@@ -248,11 +307,30 @@ function drawSeasonArc(rIn, rOut, startAngle, endAngle, color) {
   const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
   const d = ["M", startOut.x, startOut.y, "A", rOut, rOut, 0, largeArcFlag, 0, endOut.x, endOut.y, "L", endIn.x, endIn.y, "A", rIn, rIn, 0, largeArcFlag, 1, startIn.x, startIn.y, "Z"].join(" ");
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path.setAttribute("d", d); path.setAttribute("fill", color);
+  path.setAttribute("d", d); 
+  path.setAttribute("fill", color);
+  path.setAttribute("stroke", "#ffffff"); // 白いフチ
+  path.setAttribute("stroke-width", "0.8");
   seasonLayer.appendChild(path);
 }
 
-// 潮汐・太線・日付・塗り等の既存機能（変更なし）
+// 動的太線（★季節ブロックをまたがないように階層3から外側へ）
+function drawDynamicLines() {
+  linesLayer.innerHTML = ""; 
+  const rMin = concentricRings[2]; // ここを0から2に変更
+  const rMax = concentricRings[concentricRings.length - 1];
+  for (let i = 0; i < 30; i++) {
+    const absoluteSegment = (currentStartSegment + i * 4) % 120;
+    const angle = absoluteSegment * 3;
+    const ptInner = polarToCartesian(cx, cy, rMin, angle);
+    const ptOuter = polarToCartesian(cx, cy, rMax, angle);
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", ptInner.x); line.setAttribute("y1", ptInner.y); line.setAttribute("x2", ptOuter.x); line.setAttribute("y2", ptOuter.y);
+    line.setAttribute("stroke", "#555555"); line.setAttribute("stroke-width", "1.5"); 
+    linesLayer.appendChild(line);
+  }
+}
+
 function drawTideGraph() {
   tideLayer.innerHTML = ""; 
   if (concentricRings.length < 23) return; 
@@ -302,21 +380,6 @@ function drawTideGraph() {
   wavePath.setAttribute("d", pathD); wavePath.setAttribute("fill", "none");
   wavePath.setAttribute("stroke", "#3b82f6"); wavePath.setAttribute("stroke-width", "1.5");
   tideLayer.appendChild(wavePath);
-}
-
-function drawDynamicLines() {
-  linesLayer.innerHTML = ""; 
-  const rMin = concentricRings[0]; const rMax = concentricRings[concentricRings.length - 1];
-  for (let i = 0; i < 30; i++) {
-    const absoluteSegment = (currentStartSegment + i * 4) % 120;
-    const angle = absoluteSegment * 3;
-    const ptInner = polarToCartesian(cx, cy, rMin, angle);
-    const ptOuter = polarToCartesian(cx, cy, rMax, angle);
-    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("x1", ptInner.x); line.setAttribute("y1", ptInner.y); line.setAttribute("x2", ptOuter.x); line.setAttribute("y2", ptOuter.y);
-    line.setAttribute("stroke", "#555555"); line.setAttribute("stroke-width", "1.5"); 
-    linesLayer.appendChild(line);
-  }
 }
 
 function drawSolarDates(startDate) {
@@ -430,7 +493,6 @@ function initInteractions() {
       svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
       startPos = { x: e.clientX, y: e.clientY };
     }
-
     const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
     const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
     const dx = svgP.x - cx, dy = svgP.y - cy;
@@ -466,14 +528,9 @@ function initInteractions() {
     if (!ringInfo) return;
 
     const cellKey = `c${currentCycle}_abs${absSegment}_${ringInfo.layerId}`;
-
-    if (activeBrush === "erase") {
-      delete calendarData[cellKey];
-    } else {
-      calendarData[cellKey] = {
-        color: activeBrush, absSegment: absSegment,
-        rIn: ringInfo.rIn, rOut: ringInfo.rOut
-      };
+    if (activeBrush === "erase") delete calendarData[cellKey];
+    else {
+      calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
     }
     
     localStorage.setItem('polarCalendarDataV5', JSON.stringify(calendarData));
