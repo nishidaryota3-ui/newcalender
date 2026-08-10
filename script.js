@@ -1,4 +1,4 @@
-// script.js (文字下線の完全隠蔽 ＆ 潮汐グラフ円周カット・塗りつぶし対応版)
+// script.js (レイヤー完全修正・太線追加・タイドチャート分離版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
@@ -67,17 +67,14 @@ fetch('calendar.svg')
     });
     concentricRings = [...new Set(radii)].sort((a, b) => a - b);
 
+    // ★レイヤー順序の完全修正（すべて appendChild で手前に追加）
     textPathDefs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
     textPathDefs.setAttribute("id", "text-path-defs");
-    svg.insertBefore(textPathDefs, svg.firstChild);
-
-    seasonLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    seasonLayer.setAttribute("id", "season-layer");
-    svg.insertBefore(seasonLayer, svg.firstChild.nextSibling);
+    svg.appendChild(textPathDefs);
 
     dataLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     dataLayer.setAttribute("id", "data-layer");
-    svg.insertBefore(dataLayer, seasonLayer.nextSibling);
+    svg.appendChild(dataLayer);
 
     tideLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     tideLayer.setAttribute("id", "tide-layer");
@@ -86,6 +83,11 @@ fetch('calendar.svg')
     linesLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     linesLayer.setAttribute("id", "dynamic-lines-layer");
     svg.appendChild(linesLayer);
+
+    // 季節レイヤーを一番最後（最前面）に追加して、下の線を完全に隠す
+    seasonLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    seasonLayer.setAttribute("id", "season-layer");
+    svg.appendChild(seasonLayer);
 
     generateAstronomicalData();
     updateCalendarCycle();
@@ -123,7 +125,6 @@ function findTimeForLongitude(targetLon, left, right) {
   return left;
 }
 
-// 不透明度の高いソリッドな四季カラーを返す（下の線を隠すため）
 function getSeasonColor(deg, isSekki) {
   let t;
   if (deg >= 315 || deg < 45) { 
@@ -228,7 +229,6 @@ function drawSeasonsBlocks(cycleStartTime) {
       const rOut = isSekki ? concentricRings[1] : concentricRings[2];
       const rMid = (rIn + rOut) / 2;
 
-      // 下の線を隠す不透明なブロックを描画
       drawSeasonArc(rIn, rOut, startAngle, endAngle, season.color);
 
       const midAngle = startAngle + (endAngle - startAngle) / 2;
@@ -262,7 +262,7 @@ function drawSeasonsBlocks(cycleStartTime) {
       } else {
         const pStart = polarToCartesian(cx, cy, rMid, midAngle);
         const pullDistance = isSekki ? 35 : 15;
-        const rEnd = rIn - pullDistance; 
+        const rEnd = concentricRings[0] - pullDistance; 
         const pEnd = polarToCartesian(cx, cy, rEnd, midAngle);
         
         const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
@@ -304,7 +304,7 @@ function drawSeasonArc(rIn, rOut, startAngle, endAngle, color) {
   seasonLayer.appendChild(path);
 }
 
-// ★潮汐グラフ描画エンジン（無理な結合を解消し、美しく0度でカット＆面塗り可能に改修）
+// ★無理な接続(面)をやめて、純粋な波のパスだけを描画
 function drawTideGraph() {
   tideLayer.innerHTML = ""; 
   if (concentricRings.length < 23) return; 
@@ -333,12 +333,8 @@ function drawTideGraph() {
 
   let pathD = "";
   const resolution = 10; 
-  const totalHours = 720; // 30日分
-  
-  // スタート地点とラスト地点の座標を記録する変数
-  let startPtWave = null, endPtWave = null;
+  const totalHours = 720;
   const startAngle = currentStartSegment * 3;
-  const endAngle = startAngle + 360;
 
   for (let i = 0; i <= totalHours * resolution; i++) {
     const t = i / resolution; 
@@ -358,30 +354,14 @@ function drawTideGraph() {
     
     if (i === 0) {
       pathD += `M ${pt.x},${pt.y} `;
-      startPtWave = pt;
     } else {
       pathD += `L ${pt.x},${pt.y} `;
     }
-    if (i === totalHours * resolution) endPtWave = pt;
   }
 
-  // ★将来的な「波の下の面塗り」に対応したパスの追加（現在は透明度を持たせた水色）
-  const baseR = rMin + (rMax - rMin) * ((0 - minTide) / range); // 0ft線をベースにする
-  const pStartBase = polarToCartesian(cx, cy, baseR, startAngle);
-  const pEndBase = polarToCartesian(cx, cy, baseR, endAngle);
-
-  // 面を作るためのクローズドパス
-  const fillD = pathD + `L ${pEndBase.x},${pEndBase.y} A ${baseR} ${baseR} 0 1 0 ${pStartBase.x} ${pStartBase.y} Z`;
-
-  const fillArea = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  fillArea.setAttribute("d", fillD);
-  fillArea.setAttribute("fill", "rgba(59, 130, 246, 0.15)"); // うっすらとした水色の面塗り
-  tideLayer.appendChild(fillArea);
-
-  // 波の主線
   const wavePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   wavePath.setAttribute("d", pathD); 
-  wavePath.setAttribute("fill", "none");
+  wavePath.setAttribute("fill", "none"); // 塗りを一旦解除
   wavePath.setAttribute("stroke", "#3b82f6"); 
   wavePath.setAttribute("stroke-width", "1.5");
   tideLayer.appendChild(wavePath);
@@ -391,6 +371,26 @@ function drawDynamicLines() {
   linesLayer.innerHTML = ""; 
   const rMin = concentricRings[2]; 
   const rMax = concentricRings[concentricRings.length - 1];
+  
+  // ★階層1の内側に太線を引く
+  const ring1 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  ring1.setAttribute("cx", cx); ring1.setAttribute("cy", cy);
+  ring1.setAttribute("r", concentricRings[0]);
+  ring1.setAttribute("fill", "none");
+  ring1.setAttribute("stroke", "#555555");
+  ring1.setAttribute("stroke-width", "1.5");
+  linesLayer.appendChild(ring1);
+
+  // ★階層3の内側に太線を引く
+  const ring3 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  ring3.setAttribute("cx", cx); ring3.setAttribute("cy", cy);
+  ring3.setAttribute("r", concentricRings[2]);
+  ring3.setAttribute("fill", "none");
+  ring3.setAttribute("stroke", "#555555");
+  ring3.setAttribute("stroke-width", "1.5");
+  linesLayer.appendChild(ring3);
+
+  // 1日ごとの区切り線
   for (let i = 0; i < 30; i++) {
     const absoluteSegment = (currentStartSegment + i * 4) % 120;
     const angle = absoluteSegment * 3;
