@@ -1,9 +1,9 @@
-// script.js (正確な線上配置・白フチ視認性向上・6分割対応版)
+// script.js (中心リセット・暦の外周配置・レイヤー完全修正版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
 
-let svg, dataLayer, linesLayer, tideLayer, seasonLayer, textPathDefs;
+let svg, dataLayer, linesLayer, tideLayer, outerSeasonLayer;
 let viewBox = { x: 0, y: 0, w: 1841.3719, h: 2382.9518 };
 const cx = 920.6859;
 const cy = 1191.4759;
@@ -89,25 +89,22 @@ fetch('calendar.svg')
     });
     concentricRings = [...new Set(radii)].sort((a, b) => a - b);
 
-    textPathDefs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-    textPathDefs.setAttribute("id", "text-path-defs");
-    svg.appendChild(textPathDefs);
-
+    // ★レイヤー順序：線を先に、その上に潮汐（ラベル等）を描画する
     dataLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     dataLayer.setAttribute("id", "data-layer");
     svg.appendChild(dataLayer);
 
-    tideLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    tideLayer.setAttribute("id", "tide-layer");
-    svg.appendChild(tideLayer);
-
     linesLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     linesLayer.setAttribute("id", "dynamic-lines-layer");
-    svg.appendChild(linesLayer);
+    svg.appendChild(linesLayer); // ★線が下
 
-    seasonLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    seasonLayer.setAttribute("id", "season-layer");
-    svg.appendChild(seasonLayer);
+    tideLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    tideLayer.setAttribute("id", "tide-layer");
+    svg.appendChild(tideLayer);  // ★潮汐（ラベル）が上になる
+
+    outerSeasonLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    outerSeasonLayer.setAttribute("id", "outer-season-layer");
+    svg.appendChild(outerSeasonLayer); // ★外周の暦が一番上
 
     generateAstronomicalData();
     updateCalendarCycle();
@@ -115,6 +112,7 @@ fetch('calendar.svg')
   })
   .catch(err => console.error("SVG読み込みエラー:", err));
 
+// --- 天文計算エンジン（変更なし・正確な時間を算出） ---
 function getSolarLongitude(timeMs) {
   let jd = timeMs / 86400000 + 2440587.5;
   let t = (jd - 2451545.0) / 36525;
@@ -145,23 +143,6 @@ function findTimeForLongitude(targetLon, left, right) {
   return left;
 }
 
-function getSeasonColor(deg, isSekki) {
-  let t;
-  if (deg >= 315 || deg < 45) { 
-    t = deg >= 315 ? (deg - 315) / 90 : (deg + 45) / 90;
-    return isSekki ? `hsl(${140 - t*90}, 55%, 82%)` : `hsl(${140 - t*90}, 45%, 92%)`;
-  } else if (deg >= 45 && deg < 135) { 
-    t = (deg - 45) / 90;
-    return isSekki ? `hsl(${180 + t*40}, 65%, 78%)` : `hsl(${180 + t*40}, 50%, 90%)`;
-  } else if (deg >= 135 && deg < 225) { 
-    t = (deg - 135) / 90;
-    return isSekki ? `hsl(${45 - t*45}, 75%, 78%)` : `hsl(${45 - t*45}, 55%, 90%)`;
-  } else { 
-    t = (deg - 225) / 90;
-    return isSekki ? `hsl(${220 + t*40}, 35%, 85%)` : `hsl(${220 + t*40}, 25%, 94%)`;
-  }
-}
-
 function generateAstronomicalData() {
   generatedSeasons = [];
   let startTime = new Date(2025, 0, 1).getTime(); 
@@ -188,21 +169,16 @@ function generateAstronomicalData() {
 
   for (let i = 0; i < kouPoints.length - 1; i++) {
     let p1 = kouPoints[i];
-    let p2 = kouPoints[i+1];
     let deg = p1.lon;
     let kouIndex = Math.floor(((deg - 315 + 360) % 360) / 5);
     let kouName = kouNames[kouIndex];
     let isSekkiStart = (deg % 15 === 0);
-    
-    let kouColor = getSeasonColor(deg, false);
-    let sekkiColor = getSeasonColor(deg, true);
 
-    generatedSeasons.push({ type: 'kou', name: kouName, start: p1.time, end: p2.time, color: kouColor });
+    generatedSeasons.push({ type: 'kou', name: kouName, start: p1.time });
     
-    if (isSekkiStart && i + 3 < kouPoints.length) {
+    if (isSekkiStart) {
       let sekkiIndex = Math.floor(((deg - 315 + 360) % 360) / 15);
-      let pSekkiEnd = kouPoints[i+3];
-      generatedSeasons.push({ type: 'sekki', name: sekkiNames[sekkiIndex], start: p1.time, end: pSekkiEnd.time, color: sekkiColor });
+      generatedSeasons.push({ type: 'sekki', name: sekkiNames[sekkiIndex], start: p1.time });
     }
   }
 }
@@ -219,13 +195,83 @@ function updateCalendarCycle() {
 
   drawSolarDates(startDate);
   drawTimeLabels(); 
-  drawSeasonsBlocks(startDate.getTime()); 
-  drawTideGraph();    
-  drawDynamicLines(); 
+  drawOuterSeasons(startDate.getTime()); // ★外周への暦描画
+  drawDynamicLines(); // 先に線を引く
+  drawTideGraph();    // その後に潮汐（ラベルが線の上に重なる）
   renderSavedData();
 }
 
-// ★修正：時間目盛りを「正確に線上」に配置し、白フチ（Halo）を適用
+// ★新規：二十四節気と七十二候を外周にピンポイントで配置する
+function drawOuterSeasons(cycleStartTime) {
+  outerSeasonLayer.innerHTML = ""; 
+  if (concentricRings.length === 0) return;
+  
+  const cycleLengthMs = 30 * 86400000;
+  const cycleEndTime = cycleStartTime + cycleLengthMs;
+  const rMax = concentricRings[concentricRings.length - 1]; // 一番外側の円
+
+  generatedSeasons.forEach((season) => {
+    // 今の月（輪）の中でスタートする暦だけを描画
+    if (season.start >= cycleStartTime && season.start < cycleEndTime) {
+      const startRelMs = season.start - cycleStartTime;
+      const startDay = startRelMs / 86400000;
+      
+      // スタートの瞬間（時間・分）を正確な角度に変換
+      const angle = currentStartSegment * 3 + startDay * 12;
+      const isSekki = season.type === 'sekki';
+
+      // 1. 外周からの目印線（Tick）
+      const p1 = polarToCartesian(cx, cy, rMax, angle);
+      const p2 = polarToCartesian(cx, cy, rMax + (isSekki ? 6 : 4), angle);
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", p1.x); line.setAttribute("y1", p1.y);
+      line.setAttribute("x2", p2.x); line.setAttribute("y2", p2.y);
+      line.setAttribute("stroke", isSekki ? "#2c3e50" : "#888888");
+      line.setAttribute("stroke-width", isSekki ? "1" : "0.5");
+      outerSeasonLayer.appendChild(line);
+
+      // 2. 文字の配置
+      // 二十四節気は近く（rMax+10）、七十二候は少し遠く（rMax+35）に配置して重なりを防ぐ
+      const rText = rMax + (isSekki ? 10 : 35); 
+      const ptText = polarToCartesian(cx, cy, rText, angle);
+      
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      text.setAttribute("fill", isSekki ? "#2c3e50" : "#666666"); 
+      text.setAttribute("font-size", isSekki ? "11px" : "9px");
+      if (isSekki) text.setAttribute("font-weight", "bold");
+      text.setAttribute("font-family", "'Shippori Mincho', serif");
+      text.setAttribute("dominant-baseline", "middle");
+      
+      // 逆さま回避の文字反転処理
+      let relAngle = angle % 360;
+      if (relAngle < 0) relAngle += 360;
+      
+      if (relAngle > 90 && relAngle < 270) {
+        text.setAttribute("text-anchor", "end");
+        text.setAttribute("transform", `rotate(${angle - 180}, ${ptText.x}, ${ptText.y})`);
+        text.setAttribute("x", ptText.x);
+        text.setAttribute("y", ptText.y);
+      } else {
+        text.setAttribute("text-anchor", "start");
+        text.setAttribute("transform", `rotate(${angle}, ${ptText.x}, ${ptText.y})`);
+        text.setAttribute("x", ptText.x);
+        text.setAttribute("y", ptText.y);
+      }
+      text.textContent = season.name;
+      
+      // 白フチ効果（Halo）
+      const halo = text.cloneNode(true);
+      halo.setAttribute("stroke", "rgba(255, 255, 255, 0.9)");
+      halo.setAttribute("stroke-width", "3");
+      halo.setAttribute("stroke-linejoin", "round");
+      halo.setAttribute("fill", "none");
+      
+      outerSeasonLayer.appendChild(halo);
+      outerSeasonLayer.appendChild(text);
+    }
+  });
+}
+
 function drawTimeLabels() {
   let timeLayer = document.getElementById("time-labels-layer");
   if(timeLayer) { timeLayer.innerHTML = ""; } 
@@ -243,7 +289,6 @@ function drawTimeLabels() {
 
   for (let i = 0; i < 120; i++) {
     const absoluteSegment = (currentStartSegment + i) % 120;
-    // ★ +1.5 を削除し、正確に線の上（0度, 3度, 6度...）に配置
     const angle = absoluteSegment * 3;
     
     const ptTime = polarToCartesian(cx, cy, rMidTime, angle);
@@ -252,7 +297,7 @@ function drawTimeLabels() {
     textTime.setAttribute("y", ptTime.y);
     textTime.setAttribute("text-anchor", "middle"); 
     textTime.setAttribute("dominant-baseline", "central");
-    textTime.setAttribute("fill", "#666666"); // 線上で目立つよう少し濃いグレーに
+    textTime.setAttribute("fill", "#666666"); 
     textTime.setAttribute("font-size", "7px");
     textTime.setAttribute("font-family", "'Shippori Mincho', serif");
     
@@ -266,119 +311,17 @@ function drawTimeLabels() {
     
     textTime.textContent = timeStr[i % 4];
 
-    // ★白フチ（Halo）を生成して線の影響をカット
     const haloTime = textTime.cloneNode(true);
-    haloTime.setAttribute("stroke", "rgba(255, 255, 255, 0.95)"); // ほぼ不透明の白
+    haloTime.setAttribute("stroke", "rgba(255, 255, 255, 0.95)");
     haloTime.setAttribute("stroke-width", "3");
     haloTime.setAttribute("stroke-linejoin", "round");
     haloTime.setAttribute("fill", "none");
 
-    timeLayer.appendChild(haloTime); // 先にフチを描画
-    timeLayer.appendChild(textTime); // その上に文字を描画
+    timeLayer.appendChild(haloTime); 
+    timeLayer.appendChild(textTime); 
   }
 }
 
-function drawSeasonsBlocks(cycleStartTime) {
-  seasonLayer.innerHTML = ""; 
-  textPathDefs.innerHTML = ""; 
-  if (concentricRings.length < 3) return;
-  
-  const cycleLengthMs = 30 * 86400000;
-  const cycleEndTime = cycleStartTime + cycleLengthMs;
-
-  generatedSeasons.forEach((season, index) => {
-    if (season.end > cycleStartTime && season.start < cycleEndTime) {
-      const startRelMs = Math.max(0, season.start - cycleStartTime);
-      const endRelMs = Math.min(cycleLengthMs, season.end - cycleStartTime);
-      
-      const startDay = startRelMs / 86400000;
-      const endDay = endRelMs / 86400000;
-      const spanDays = endDay - startDay; 
-      
-      const startAngle = currentStartSegment * 3 + startDay * 12;
-      const endAngle = currentStartSegment * 3 + endDay * 12;
-      
-      const isSekki = season.type === 'sekki';
-      const rIn = isSekki ? concentricRings[0] : concentricRings[1];
-      const rOut = isSekki ? concentricRings[1] : concentricRings[2];
-      const rMid = (rIn + rOut) / 2;
-
-      drawSeasonArc(rIn, rOut, startAngle, endAngle, season.color);
-
-      const midAngle = startAngle + (endAngle - startAngle) / 2;
-      
-      if (spanDays >= 2.0) { 
-        const pathId = `path_${season.type}_${index}`;
-        const textPathArc = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        textPathArc.setAttribute("id", pathId);
-        
-        const pStart = polarToCartesian(cx, cy, rMid, startAngle);
-        const pEnd = polarToCartesian(cx, cy, rMid, endAngle);
-        const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-        const d = `M ${pStart.x} ${pStart.y} A ${rMid} ${rMid} 0 ${largeArcFlag} 1 ${pEnd.x} ${pEnd.y}`;
-        textPathArc.setAttribute("d", d);
-        textPathDefs.appendChild(textPathArc);
-
-        const textEl = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        textEl.setAttribute("font-size", isSekki ? "12px" : "8px");
-        textEl.setAttribute("fill", "#2c3e50"); 
-        textEl.setAttribute("font-family", "'Shippori Mincho', serif");
-
-        const textPathEl = document.createElementNS("http://www.w3.org/2000/svg", "textPath");
-        textPathEl.setAttribute("href", "#" + pathId);
-        textPathEl.setAttribute("startOffset", "50%");
-        textPathEl.setAttribute("text-anchor", "middle");
-        textPathEl.setAttribute("dominant-baseline", "central");
-        textPathEl.textContent = season.name;
-        
-        textEl.appendChild(textPathEl);
-        seasonLayer.appendChild(textEl);
-      } else {
-        const pStart = polarToCartesian(cx, cy, rMid, midAngle);
-        const pullDistance = isSekki ? 35 : 15;
-        const rEnd = concentricRings[0] - pullDistance; 
-        const pEnd = polarToCartesian(cx, cy, rEnd, midAngle);
-        
-        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        line.setAttribute("x1", pStart.x); line.setAttribute("y1", pStart.y);
-        line.setAttribute("x2", pEnd.x); line.setAttribute("y2", pEnd.y);
-        line.setAttribute("stroke", "#555555"); 
-        line.setAttribute("stroke-width", "0.5");
-        seasonLayer.appendChild(line);
-        
-        const textEl = document.createElementNS("http://www.w3.org/2000/svg", "text");
-        const pText = polarToCartesian(cx, cy, rEnd - 5, midAngle);
-        textEl.setAttribute("x", pText.x); textEl.setAttribute("y", pText.y);
-        textEl.setAttribute("font-size", isSekki ? "10px" : "7px");
-        textEl.setAttribute("fill", "#2c3e50");
-        textEl.setAttribute("font-family", "'Shippori Mincho', serif");
-        
-        const relAngle = midAngle % 360;
-        textEl.setAttribute("text-anchor", (relAngle > 180) ? "end" : "start");
-        textEl.setAttribute("dominant-baseline", "middle");
-        textEl.textContent = season.name;
-        seasonLayer.appendChild(textEl);
-      }
-    }
-  });
-}
-
-function drawSeasonArc(rIn, rOut, startAngle, endAngle, color) {
-  const startIn = polarToCartesian(cx, cy, rIn, endAngle);
-  const endIn = polarToCartesian(cx, cy, rIn, startAngle);
-  const startOut = polarToCartesian(cx, cy, rOut, endAngle);
-  const endOut = polarToCartesian(cx, cy, rOut, startAngle);
-  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-  const d = ["M", startOut.x, startOut.y, "A", rOut, rOut, 0, largeArcFlag, 0, endOut.x, endOut.y, "L", endIn.x, endIn.y, "A", rIn, rIn, 0, largeArcFlag, 1, startIn.x, startIn.y, "Z"].join(" ");
-  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path.setAttribute("d", d); 
-  path.setAttribute("fill", color);
-  path.setAttribute("stroke", "#ffffff"); 
-  path.setAttribute("stroke-width", "0.8");
-  seasonLayer.appendChild(path);
-}
-
-// ★修正：潮汐目盛りを6分割（5日ごと）にし、正確な線上（太線）に配置・白フチ適用
 function drawTideGraph() {
   tideLayer.innerHTML = ""; 
   if (concentricRings.length < 23) return; 
@@ -395,7 +338,6 @@ function drawTideGraph() {
     circle.setAttribute("stroke-width", "0.5"); circle.setAttribute("stroke-dasharray", "4,4"); 
     tideLayer.appendChild(circle);
     
-    // ★6分割（360度 / 6 = 60度）に変更。60度は正確に5日分のマス（太線）と一致
     for(let i = 0; i < 6; i++) {
       const labelAngle = currentStartSegment * 3 + (i * 60); 
       const labelPt = polarToCartesian(cx, cy, r, labelAngle); 
@@ -412,7 +354,6 @@ function drawTideGraph() {
       let relAngle = labelAngle % 360;
       if (relAngle < 0) relAngle += 360;
       
-      // 文字の反転処理（上下）
       if (relAngle > 90 && relAngle < 270) {
         text.setAttribute("transform", `rotate(${labelAngle - 180}, ${labelPt.x}, ${labelPt.y})`);
       } else {
@@ -421,7 +362,6 @@ function drawTideGraph() {
       
       text.textContent = ft + "ft";
 
-      // ★白フチ（Halo）を生成して太線と点線をカット
       const halo = text.cloneNode(true);
       halo.setAttribute("stroke", "rgba(255, 255, 255, 0.95)");
       halo.setAttribute("stroke-width", "3");
@@ -475,27 +415,12 @@ function drawTideGraph() {
   tideLayer.appendChild(wavePath);
 }
 
+// ★修正：中心リセット（階層0からの線を復活）
 function drawDynamicLines() {
   linesLayer.innerHTML = ""; 
-  const rMin = concentricRings[2]; 
+  const rMin = concentricRings[0]; // 中心まで線を戻す
   const rMax = concentricRings[concentricRings.length - 1];
   
-  const ring1 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-  ring1.setAttribute("cx", cx); ring1.setAttribute("cy", cy);
-  ring1.setAttribute("r", concentricRings[0]);
-  ring1.setAttribute("fill", "none");
-  ring1.setAttribute("stroke", "#555555");
-  ring1.setAttribute("stroke-width", "1.5");
-  linesLayer.appendChild(ring1);
-
-  const ring3 = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-  ring3.setAttribute("cx", cx); ring3.setAttribute("cy", cy);
-  ring3.setAttribute("r", concentricRings[2]);
-  ring3.setAttribute("fill", "none");
-  ring3.setAttribute("stroke", "#555555");
-  ring3.setAttribute("stroke-width", "1.5");
-  linesLayer.appendChild(ring3);
-
   const ringDateInner = document.createElementNS("http://www.w3.org/2000/svg", "circle");
   ringDateInner.setAttribute("cx", cx); ringDateInner.setAttribute("cy", cy);
   ringDateInner.setAttribute("r", concentricRings[concentricRings.length - 2]);
