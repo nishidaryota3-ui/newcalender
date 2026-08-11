@@ -1,4 +1,4 @@
-// script.js (雨量グラフ逆転チャレンジ版)
+// script.js (雨の目盛り外側向き対応・最新版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
@@ -14,7 +14,7 @@ let currentTool = 'pointer';
 let interactionMode = 'pan'; 
 let activeBrush = "#38bdf8"; 
 let globalRotation = 0; 
-let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV14')) || {};
+let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV15')) || {};
 let concentricRings = []; 
 
 const PALAU_LAT = 7.34;
@@ -191,7 +191,7 @@ function initUI() {
             for (const key in calendarData) {
                 if (key.startsWith(`c${currentCycle}_`) && calendarData[key].color === activeBrush) delete calendarData[key];
             }
-            localStorage.setItem('polarCalendarDataV14', JSON.stringify(calendarData));
+            localStorage.setItem('polarCalendarDataV15', JSON.stringify(calendarData));
             renderSavedData();
         }
     };
@@ -422,7 +422,6 @@ function drawTideGraph() {
   });
 }
 
-// ★修正：雨グラフの逆さま描画（外側のrMaxが0mm、内側のrMinが30mm）
 function drawRainfallGraph() {
   rainfallLayer.innerHTML = "";
   if (concentricRings.length < 23) return;
@@ -431,7 +430,6 @@ function drawRainfallGraph() {
   const rMax = concentricRings[22]; 
   const maxRain = 30; 
   
-  // 0mmの基準線を一番外側(rMax)に描画
   const circle = document.createElementNS(svgNS, "circle");
   circle.setAttribute("cx", cx); circle.setAttribute("cy", cy); circle.setAttribute("r", rMax);
   circle.setAttribute("fill", "none"); 
@@ -451,7 +449,6 @@ function drawRainfallGraph() {
 
     if (rain > 0) {
       const displayRain = rain; 
-      // ★外側(rMax)から内側へ向かって計算
       const r = rMax - (rMax - rMin) * (displayRain / maxRain);
       const angle = startAngle + h * 0.5 + 0.25; 
       const p1 = polarToCartesian(cx, cy, rMax, angle);
@@ -469,7 +466,6 @@ function drawRainfallGraph() {
   const labelRelAngle = 96; 
   const labelAngle = startAngle + labelRelAngle;
   
-  // 目盛りも外側基準で逆さまに配置
   [5, 10, 15, 20, 25, 30].forEach(val => {
       const r = rMax - (rMax - rMin) * (val / maxRain);
       const p1 = polarToCartesian(cx, cy, r - 3, labelAngle);
@@ -490,7 +486,8 @@ function drawRainfallGraph() {
       text.setAttribute("font-size", "7px");
       text.setAttribute("font-family", "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif");
       text.setAttribute("font-weight", "bold");
-      text.setAttribute("transform", `rotate(${labelAngle}, ${ptLabel.x}, ${ptLabel.y})`);
+      // ★修正：円の外側に立って正立して読めるように180度回転を追加
+      text.setAttribute("transform", `rotate(${labelAngle + 180}, ${ptLabel.x}, ${ptLabel.y})`);
       text.textContent = val + "mm";
 
       const halo = text.cloneNode(true);
@@ -807,12 +804,10 @@ function drawOuterSeasons(cycleStartTime) {
       line.setAttribute("stroke-width", isSekki ? "1.5" : "0.5");
       outerSeasonLayer.appendChild(line);
 
-      // ★文字の間隔調整 (72候は20px、24節気は45px離す)
       const rText = rMax + (isSekki ? 45 : 20); 
       const ptText = polarToCartesian(cx, cy, rText, angle);
       
       const text = document.createElementNS(svgNS, "text");
-      // ★色を濃紺に統一、フォントを19pt(節気) / 14pt(候)に。
       text.setAttribute("fill", "#2c3e50"); 
       text.setAttribute("font-size", isSekki ? "19px" : "14px"); 
       if (isSekki) text.setAttribute("font-weight", "bold");
@@ -980,7 +975,7 @@ function initInteractions() {
   window.addEventListener('mouseup', () => { 
     isInteractionActive = false;
     if (currentTool === 'pointer') container.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize'; 
-    localStorage.setItem('polarCalendarDataV14', JSON.stringify(calendarData));
+    localStorage.setItem('polarCalendarDataV15', JSON.stringify(calendarData));
   });
 
   svg.addEventListener('click', (e) => {
@@ -1001,7 +996,7 @@ function initInteractions() {
       calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
     }
     
-    localStorage.setItem('polarCalendarDataV14', JSON.stringify(calendarData));
+    localStorage.setItem('polarCalendarDataV15', JSON.stringify(calendarData));
     renderSavedData();
   });
 }
