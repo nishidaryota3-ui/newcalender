@@ -1,4 +1,4 @@
-// script.js (閏月の完全自動判定・天文学的旧暦アルゴリズム搭載版)
+// script.js (ツール切り替えUI・カラーパレット・潮汐自動計算エンジン搭載版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
@@ -7,10 +7,14 @@ let svg, masterGroup, dataLayer, shadowLayer, linesLayer, rainfallLayer, tideLay
 let viewBox = { x: 0, y: 0, w: 1841.3719, h: 2382.9518 };
 const cx = 920.6859;
 const cy = 1191.4759;
+
+// --- ツール＆操作ステータス ---
+let currentTool = 'pointer'; // 'pointer', 'paint', 'erase'
 let activeBrush = "#38bdf8"; 
 let globalRotation = 0; 
+let interactionMode = 'pan'; // 'pan' または 'rotate'
 
-let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV5')) || {};
+let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV6')) || {};
 let concentricRings = []; 
 
 const baseDate = new Date(2026, 7, 13);
@@ -20,74 +24,130 @@ let currentStartSegment = 0;
 
 const sekkiNames = "立春,雨水,啓蟄,春分,清明,穀雨,立夏,小満,芒種,夏至,小暑,大暑,立秋,処暑,白露,秋分,寒露,霜降,立冬,小雪,大雪,冬至,小寒,大寒".split(',');
 const kouNames = "東風解凍,黄鶯睍睆,魚上氷,土脉潤起,霞始靆,草木萠動,蟄虫啓戸,桃始笑,菜虫化蝶,雀始巣,桜始開,雷乃発声,玄鳥至,雁音北,虹始見,葭始生,霜止出苗,牡丹華,蛙始鳴,蚯蚓出,竹笋生,蚕起食桑,紅花栄,麦秋至,螳螂生,鵙乃鳴,梅子黄,乃東枯,菖蒲華,半夏生,温風至,蓮始開,鷹乃学習,桐始結花,土潤溽暑,大雨時行,涼風至,寒蝉鳴,蒙霧升降,綿柎開,天地始粛,禾乃登,草露白,鶺鴒鳴,玄鳥去,雷乃収声,蟄虫坏戸,水始涸,鴻雁来,菊花開,蟋蟀在戸,霜始降,霎時施,楓蔦黄,山茶始開,地始凍,金盞香,虹蔵不見,朔風払葉,橘始黄,閉塞成冬,熊蟄穴,鱖魚群,乃東生,麋角解,雪下出麦,芹乃栄,水泉動,雉始雊,款冬華,水沢腹堅,鶏始乳".split(',');
-
 const wafuNames = ["睦月", "如月", "弥生", "卯月", "皐月", "水無月", "文月", "葉月", "長月", "神無月", "霜月", "師走"];
 
 let generatedSeasons = []; 
 
-const realTideData = [
-  { day: 1, time: "04:12", tide: 6.2 }, { day: 1, time: "10:30", tide: -0.1 },
-  { day: 1, time: "16:45", tide: 6.5 }, { day: 1, time: "23:05", tide: 0.2 },
-  { day: 2, time: "05:05", tide: 6.0 }, { day: 2, time: "11:20", tide: 0.0 },
-  { day: 2, time: "17:35", tide: 6.4 }, { day: 2, time: "23:55", tide: 0.4 },
-  { day: 3, time: "06:00", tide: 5.8 }, { day: 3, time: "12:15", tide: 0.2 },
-  { day: 3, time: "18:30", tide: 6.2 }, { day: 4, time: "00:50", tide: 0.6 },
-  { day: 4, time: "06:55", tide: 5.5 }, { day: 4, time: "13:10", tide: 0.5 },
-  { day: 4, time: "19:25", tide: 6.0 }
-];
-const tidePoints = realTideData.map(d => {
-  const [hh, mm] = d.time.split(':').map(Number);
-  const hours = (d.day - 1) * 24 + hh + (mm / 60);
-  return { t: hours, h: d.tide };
-});
+// --- UIコントロールの生成 ---
+function initUI() {
+    // 既存のUIがあれば削除（ホットリロード対策）
+    document.querySelectorAll('.panel-ui').forEach(el => el.remove());
 
-const navDiv = document.createElement('div');
-navDiv.style = "position:fixed; top:30px; right:30px; background:rgba(25,30,40,0.85); padding:15px; border-radius:12px; color:#d4af37; z-index:100; display:flex; gap:15px; align-items:center; border: 1px solid rgba(212,175,55,0.3); backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.2);";
-navDiv.innerHTML = `
-  <button id="prevBtn" style="background:transparent; border:1px solid #d4af37; color:#d4af37; padding:5px 10px; cursor:pointer; border-radius:4px;">◀ 過去の輪へ</button>
-  <div id="cycleDisplay" style="font-weight:bold; font-size:14px; text-align:center; min-width:140px;">--</div>
-  <button id="nextBtn" style="background:#d4af37; border:none; color:#000; padding:5px 10px; cursor:pointer; border-radius:4px; font-weight:bold;">次の輪へ ▶</button>
-`;
-document.body.appendChild(navDiv);
+    // 1. ナビゲーションパネル
+    const navDiv = document.createElement('div');
+    navDiv.className = 'panel-ui';
+    navDiv.style = "position:fixed; top:30px; right:30px; background:rgba(25,30,40,0.85); padding:15px; border-radius:12px; color:#d4af37; z-index:100; display:flex; gap:15px; align-items:center; border: 1px solid rgba(212,175,55,0.3); backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.2);";
+    navDiv.innerHTML = `
+      <button id="prevBtn" style="background:transparent; border:1px solid #d4af37; color:#d4af37; padding:5px 10px; cursor:pointer; border-radius:4px; transition:0.2s;">◀ 過去の輪へ</button>
+      <div id="cycleDisplay" style="font-weight:bold; font-size:14px; text-align:center; min-width:140px;">--</div>
+      <button id="nextBtn" style="background:#d4af37; border:none; color:#000; padding:5px 10px; cursor:pointer; border-radius:4px; font-weight:bold; transition:0.2s;">次の輪へ ▶</button>
+    `;
+    document.body.appendChild(navDiv);
 
-const clearBtn = document.createElement('button');
-clearBtn.innerHTML = "🧹 選択中の色をクリア";
-clearBtn.style = "position:fixed; bottom:30px; right:30px; background:rgba(25,30,40,0.85); color:#fff; border:1px solid rgba(255,255,255,0.2); padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:bold; backdrop-filter:blur(10px); z-index:100; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition:0.2s;";
-document.body.appendChild(clearBtn);
+    // 2. ツール＆パレットパネル
+    const toolsDiv = document.createElement('div');
+    toolsDiv.className = 'panel-ui';
+    toolsDiv.style = "position:fixed; top:100px; right:30px; background:rgba(25,30,40,0.85); padding:15px; border-radius:12px; z-index:100; border: 1px solid rgba(212,175,55,0.3); backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.2); width:200px; display:flex; flex-direction:column; gap:10px;";
+    
+    toolsDiv.innerHTML = `
+      <div style="display:flex; gap:10px; flex-direction:column;">
+          <button id="tool-pointer" class="tool-btn active" style="padding:8px; border-radius:6px; cursor:pointer; font-weight:bold; background:rgba(212,175,55,0.85); color:#000; border:1px solid #d4af37;">🖐️ 選択/移動</button>
+          <div style="display:flex; gap:10px;">
+              <button id="tool-paint" class="tool-btn" style="flex:1; padding:8px; border-radius:6px; cursor:pointer; background:transparent; color:#fff; border:1px solid rgba(255,255,255,0.2);">🖌️ 塗る</button>
+              <button id="tool-erase" class="tool-btn" style="flex:1; padding:8px; border-radius:6px; cursor:pointer; background:transparent; color:#fff; border:1px solid rgba(255,255,255,0.2);">🧹 消す</button>
+          </div>
+      </div>
+      <div id="palette-container" style="display:none; grid-template-columns:repeat(5, 1fr); gap:6px; margin-top:10px;"></div>
+      <button id="clearBtn" style="margin-top:10px; padding:8px; border-radius:6px; cursor:pointer; background:transparent; color:#ef4444; border:1px solid #ef4444; width:100%;">🗑️ 選択色をクリア</button>
+    `;
+    document.body.appendChild(toolsDiv);
 
-let interactionMode = 'pan'; 
-const modeBtn = document.createElement('button');
-modeBtn.innerHTML = "🖐️ 移動モード (クリックで回転)";
-modeBtn.style = "position:fixed; top:90px; right:30px; background:rgba(25,30,40,0.85); color:#fff; border:1px solid #d4af37; padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:bold; backdrop-filter:blur(10px); z-index:100; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition:0.2s;";
-document.body.appendChild(modeBtn);
+    // 3. 回転・移動モード切替ボタン
+    const modeBtn = document.createElement('button');
+    modeBtn.className = 'panel-ui';
+    modeBtn.id = 'modeBtn';
+    modeBtn.innerHTML = "🖐️ 移動モード (クリックで回転)";
+    modeBtn.style = "position:fixed; top:360px; right:30px; background:rgba(25,30,40,0.85); color:#fff; border:1px solid #d4af37; padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:bold; backdrop-filter:blur(10px); z-index:100; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition:0.2s;";
+    document.body.appendChild(modeBtn);
 
-modeBtn.onclick = () => {
-    if(interactionMode === 'pan') {
-        interactionMode = 'rotate';
-        modeBtn.innerHTML = "🔄 回転モード (クリックで移動)";
-        modeBtn.style.background = "rgba(212,175,55,0.85)";
-        modeBtn.style.color = "#000";
-    } else {
-        interactionMode = 'pan';
-        modeBtn.innerHTML = "🖐️ 移動モード (クリックで回転)";
-        modeBtn.style.background = "rgba(25,30,40,0.85)";
-        modeBtn.style.color = "#fff";
-    }
-};
+    // イベントリスナーの設定
+    document.getElementById('prevBtn').onclick = () => { currentCycle--; updateCalendarCycle(); };
+    document.getElementById('nextBtn').onclick = () => { currentCycle++; updateCalendarCycle(); };
 
-document.getElementById('prevBtn').addEventListener('click', () => { currentCycle--; updateCalendarCycle(); });
-document.getElementById('nextBtn').addEventListener('click', () => { currentCycle++; updateCalendarCycle(); });
-clearBtn.addEventListener('click', () => {
-  if (activeBrush === "erase") return alert("クリアしたい色を選択してください。");
-  if (confirm(`選択中の色をすべて削除しますか？`)) {
-    for (const key in calendarData) {
-      if (key.startsWith(`c${currentCycle}_`) && calendarData[key].color === activeBrush) delete calendarData[key];
-    }
-    localStorage.setItem('polarCalendarDataV5', JSON.stringify(calendarData));
-    renderSavedData();
-  }
-});
+    // ツール切り替えロジック
+    const btnPointer = document.getElementById('tool-pointer');
+    const btnPaint = document.getElementById('tool-paint');
+    const btnErase = document.getElementById('tool-erase');
+    const palette = document.getElementById('palette-container');
 
+    const setTool = (tool) => {
+        currentTool = tool;
+        [btnPointer, btnPaint, btnErase].forEach(b => {
+            b.style.background = 'transparent'; b.style.color = '#fff'; b.style.borderColor = 'rgba(255,255,255,0.2)';
+        });
+        palette.style.display = (tool === 'paint') ? 'grid' : 'none';
+        modeBtn.style.display = (tool === 'pointer') ? 'block' : 'none'; // ペイント中は移動モードボタンを隠す
+
+        const activeBtn = tool === 'pointer' ? btnPointer : tool === 'paint' ? btnPaint : btnErase;
+        activeBtn.style.background = 'rgba(212,175,55,0.85)';
+        activeBtn.style.color = '#000';
+        activeBtn.style.borderColor = '#d4af37';
+    };
+
+    btnPointer.onclick = () => setTool('pointer');
+    btnPaint.onclick = () => setTool('paint');
+    btnErase.onclick = () => setTool('erase');
+
+    // パレットの生成（汎用20色）
+    const colors = [
+        "#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", 
+        "#22c55e", "#10b981", "#14b8a6", "#06b6d4", "#0ea5e9", 
+        "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef", 
+        "#ec4899", "#f43f5e", "#fb7185", "#a8a29e", "#57534e"
+    ];
+    
+    colors.forEach(color => {
+        const div = document.createElement('div');
+        div.style = `width:100%; aspect-ratio:1; background-color:${color}; border-radius:4px; border:2px solid transparent; cursor:pointer; transition:0.1s; box-sizing:border-box;`;
+        if(color === activeBrush) { div.style.borderColor = '#fff'; div.style.transform = 'scale(1.1)'; }
+        
+        div.onclick = () => {
+            palette.querySelectorAll('div').forEach(el => { el.style.borderColor = 'transparent'; el.style.transform = 'scale(1)'; });
+            div.style.borderColor = '#fff'; div.style.transform = 'scale(1.1)';
+            activeBrush = color;
+        };
+        palette.appendChild(div);
+    });
+
+    document.getElementById('clearBtn').onclick = () => {
+        if(currentTool !== 'paint') return alert("ペイントツールでクリアしたい色を選択してください。");
+        if(confirm(`現在の月（輪）から、選択中の色をすべて削除しますか？`)) {
+            for (const key in calendarData) {
+                if (key.startsWith(`c${currentCycle}_`) && calendarData[key].color === activeBrush) delete calendarData[key];
+            }
+            localStorage.setItem('polarCalendarDataV6', JSON.stringify(calendarData));
+            renderSavedData();
+        }
+    };
+
+    modeBtn.onclick = () => {
+        if(interactionMode === 'pan') {
+            interactionMode = 'rotate';
+            modeBtn.innerHTML = "🔄 回転モード (クリックで移動)";
+            modeBtn.style.background = "rgba(212,175,55,0.85)";
+            modeBtn.style.color = "#000";
+        } else {
+            interactionMode = 'pan';
+            modeBtn.innerHTML = "🖐️ 移動モード (クリックで回転)";
+            modeBtn.style.background = "rgba(25,30,40,0.85)";
+            modeBtn.style.color = "#fff";
+        }
+    };
+}
+
+initUI();
+
+// --- SVGの読み込みとレイヤー構成 ---
 fetch('calendar.svg')
   .then(response => response.text())
   .then(svgCode => {
@@ -108,32 +168,19 @@ fetch('calendar.svg')
     masterGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     masterGroup.setAttribute("id", "master-group");
 
-    while (svg.firstChild) {
-      masterGroup.appendChild(svg.firstChild);
-    }
+    while (svg.firstChild) masterGroup.appendChild(svg.firstChild);
     svg.appendChild(masterGroup);
 
     textPathDefs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
     textPathDefs.setAttribute("id", "text-path-defs");
     masterGroup.appendChild(textPathDefs);
 
-    dataLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    masterGroup.appendChild(dataLayer);
-
-    shadowLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    masterGroup.appendChild(shadowLayer);
-
-    linesLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    masterGroup.appendChild(linesLayer);
-
-    rainfallLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    masterGroup.appendChild(rainfallLayer);
-
-    tideLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    masterGroup.appendChild(tideLayer);
-
-    outerSeasonLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    masterGroup.appendChild(outerSeasonLayer);
+    dataLayer = document.createElementNS("http://www.w3.org/2000/svg", "g"); masterGroup.appendChild(dataLayer);
+    shadowLayer = document.createElementNS("http://www.w3.org/2000/svg", "g"); masterGroup.appendChild(shadowLayer);
+    linesLayer = document.createElementNS("http://www.w3.org/2000/svg", "g"); masterGroup.appendChild(linesLayer);
+    rainfallLayer = document.createElementNS("http://www.w3.org/2000/svg", "g"); masterGroup.appendChild(rainfallLayer);
+    tideLayer = document.createElementNS("http://www.w3.org/2000/svg", "g"); masterGroup.appendChild(tideLayer);
+    outerSeasonLayer = document.createElementNS("http://www.w3.org/2000/svg", "g"); masterGroup.appendChild(outerSeasonLayer);
 
     generateAstronomicalData();
     updateCalendarCycle();
@@ -141,22 +188,19 @@ fetch('calendar.svg')
   })
   .catch(err => console.error("SVG読み込みエラー:", err));
 
-// --- 天文計算エンジン ---
+// --- 天文計算エンジン（太陽と月） ---
 function getSolarLongitude(timeMs) {
   let jd = timeMs / 86400000 + 2440587.5;
   let t = (jd - 2451545.0) / 36525;
   let l0 = 280.46646 + 36000.76983 * t + 0.0003032 * t * t;
   let m = 357.52911 + 35999.05029 * t - 0.0001537 * t * t;
   let rad = Math.PI / 180;
-  let c = (1.914602 - 0.004817 * t - 0.000014 * t * t) * Math.sin(m * rad)
-        + (0.019993 - 0.000101 * t) * Math.sin(2 * m * rad)
-        + 0.000289 * Math.sin(3 * m * rad);
+  let c = (1.914602 - 0.004817 * t - 0.000014 * t * t) * Math.sin(m * rad) + (0.019993 - 0.000101 * t) * Math.sin(2 * m * rad) + 0.000289 * Math.sin(3 * m * rad);
   let trueLon = l0 + c;
   let omega = 125.04 - 1934.136 * t;
   let apparentLon = trueLon - 0.00569 - 0.00478 * Math.sin(omega * rad);
   let lon = apparentLon % 360;
-  if (lon < 0) lon += 360;
-  return lon;
+  return lon < 0 ? lon + 360 : lon;
 }
 
 function getLunarLongitude(timeMs) {
@@ -168,22 +212,14 @@ function getLunarLongitude(timeMs) {
   let D = 297.8501921 + 445267.1114034 * T;
   let F = 93.2720950 + 483202.0175233 * T;
   let rad = Math.PI / 180;
-  let lon = Lp 
-    + 6.289 * Math.sin(Mp * rad)
-    - 1.274 * Math.sin((2*D - Mp) * rad)
-    + 0.658 * Math.sin(2*D * rad)
-    + 0.214 * Math.sin(2*Mp * rad)
-    - 0.186 * Math.sin(M * rad)
-    - 0.114 * Math.sin(2*F * rad);
+  let lon = Lp + 6.289 * Math.sin(Mp * rad) - 1.274 * Math.sin((2*D - Mp) * rad) + 0.658 * Math.sin(2*D * rad) + 0.214 * Math.sin(2*Mp * rad) - 0.186 * Math.sin(M * rad) - 0.114 * Math.sin(2*F * rad);
   let res = lon % 360;
-  if (res < 0) res += 360;
-  return res;
+  return res < 0 ? res + 360 : res;
 }
 
 function getLunarPhaseEvent(timeMsStart, timeMsEnd) {
   let diffStart = (getLunarLongitude(timeMsStart) - getSolarLongitude(timeMsStart) + 360) % 360;
   let diffEnd = (getLunarLongitude(timeMsEnd) - getSolarLongitude(timeMsEnd) + 360) % 360;
-  
   if (diffStart > 300 && diffEnd < 60) return "新月";
   if (diffStart <= 90 && diffEnd > 90) return "上弦";
   if (diffStart <= 180 && diffEnd > 180) return "満月";
@@ -198,8 +234,7 @@ function findTimeForLongitude(targetLon, left, right) {
     let diff = midLon - targetLon;
     if (diff > 180) diff -= 360;
     if (diff < -180) diff += 360;
-    if (diff > 0) right = mid;
-    else left = mid;
+    if (diff > 0) right = mid; else left = mid;
   }
   return left;
 }
@@ -223,8 +258,7 @@ function generateAstronomicalData() {
       let exactTime = findTimeForLongitude(targetLon, currentTime, nextTime);
       kouPoints.push({ time: exactTime, lon: targetLon });
     }
-    currentTime = nextTime;
-    prevLon = nextLon;
+    currentTime = nextTime; prevLon = nextLon;
   }
 
   for (let i = 0; i < kouPoints.length - 1; i++) {
@@ -240,6 +274,31 @@ function generateAstronomicalData() {
   }
 }
 
+function getWafuMonthName(cycleStartTime) {
+    let lon1 = getSolarLongitude(cycleStartTime);
+    let lon2 = getSolarLongitude(cycleStartTime + synodicMonth * 86400000);
+    if (lon2 < lon1) lon2 += 360;
+    let chukis = [];
+    for (let deg = 0; deg < 360; deg += 30) {
+        let checkLon = deg;
+        if (checkLon < lon1 && (checkLon + 360) <= lon2) checkLon += 360;
+        if (checkLon >= lon1 && checkLon <= lon2) chukis.push(deg);
+    }
+    if (chukis.length > 0) return wafuNames[(Math.floor(chukis[0] / 30) + 1) % 12];
+    
+    let prevLon1 = getSolarLongitude(cycleStartTime - synodicMonth * 86400000);
+    let prevLon2 = lon1;
+    if (prevLon2 < prevLon1) prevLon2 += 360;
+    let prevChukis = [];
+    for (let deg = 0; deg < 360; deg += 30) {
+        let checkLon = deg;
+        if (checkLon < prevLon1 && (checkLon + 360) <= prevLon2) checkLon += 360;
+        if (checkLon >= prevLon1 && checkLon <= prevLon2) prevChukis.push(deg);
+    }
+    if (prevChukis.length > 0) return "閏" + wafuNames[(Math.floor(prevChukis[0] / 30) + 1) % 12];
+    return "閏月";
+}
+
 function getLunarDayKanji(dayInt) {
   const kanji = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
   if (dayInt <= 10) return kanji[dayInt] || "十";
@@ -250,53 +309,30 @@ function getLunarDayKanji(dayInt) {
   return dayInt.toString();
 }
 
-function getTideValue(t_hours) {
-  let p1 = null, p2 = null;
-  for (let j = 0; j < tidePoints.length - 1; j++) {
-    if (t_hours >= tidePoints[j].t && t_hours <= tidePoints[j + 1].t) {
-      p1 = tidePoints[j]; p2 = tidePoints[j+1]; break;
-    }
-  }
-  if (p1 && p2) return (p1.h + p2.h)/2 + (p1.h - p2.h)/2 * Math.cos( Math.PI * (t_hours - p1.t)/(p2.t - p1.t) );
-  return 3.0 + 3.5 * Math.sin(t_hours * 2 * Math.PI / 12.42) + 1.0 * Math.cos(t_hours * 2 * Math.PI / 24.84);
+// ★完全自動化：潮汐の調和解析エンジン（M2, S2, K1, O1分潮による推算）
+function getTideValue(t_hours, cycleStartTime) {
+  // 元期（基準日）からの経過時間を用いて天文学的に干満のリズムを生成します
+  const epoch = new Date(2025, 0, 1).getTime();
+  const hoursSinceEpoch = (cycleStartTime - epoch) / 3600000 + t_hours;
+  
+  // パラオ付近の特性を模した近似調和定数（振幅ft, 角速度deg/hour, 位相deg）
+  // ※これにより、新月・満月付近で大潮になり、上弦・下弦で小潮になるリズムが自動再現されます
+  const M2 = { a: 1.8, speed: 28.984104, phase: 120 }; // 主太陰半日周潮
+  const S2 = { a: 0.6, speed: 30.000000, phase: 140 }; // 主太陽半日周潮
+  const K1 = { a: 0.8, speed: 15.041069, phase: 200 }; // 日月合成日周潮
+  const O1 = { a: 0.5, speed: 13.943036, phase: 180 }; // 主太陰日周潮
+  
+  const rad = Math.PI / 180;
+  let tide = 3.0; // 平均海面 (MSL)
+  
+  [M2, S2, K1, O1].forEach(c => {
+      tide += c.a * Math.cos((c.speed * hoursSinceEpoch - c.phase) * rad);
+  });
+  
+  return tide;
 }
 
-// ★新規追加：閏月を自動判定して「和風月名」を返すアルゴリズム
-function getWafuMonthName(cycleStartTime) {
-    let lon1 = getSolarLongitude(cycleStartTime);
-    let lon2 = getSolarLongitude(cycleStartTime + synodicMonth * 86400000);
-    if (lon2 < lon1) lon2 += 360;
-    
-    // この輪（月）の中に中気（30度ごとの節目）がいくつ含まれているかチェック
-    let chukis = [];
-    for (let deg = 0; deg < 360; deg += 30) {
-        let checkLon = deg;
-        if (checkLon < lon1 && (checkLon + 360) <= lon2) checkLon += 360;
-        if (checkLon >= lon1 && checkLon <= lon2) chukis.push(deg);
-    }
-    
-    if (chukis.length > 0) {
-        // 中気がある通常の月
-        return wafuNames[(Math.floor(chukis[0] / 30) + 1) % 12];
-    } else {
-        // 中気が一つもない＝【閏月（うるうづき）】
-        // 前の月（1つ前の輪）の名前を取得して「閏」をつける
-        let prevLon1 = getSolarLongitude(cycleStartTime - synodicMonth * 86400000);
-        let prevLon2 = lon1;
-        if (prevLon2 < prevLon1) prevLon2 += 360;
-        let prevChukis = [];
-        for (let deg = 0; deg < 360; deg += 30) {
-            let checkLon = deg;
-            if (checkLon < prevLon1 && (checkLon + 360) <= prevLon2) checkLon += 360;
-            if (checkLon >= prevLon1 && checkLon <= prevLon2) prevChukis.push(deg);
-        }
-        if (prevChukis.length > 0) {
-            return "閏" + wafuNames[(Math.floor(prevChukis[0] / 30) + 1) % 12];
-        }
-        return "閏月";
-    }
-}
-
+// --- メイン描画処理 ---
 function updateCalendarCycle() {
   const totalElapsedDays = currentCycle * synodicMonth;
   const startDate = new Date(baseDate.getTime() + totalElapsedDays * 24 * 60 * 60 * 1000);
@@ -312,9 +348,14 @@ function updateCalendarCycle() {
   drawOuterSeasons(startDate.getTime()); 
   drawLunarShadow(startDate.getTime());  
   drawDynamicLines(); 
-  drawRainfallGraph(); 
-  drawTideGraph();    
+  drawTideGraph(startDate.getTime());    
+  drawRainfallGraph(startDate.getTime()); 
   renderSavedData();
+}
+
+function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
+  const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+  return { x: centerX + (radius * Math.cos(angleInRadians)), y: centerY + (radius * Math.sin(angleInRadians)) };
 }
 
 function drawLunarShadow(cycleStartTime) {
@@ -351,7 +392,78 @@ function drawLunarShadow(cycleStartTime) {
   shadowLayer.appendChild(shadowPath);
 }
 
-function drawRainfallGraph() {
+function drawTideGraph(cycleStartTime) {
+  tideLayer.innerHTML = ""; 
+  if (concentricRings.length < 23) return; 
+  const rMin = concentricRings[16]; const rMax = concentricRings[22]; 
+  const minTide = -1.5; const maxTide = 7.5; const range = maxTide - minTide;
+
+  const guideTides = [-1.5, 0, 1.5, 3.0, 4.5, 6.0, 7.5];
+  
+  guideTides.forEach(ft => {
+    const r = rMin + (rMax - rMin) * ((ft - minTide) / range);
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("cx", cx); circle.setAttribute("cy", cy); circle.setAttribute("r", r);
+    circle.setAttribute("fill", "none"); circle.setAttribute("stroke", "rgba(114, 113, 113, 0.4)"); 
+    circle.setAttribute("stroke-width", "0.5"); circle.setAttribute("stroke-dasharray", "4,4"); 
+    tideLayer.appendChild(circle);
+    
+    for(let i = 0; i < 6; i++) {
+      const labelAngle = currentStartSegment * 3 + (i * 60); 
+      const labelPt = polarToCartesian(cx, cy, r, labelAngle); 
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      text.setAttribute("x", labelPt.x); text.setAttribute("y", labelPt.y);
+      text.setAttribute("text-anchor", "middle"); text.setAttribute("dominant-baseline", "central");
+      text.setAttribute("fill", "rgba(114, 113, 113, 1)"); 
+      text.setAttribute("font-size", "7px");
+      text.setAttribute("font-family", "'Shippori Mincho', serif");
+      text.setAttribute("transform", `rotate(${labelAngle}, ${labelPt.x}, ${labelPt.y})`);
+      text.textContent = ft + "ft";
+
+      const halo = text.cloneNode(true);
+      halo.setAttribute("stroke", "rgba(15, 17, 26, 0.95)"); 
+      halo.setAttribute("stroke-width", "3");
+      halo.setAttribute("stroke-linejoin", "round");
+      halo.setAttribute("fill", "none");
+
+      tideLayer.appendChild(halo);
+      tideLayer.appendChild(text);
+    }
+  });
+
+  let pathD = "";
+  const resolution = 10; 
+  const totalHours = 720;
+  const startAngle = currentStartSegment * 3;
+
+  for (let i = 0; i <= totalHours * resolution; i++) {
+    const t = i / resolution; 
+    let tide = getTideValue(t, cycleStartTime);
+    const r = rMin + (rMax - rMin) * ((tide - minTide) / range);
+    const angle = startAngle + (t * 0.5);
+    const pt = polarToCartesian(cx, cy, r, angle);
+    if (i === 0) pathD += `M ${pt.x},${pt.y} `; 
+    else pathD += `L ${pt.x},${pt.y} `;
+  }
+
+  const baseR = rMin + (rMax - rMin) * ((0 - minTide) / range); 
+  const pEndBase = polarToCartesian(cx, cy, baseR, startAngle + 360);
+  const fillD = pathD + ` L ${pEndBase.x},${pEndBase.y} Z`;
+
+  const fillArea = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  fillArea.setAttribute("d", fillD);
+  fillArea.setAttribute("fill", "rgba(59, 130, 246, 0.15)"); 
+  tideLayer.appendChild(fillArea);
+
+  const wavePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  wavePath.setAttribute("d", pathD); 
+  wavePath.setAttribute("fill", "none"); 
+  wavePath.setAttribute("stroke", "#3b82f6"); 
+  wavePath.setAttribute("stroke-width", "1.5");
+  tideLayer.appendChild(wavePath);
+}
+
+function drawRainfallGraph(cycleStartTime) {
   rainfallLayer.innerHTML = "";
   if (concentricRings.length < 19) return;
   
@@ -367,11 +479,11 @@ function drawRainfallGraph() {
   rainfallLayer.appendChild(circle);
 
   let rainData = new Array(721).fill(0);
-  let prevSlope = getTideValue(0.1) - getTideValue(0);
+  let prevSlope = getTideValue(0.1, cycleStartTime) - getTideValue(0, cycleStartTime);
   
   for (let h = 1; h <= 720; h++) {
-    let currentTide = getTideValue(h);
-    let nextTide = getTideValue(h + 0.1);
+    let currentTide = getTideValue(h, cycleStartTime);
+    let nextTide = getTideValue(h + 0.1, cycleStartTime);
     let currentSlope = nextTide - currentTide;
     
     if (prevSlope * currentSlope <= 0 && Math.abs(currentSlope) < 0.5) {
@@ -463,7 +575,7 @@ function drawSolarDates(startDate) {
     const textLunar = document.createElementNS("http://www.w3.org/2000/svg", "text");
     textLunar.setAttribute("x", ptLunar.x); textLunar.setAttribute("y", ptLunar.y);
     textLunar.setAttribute("text-anchor", "middle"); textLunar.setAttribute("dominant-baseline", "central");
-    textLunar.setAttribute("fill", event ? "#d4af37" : "#2c3e50"); 
+    textLunar.setAttribute("fill", event ? "#d4af37" : "#e5e7eb"); 
     
     const fontSize = lunarLabel.length > 1 ? "8px" : "11px";
     textLunar.setAttribute("font-size", fontSize);
@@ -482,7 +594,6 @@ function drawOuterSeasons(cycleStartTime) {
   const cycleEndTime = cycleStartTime + cycleLengthMs;
   const rMax = concentricRings[concentricRings.length - 1]; 
 
-  // ★閏月判定を含む新システムから月名を取得
   const currentWafu = getWafuMonthName(cycleStartTime);
 
   let wafuText = document.getElementById("wafu-text-layer");
@@ -512,7 +623,7 @@ function drawOuterSeasons(cycleStartTime) {
       const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
       line.setAttribute("x1", p1.x); line.setAttribute("y1", p1.y);
       line.setAttribute("x2", p2.x); line.setAttribute("y2", p2.y);
-      line.setAttribute("stroke", isSekki ? "#2c3e50" : "#888888");
+      line.setAttribute("stroke", isSekki ? "#e5e7eb" : "#888888");
       line.setAttribute("stroke-width", isSekki ? "1.5" : "0.5");
       outerSeasonLayer.appendChild(line);
 
@@ -520,7 +631,7 @@ function drawOuterSeasons(cycleStartTime) {
       const ptText = polarToCartesian(cx, cy, rText, angle);
       
       const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      text.setAttribute("fill", isSekki ? "#2c3e50" : "#666666"); 
+      text.setAttribute("fill", isSekki ? "#e5e7eb" : "#9ca3af"); 
       text.setAttribute("font-size", isSekki ? "14px" : "11px");
       if (isSekki) text.setAttribute("font-weight", "bold");
       text.setAttribute("font-family", "'Shippori Mincho', serif");
@@ -556,12 +667,11 @@ function drawTimeLabels() {
     textTime.setAttribute("text-anchor", "middle"); textTime.setAttribute("dominant-baseline", "central");
     textTime.setAttribute("fill", "#666666"); textTime.setAttribute("font-size", "7px");
     textTime.setAttribute("font-family", "'Shippori Mincho', serif");
-    
     textTime.setAttribute("transform", `rotate(${angle}, ${ptTime.x}, ${ptTime.y})`);
     textTime.textContent = timeStr[i % 4];
 
     const haloTime = textTime.cloneNode(true);
-    haloTime.setAttribute("stroke", "rgba(255, 255, 255, 0.95)");
+    haloTime.setAttribute("stroke", "rgba(15, 17, 26, 0.95)");
     haloTime.setAttribute("stroke-width", "3");
     haloTime.setAttribute("stroke-linejoin", "round");
     haloTime.setAttribute("fill", "none");
@@ -569,79 +679,6 @@ function drawTimeLabels() {
     timeLayer.appendChild(haloTime); 
     timeLayer.appendChild(textTime); 
   }
-}
-
-function drawTideGraph() {
-  tideLayer.innerHTML = ""; 
-  if (concentricRings.length < 23) return; 
-  const rMin = concentricRings[16]; const rMax = concentricRings[22]; 
-  const minTide = -1.5; const maxTide = 7.5; const range = maxTide - minTide;
-
-  const guideTides = [-1.5, 0, 1.5, 3.0, 4.5, 6.0, 7.5];
-  
-  guideTides.forEach(ft => {
-    const r = rMin + (rMax - rMin) * ((ft - minTide) / range);
-    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    circle.setAttribute("cx", cx); circle.setAttribute("cy", cy); circle.setAttribute("r", r);
-    circle.setAttribute("fill", "none"); circle.setAttribute("stroke", "rgba(114, 113, 113, 0.4)"); 
-    circle.setAttribute("stroke-width", "0.5"); circle.setAttribute("stroke-dasharray", "4,4"); 
-    tideLayer.appendChild(circle);
-    
-    for(let i = 0; i < 6; i++) {
-      const labelAngle = currentStartSegment * 3 + (i * 60); 
-      const labelPt = polarToCartesian(cx, cy, r, labelAngle); 
-      
-      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      text.setAttribute("x", labelPt.x); text.setAttribute("y", labelPt.y);
-      text.setAttribute("text-anchor", "middle"); text.setAttribute("dominant-baseline", "central");
-      text.setAttribute("fill", "rgba(114, 113, 113, 1)"); 
-      text.setAttribute("font-size", "7px");
-      text.setAttribute("font-family", "'Shippori Mincho', serif");
-      
-      text.setAttribute("transform", `rotate(${labelAngle}, ${labelPt.x}, ${labelPt.y})`);
-      text.textContent = ft + "ft";
-
-      const halo = text.cloneNode(true);
-      halo.setAttribute("stroke", "rgba(255, 255, 255, 0.95)");
-      halo.setAttribute("stroke-width", "3");
-      halo.setAttribute("stroke-linejoin", "round");
-      halo.setAttribute("fill", "none");
-
-      tideLayer.appendChild(halo);
-      tideLayer.appendChild(text);
-    }
-  });
-
-  let pathD = "";
-  const resolution = 10; 
-  const totalHours = 720;
-  const startAngle = currentStartSegment * 3;
-
-  for (let i = 0; i <= totalHours * resolution; i++) {
-    const t = i / resolution; 
-    let tide = getTideValue(t);
-    const r = rMin + (rMax - rMin) * ((tide - minTide) / range);
-    const angle = startAngle + (t * 0.5);
-    const pt = polarToCartesian(cx, cy, r, angle);
-    if (i === 0) pathD += `M ${pt.x},${pt.y} `; 
-    else pathD += `L ${pt.x},${pt.y} `;
-  }
-
-  const baseR = rMin + (rMax - rMin) * ((0 - minTide) / range); 
-  const pEndBase = polarToCartesian(cx, cy, baseR, startAngle + 360);
-  const fillD = pathD + ` L ${pEndBase.x},${pEndBase.y} Z`;
-
-  const fillArea = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  fillArea.setAttribute("d", fillD);
-  fillArea.setAttribute("fill", "rgba(59, 130, 246, 0.15)"); 
-  tideLayer.appendChild(fillArea);
-
-  const wavePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  wavePath.setAttribute("d", pathD); 
-  wavePath.setAttribute("fill", "none"); 
-  wavePath.setAttribute("stroke", "#3b82f6"); 
-  wavePath.setAttribute("stroke-width", "1.5");
-  tideLayer.appendChild(wavePath);
 }
 
 function drawDynamicLines() {
@@ -682,11 +719,6 @@ function renderSavedData() {
   }
 }
 
-function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
-  const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
-  return { x: centerX + (radius * Math.cos(angleInRadians)), y: centerY + (radius * Math.sin(angleInRadians)) };
-}
-
 function drawCell(rIn, rOut, startAngle, endAngle, color) {
   const startIn = polarToCartesian(cx, cy, rIn, endAngle);
   const endIn = polarToCartesian(cx, cy, rIn, startAngle);
@@ -709,14 +741,7 @@ function getRingInfo(distance) {
   return null;
 }
 
-document.querySelectorAll('.color-tag').forEach(tag => {
-  tag.addEventListener('click', (e) => {
-    document.querySelectorAll('.color-tag').forEach(t => t.classList.remove('selected'));
-    e.target.classList.add('selected');
-    activeBrush = e.target.getAttribute('data-color');
-  });
-});
-
+// ★修正：ブラシによる連続描画と移動の統合処理
 function initInteractions() {
   container.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -728,48 +753,56 @@ function initInteractions() {
     svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
   }, { passive: false });
 
-  let isPanning = false, isRotating = false;
+  let isInteractionActive = false;
   let startPos = { x: 0, y: 0 }, dragDistance = 0;
   let startGlobalRotation = 0, startAngleOffset = 0;
+  // 連続描画時の重複処理防止用
+  let lastPaintedCell = null;
 
   container.addEventListener('mousedown', (e) => {
     dragDistance = 0;
-    if (interactionMode === 'rotate') {
-      isRotating = true;
-      const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
-      const svgP = pt.matrixTransform(svg.getScreenCTM().inverse()); 
-      startAngleOffset = Math.atan2(svgP.y - cy, svgP.x - cx) * 180 / Math.PI;
-      startGlobalRotation = globalRotation;
-      container.classList.add('is-rotating');
-    } else {
-      isPanning = true;
-      startPos = { x: e.clientX, y: e.clientY };
-      container.classList.add('is-dragging');
+    isInteractionActive = true;
+    lastPaintedCell = null;
+
+    if (currentTool === 'pointer') {
+        if (interactionMode === 'rotate') {
+            const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+            const svgP = pt.matrixTransform(svg.getScreenCTM().inverse()); 
+            startAngleOffset = Math.atan2(svgP.y - cy, svgP.x - cx) * 180 / Math.PI;
+            startGlobalRotation = globalRotation;
+            container.classList.add('is-rotating');
+        } else {
+            startPos = { x: e.clientX, y: e.clientY };
+            container.classList.add('is-dragging');
+        }
     }
   });
 
   window.addEventListener('mousemove', (e) => {
-    if (isPanning) {
-      const dxScreen = startPos.x - e.clientX, dyScreen = startPos.y - e.clientY;
-      dragDistance += Math.abs(dxScreen) + Math.abs(dyScreen);
-      viewBox.x += dxScreen * (viewBox.w / container.clientWidth); viewBox.y += dyScreen * (viewBox.h / container.clientHeight);
-      svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
-      startPos = { x: e.clientX, y: e.clientY };
-    } else if (isRotating) {
-      const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
-      const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-      const currentAngleOffset = Math.atan2(svgP.y - cy, svgP.x - cx) * 180 / Math.PI;
-      let delta = currentAngleOffset - startAngleOffset;
-      
-      if (delta > 180) delta -= 360;
-      if (delta < -180) delta += 360;
-      
-      globalRotation = startGlobalRotation + delta;
-      masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
-      dragDistance += Math.abs(delta) * 5; 
-      
-      startGlobalRotation = globalRotation; 
-      startAngleOffset = currentAngleOffset; 
+    // ポインター（移動・回転）処理
+    if (isInteractionActive && currentTool === 'pointer') {
+        if (interactionMode === 'pan') {
+            const dxScreen = startPos.x - e.clientX, dyScreen = startPos.y - e.clientY;
+            dragDistance += Math.abs(dxScreen) + Math.abs(dyScreen);
+            viewBox.x += dxScreen * (viewBox.w / container.clientWidth); viewBox.y += dyScreen * (viewBox.h / container.clientHeight);
+            svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+            startPos = { x: e.clientX, y: e.clientY };
+        } else if (interactionMode === 'rotate') {
+            const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
+            const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+            const currentAngleOffset = Math.atan2(svgP.y - cy, svgP.x - cx) * 180 / Math.PI;
+            let delta = currentAngleOffset - startAngleOffset;
+            
+            if (delta > 180) delta -= 360;
+            if (delta < -180) delta += 360;
+            
+            globalRotation = startGlobalRotation + delta;
+            masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
+            dragDistance += Math.abs(delta) * 5; 
+            
+            startGlobalRotation = globalRotation; 
+            startAngleOffset = currentAngleOffset; 
+        }
     }
 
     const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
@@ -788,18 +821,30 @@ function initInteractions() {
       const timeLabels = ["0:00〜6:00", "6:00〜12:00", "12:00〜18:00", "18:00〜24:00"];
       statusBar.innerText = `第 ${day} 日目 ｜ ${timeLabels[timeSlot]} ｜ ${ringInfo.name}`;
       statusBar.style.color = "#fff";
+      
+      // ★ブラシによる連続描画機能
+      if (isInteractionActive && (currentTool === 'paint' || currentTool === 'erase')) {
+        const cellKey = `c${currentCycle}_abs${absSegment}_${ringInfo.layerId}`;
+        if (lastPaintedCell !== cellKey) { // 同じセルを何度も処理しないためのガード
+            if (currentTool === 'erase') delete calendarData[cellKey];
+            else calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
+            renderSavedData();
+            lastPaintedCell = cellKey;
+        }
+      }
     } else {
       statusBar.innerText = `キャンバス外`; statusBar.style.color = "#8b949e";
     }
   });
 
   window.addEventListener('mouseup', () => { 
-    isPanning = false; isRotating = false;
+    isInteractionActive = false;
     container.classList.remove('is-dragging'); container.classList.remove('is-rotating');
+    localStorage.setItem('polarCalendarDataV6', JSON.stringify(calendarData));
   });
 
   svg.addEventListener('click', (e) => {
-    if (dragDistance > 5) return;
+    if (dragDistance > 5 || currentTool === 'pointer') return;
     const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
     const svgP = pt.matrixTransform(masterGroup.getScreenCTM().inverse());
     const dx = svgP.x - cx, dy = svgP.y - cy;
@@ -811,12 +856,12 @@ function initInteractions() {
     if (!ringInfo) return;
 
     const cellKey = `c${currentCycle}_abs${absSegment}_${ringInfo.layerId}`;
-    if (activeBrush === "erase") delete calendarData[cellKey];
-    else {
+    if (currentTool === 'erase') delete calendarData[cellKey];
+    else if (currentTool === 'paint') {
       calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
     }
     
-    localStorage.setItem('polarCalendarDataV5', JSON.stringify(calendarData));
+    localStorage.setItem('polarCalendarDataV6', JSON.stringify(calendarData));
     renderSavedData();
   });
 }
