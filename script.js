@@ -1,4 +1,4 @@
-// script.js (背景とデータの一体化・完全回転対応版)
+// script.js (閏月の完全自動判定・天文学的旧暦アルゴリズム搭載版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
@@ -105,18 +105,14 @@ fetch('calendar.svg')
     });
     concentricRings = [...new Set(radii)].sort((a, b) => a - b);
 
-    // ★大改修：Illustratorの元データをすべて「回転用の箱」に収納する
     masterGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     masterGroup.setAttribute("id", "master-group");
 
-    // svgの元々の中身（Illustratorの線や円）をすべてmasterGroupに移動
     while (svg.firstChild) {
       masterGroup.appendChild(svg.firstChild);
     }
-    // 空になったsvgにmasterGroupをセット
     svg.appendChild(masterGroup);
 
-    // プログラムで作るレイヤーたちも、すべてmasterGroupの中に同居させる
     textPathDefs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
     textPathDefs.setAttribute("id", "text-path-defs");
     masterGroup.appendChild(textPathDefs);
@@ -145,6 +141,7 @@ fetch('calendar.svg')
   })
   .catch(err => console.error("SVG読み込みエラー:", err));
 
+// --- 天文計算エンジン ---
 function getSolarLongitude(timeMs) {
   let jd = timeMs / 86400000 + 2440587.5;
   let t = (jd - 2451545.0) / 36525;
@@ -262,6 +259,42 @@ function getTideValue(t_hours) {
   }
   if (p1 && p2) return (p1.h + p2.h)/2 + (p1.h - p2.h)/2 * Math.cos( Math.PI * (t_hours - p1.t)/(p2.t - p1.t) );
   return 3.0 + 3.5 * Math.sin(t_hours * 2 * Math.PI / 12.42) + 1.0 * Math.cos(t_hours * 2 * Math.PI / 24.84);
+}
+
+// ★新規追加：閏月を自動判定して「和風月名」を返すアルゴリズム
+function getWafuMonthName(cycleStartTime) {
+    let lon1 = getSolarLongitude(cycleStartTime);
+    let lon2 = getSolarLongitude(cycleStartTime + synodicMonth * 86400000);
+    if (lon2 < lon1) lon2 += 360;
+    
+    // この輪（月）の中に中気（30度ごとの節目）がいくつ含まれているかチェック
+    let chukis = [];
+    for (let deg = 0; deg < 360; deg += 30) {
+        let checkLon = deg;
+        if (checkLon < lon1 && (checkLon + 360) <= lon2) checkLon += 360;
+        if (checkLon >= lon1 && checkLon <= lon2) chukis.push(deg);
+    }
+    
+    if (chukis.length > 0) {
+        // 中気がある通常の月
+        return wafuNames[(Math.floor(chukis[0] / 30) + 1) % 12];
+    } else {
+        // 中気が一つもない＝【閏月（うるうづき）】
+        // 前の月（1つ前の輪）の名前を取得して「閏」をつける
+        let prevLon1 = getSolarLongitude(cycleStartTime - synodicMonth * 86400000);
+        let prevLon2 = lon1;
+        if (prevLon2 < prevLon1) prevLon2 += 360;
+        let prevChukis = [];
+        for (let deg = 0; deg < 360; deg += 30) {
+            let checkLon = deg;
+            if (checkLon < prevLon1 && (checkLon + 360) <= prevLon2) checkLon += 360;
+            if (checkLon >= prevLon1 && checkLon <= prevLon2) prevChukis.push(deg);
+        }
+        if (prevChukis.length > 0) {
+            return "閏" + wafuNames[(Math.floor(prevChukis[0] / 30) + 1) % 12];
+        }
+        return "閏月";
+    }
 }
 
 function updateCalendarCycle() {
@@ -449,16 +482,14 @@ function drawOuterSeasons(cycleStartTime) {
   const cycleEndTime = cycleStartTime + cycleLengthMs;
   const rMax = concentricRings[concentricRings.length - 1]; 
 
-  let wafuIndex = (6 + currentCycle) % 12; 
-  if (wafuIndex < 0) wafuIndex += 12;
-  const currentWafu = wafuNames[wafuIndex];
+  // ★閏月判定を含む新システムから月名を取得
+  const currentWafu = getWafuMonthName(cycleStartTime);
 
   let wafuText = document.getElementById("wafu-text-layer");
   if(wafuText) { wafuText.innerHTML = ""; }
   else {
     wafuText = document.createElementNS("http://www.w3.org/2000/svg", "text");
     wafuText.setAttribute("id", "wafu-text-layer");
-    // 和風月名は回転させないようSVG直下に配置（マスターグループの外）
     svg.appendChild(wafuText);
   }
   wafuText.setAttribute("x", viewBox.w - 180); 
