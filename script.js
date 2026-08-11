@@ -1,9 +1,9 @@
-// script.js (完全天文同期カージオイド・左右セパレート・月相自動判定版)
+// script.js (潮と雨の完全同期デモ・降水量グラフ搭載版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
 
-let svg, dataLayer, shadowLayer, linesLayer, tideLayer, outerSeasonLayer, textPathDefs;
+let svg, dataLayer, shadowLayer, linesLayer, rainfallLayer, tideLayer, outerSeasonLayer, textPathDefs;
 let viewBox = { x: 0, y: 0, w: 1841.3719, h: 2382.9518 };
 const cx = 920.6859;
 const cy = 1191.4759;
@@ -107,6 +107,11 @@ fetch('calendar.svg')
     linesLayer.setAttribute("id", "dynamic-lines-layer");
     svg.appendChild(linesLayer);
 
+    // ★新規レイヤー：降水量グラフ（潮汐グラフの下に配置）
+    rainfallLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    rainfallLayer.setAttribute("id", "rainfall-layer");
+    svg.appendChild(rainfallLayer);
+
     tideLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     tideLayer.setAttribute("id", "tide-layer");
     svg.appendChild(tideLayer);
@@ -121,7 +126,7 @@ fetch('calendar.svg')
   })
   .catch(err => console.error("SVG読み込みエラー:", err));
 
-// --- 太陽と月の天文計算エンジン ---
+// --- 天文計算エンジン ---
 function getSolarLongitude(timeMs) {
   let jd = timeMs / 86400000 + 2440587.5;
   let t = (jd - 2451545.0) / 36525;
@@ -160,7 +165,6 @@ function getLunarLongitude(timeMs) {
   return res;
 }
 
-// 太陽と月の角度差から月相イベントを判定
 function getLunarPhaseEvent(timeMsStart, timeMsEnd) {
   let diffStart = (getLunarLongitude(timeMsStart) - getSolarLongitude(timeMsStart) + 360) % 360;
   let diffEnd = (getLunarLongitude(timeMsEnd) - getSolarLongitude(timeMsEnd) + 360) % 360;
@@ -224,7 +228,6 @@ function generateAstronomicalData() {
   }
 }
 
-// 漢数字変換
 function getLunarDayKanji(dayInt) {
   const kanji = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
   if (dayInt <= 10) return kanji[dayInt] || "十";
@@ -233,6 +236,20 @@ function getLunarDayKanji(dayInt) {
   if (dayInt > 20 && dayInt < 30) return "廿" + kanji[dayInt % 10];
   if (dayInt === 30) return "丗";
   return dayInt.toString();
+}
+
+// ★潮汐計算を独立関数化（雨のタイミング計算に使い回すため）
+function getTideValue(t_hours) {
+  let p1 = null, p2 = null;
+  for (let j = 0; j < tidePoints.length - 1; j++) {
+    if (t_hours >= tidePoints[j].t && t_hours <= tidePoints[j + 1].t) {
+      p1 = tidePoints[j]; p2 = tidePoints[j+1]; break;
+    }
+  }
+  if (p1 && p2) {
+    return (p1.h + p2.h)/2 + (p1.h - p2.h)/2 * Math.cos( Math.PI * (t_hours - p1.t)/(p2.t - p1.t) );
+  }
+  return 3.0 + 3.5 * Math.sin(t_hours * 2 * Math.PI / 12.42) + 1.0 * Math.cos(t_hours * 2 * Math.PI / 24.84);
 }
 
 function updateCalendarCycle() {
@@ -250,17 +267,17 @@ function updateCalendarCycle() {
   drawOuterSeasons(startDate.getTime()); 
   drawLunarShadow(startDate.getTime());  
   drawDynamicLines(); 
+  drawRainfallGraph(); // ★新規：降水量グラフを描画
   drawTideGraph();    
   renderSavedData();
 }
 
-// ★究極の月の鼓動（太陽・月の黄経差から影の面積を計算）
 function drawLunarShadow(cycleStartTime) {
   shadowLayer.innerHTML = "";
   if (concentricRings.length < 30) return;
   
   const rMin = concentricRings[0];
-  const rMax = concentricRings[concentricRings.length - 2]; // 階層30の内側まで
+  const rMax = concentricRings[concentricRings.length - 2]; 
   const maxArea = rMax * rMax - rMin * rMin; 
 
   const resolution = 10;
@@ -270,18 +287,12 @@ function drawLunarShadow(cycleStartTime) {
   let pathD = "";
   for (let i = 0; i <= totalHours * resolution; i++) {
     const timeMs = cycleStartTime + (i / resolution) * 3600000;
-    
-    // 太陽と月の黄経差（0=新月, 180=満月）
     let diff = (getLunarLongitude(timeMs) - getSolarLongitude(timeMs) + 360) % 360;
-    
-    // 影の割合を天文学的に算出（新月で1.0、満月で0.0）
     const illumination = 0.5 * (1 - Math.cos(diff * Math.PI / 180));
     const shadow = 1.0 - illumination;
 
-    // 影の割合を「面積」に変換して半径を導出
     const r = Math.sqrt(rMin * rMin + shadow * maxArea);
     const angle = startAngle + (i / resolution) * 0.5;
-
     const pt = polarToCartesian(cx, cy, r, angle);
 
     if (i === 0) pathD += `M ${pt.x},${pt.y} `;
@@ -296,11 +307,82 @@ function drawLunarShadow(cycleStartTime) {
 
   const shadowPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   shadowPath.setAttribute("d", pathD);
-  shadowPath.setAttribute("fill", "rgba(0, 0, 0, 0.05)"); // 透過率5%の墨色
+  shadowPath.setAttribute("fill", "rgba(0, 0, 0, 0.05)"); 
   shadowLayer.appendChild(shadowPath);
 }
 
-// 左右セパレート・月相自動判定レイアウト
+// ★新規追加：潮汐と連動した降水量グラフ（1時間刻みのバーグラフ）
+function drawRainfallGraph() {
+  rainfallLayer.innerHTML = "";
+  if (concentricRings.length < 16) return;
+  
+  // 階層13〜15のエリア（潮汐の少し内側）を使用
+  const rMin = concentricRings[12]; 
+  const rMax = concentricRings[15]; 
+  const maxRain = 100; // グラフの最大値
+  
+  // グラフのベースライン
+  const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  circle.setAttribute("cx", cx); circle.setAttribute("cy", cy); circle.setAttribute("r", rMin);
+  circle.setAttribute("fill", "none"); 
+  circle.setAttribute("stroke", "rgba(14, 165, 233, 0.3)"); // 薄い水色
+  circle.setAttribute("stroke-width", "1"); 
+  rainfallLayer.appendChild(circle);
+
+  // 「Rainfall」の文字ラベル
+  const labelAngle = currentStartSegment * 3 - 1.5;
+  const labelPt = polarToCartesian(cx, cy, rMin, labelAngle); 
+  const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+  text.setAttribute("fill", "rgba(14, 165, 233, 0.8)"); 
+  text.setAttribute("font-size", "7px");
+  text.setAttribute("font-family", "sans-serif");
+  text.setAttribute("text-anchor", "end"); 
+  text.setAttribute("dominant-baseline", "bottom");
+  text.setAttribute("transform", `rotate(${labelAngle}, ${labelPt.x}, ${labelPt.y})`);
+  text.textContent = "Rainfall";
+  rainfallLayer.appendChild(text);
+
+  // 【魔法の処理】潮の満ち引きの「反転タイミング」を検知し、架空の雨を降らせる
+  let rainData = new Array(721).fill(0);
+  let prevSlope = getTideValue(0.1) - getTideValue(0);
+  
+  for (let h = 1; h <= 720; h++) {
+    let currentTide = getTideValue(h);
+    let nextTide = getTideValue(h + 0.1);
+    let currentSlope = nextTide - currentTide;
+    
+    // 潮のグラフの「傾き」が変わった瞬間＝ピーク（干潮または満潮）
+    if (prevSlope * currentSlope <= 0 && Math.abs(currentSlope) < 0.5) {
+        // 潮が反転した瞬間に、スコール（強い雨）を発生させる！
+        let intensity = 40 + ((Math.sin(h * 7.89) * 0.5 + 0.5) * 60); // 40〜100のランダムな雨量
+        rainData[h] = intensity;
+        if (h + 1 <= 720) rainData[h+1] = intensity * 0.5; // 翌時間も少し降る
+        if (h + 2 <= 720) rainData[h+2] = intensity * 0.1; // その次も少し降る
+    }
+    prevSlope = currentSlope;
+  }
+
+  // 雨のバーグラフを1時間ごと（0.5度ごと）に描画
+  const startAngle = currentStartSegment * 3;
+  for (let h = 0; h <= 720; h++) {
+    if (rainData[h] > 0) {
+      const r = rMin + (rMax - rMin) * (rainData[h] / maxRain);
+      const angle = startAngle + h * 0.5;
+      
+      const p1 = polarToCartesian(cx, cy, rMin, angle);
+      const p2 = polarToCartesian(cx, cy, r, angle);
+      
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", p1.x); line.setAttribute("y1", p1.y);
+      line.setAttribute("x2", p2.x); line.setAttribute("y2", p2.y);
+      line.setAttribute("stroke", "rgba(14, 165, 233, 0.8)"); // 鮮やかな雨の水色
+      line.setAttribute("stroke-width", "1.2");
+      line.setAttribute("stroke-linecap", "round");
+      rainfallLayer.appendChild(line);
+    }
+  }
+}
+
 function drawSolarDates(startDate) {
   let dateLayer = document.getElementById("solar-dates-layer");
   if(dateLayer) { dateLayer.innerHTML = ""; } 
@@ -312,13 +394,10 @@ function drawSolarDates(startDate) {
   const rIn = concentricRings[concentricRings.length - 2];
   const rOut = concentricRings[concentricRings.length - 1];
   
-  // 新暦と曜日は左側（0-6時）のセルに上下配置
   const rMidDate = rIn + (rOut - rIn) * 0.65; 
   const rMidDay  = rIn + (rOut - rIn) * 0.25; 
-  
-  // 旧暦丸囲みは右側（18-24時）のセルに大きく配置
   const rMidLunar = (rIn + rOut) / 2;
-  const lunarRadius = (rOut - rIn) * 0.4; // 縦幅をほぼフルに使う大きな丸
+  const lunarRadius = (rOut - rIn) * 0.4; 
   
   const daysStr = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -330,7 +409,6 @@ function drawSolarDates(startDate) {
     const absoluteSegment = (currentStartSegment + i * 4) % 120;
     const baseAngle = absoluteSegment * 3;
     
-    // ★1. 左側のセル（0-6時の枠内）：新暦と曜日
     const angleLeft = baseAngle + 1.5; 
     
     const ptDate = polarToCartesian(cx, cy, rMidDate, angleLeft);
@@ -352,30 +430,25 @@ function drawSolarDates(startDate) {
     textDay.textContent = daysStr[loopDate.getDay()];
     dateLayer.appendChild(textDay);
 
-    // ★2. 右側のセル（18-24時の枠内）：旧暦・月相
     const angleRight = baseAngle + 10.5;
     const ptLunar = polarToCartesian(cx, cy, rMidLunar, angleRight);
     
-    // 月相の自動判定（天文学的に90の倍数を跨ぐか）
     const event = (i === 0) ? "新月" : getLunarPhaseEvent(timeMsStart, timeMsEnd);
     const lunarLabel = event ? event : getLunarDayKanji(i + 1);
     
-    // 丸（背景枠）
     const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     circle.setAttribute("cx", ptLunar.x); circle.setAttribute("cy", ptLunar.y);
     circle.setAttribute("r", lunarRadius);
     circle.setAttribute("fill", "none");
-    circle.setAttribute("stroke", event ? "#d4af37" : "#555555"); // 月相の日は金色に
+    circle.setAttribute("stroke", event ? "#d4af37" : "#555555"); 
     circle.setAttribute("stroke-width", event ? "1.2" : "0.8");
     dateLayer.appendChild(circle);
 
-    // テキスト（文字数によってサイズを自動調整して横書き）
     const textLunar = document.createElementNS("http://www.w3.org/2000/svg", "text");
     textLunar.setAttribute("x", ptLunar.x); textLunar.setAttribute("y", ptLunar.y);
     textLunar.setAttribute("text-anchor", "middle"); textLunar.setAttribute("dominant-baseline", "central");
     textLunar.setAttribute("fill", event ? "#d4af37" : "#2c3e50"); 
     
-    // 2文字（十一、満月など）は少し小さくして丸に収める
     const fontSize = lunarLabel.length > 1 ? "8px" : "11px";
     textLunar.setAttribute("font-size", fontSize);
     if(event) textLunar.setAttribute("font-weight", "bold");
@@ -555,16 +628,7 @@ function drawTideGraph() {
 
   for (let i = 0; i <= totalHours * resolution; i++) {
     const t = i / resolution; 
-    let tide = 0;
-    let p1 = null, p2 = null;
-    for (let j = 0; j < tidePoints.length - 1; j++) {
-      if (t >= tidePoints[j].t && t <= tidePoints[j + 1].t) {
-        p1 = tidePoints[j]; p2 = tidePoints[j+1]; break;
-      }
-    }
-    if (p1 && p2) tide = (p1.h + p2.h)/2 + (p1.h - p2.h)/2 * Math.cos( Math.PI * (t - p1.t)/(p2.t - p1.t) );
-    else tide = 3.0 + 3.5 * Math.sin(t * 2 * Math.PI / 12.42) + 1.0 * Math.cos(t * 2 * Math.PI / 24.84);
-    
+    let tide = getTideValue(t);
     const r = rMin + (rMax - rMin) * ((tide - minTide) / range);
     const angle = startAngle + (t * 0.5);
     const pt = polarToCartesian(cx, cy, r, angle);
