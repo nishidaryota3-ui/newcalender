@@ -1,4 +1,4 @@
-// script.js (和風月名・新暦旧暦併記・レイアウト調整版)
+// script.js (完全天文同期カージオイド・左右セパレート・月相自動判定版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
@@ -20,7 +20,6 @@ let currentStartSegment = 0;
 const sekkiNames = "立春,雨水,啓蟄,春分,清明,穀雨,立夏,小満,芒種,夏至,小暑,大暑,立秋,処暑,白露,秋分,寒露,霜降,立冬,小雪,大雪,冬至,小寒,大寒".split(',');
 const kouNames = "東風解凍,黄鶯睍睆,魚上氷,土脉潤起,霞始靆,草木萠動,蟄虫啓戸,桃始笑,菜虫化蝶,雀始巣,桜始開,雷乃発声,玄鳥至,雁音北,虹始見,葭始生,霜止出苗,牡丹華,蛙始鳴,蚯蚓出,竹笋生,蚕起食桑,紅花栄,麦秋至,螳螂生,鵙乃鳴,梅子黄,乃東枯,菖蒲華,半夏生,温風至,蓮始開,鷹乃学習,桐始結花,土潤溽暑,大雨時行,涼風至,寒蝉鳴,蒙霧升降,綿柎開,天地始粛,禾乃登,草露白,鶺鴒鳴,玄鳥去,雷乃収声,蟄虫坏戸,水始涸,鴻雁来,菊花開,蟋蟀在戸,霜始降,霎時施,楓蔦黄,山茶始開,地始凍,金盞香,虹蔵不見,朔風払葉,橘始黄,閉塞成冬,熊蟄穴,鱖魚群,乃東生,麋角解,雪下出麦,芹乃栄,水泉動,雉始雊,款冬華,水沢腹堅,鶏始乳".split(',');
 
-// ★和風月名のマスターデータ（スタートの2026/8/13は旧暦7月＝文月）
 const wafuNames = ["睦月", "如月", "弥生", "卯月", "皐月", "水無月", "文月", "葉月", "長月", "神無月", "霜月", "師走"];
 
 let generatedSeasons = []; 
@@ -122,6 +121,7 @@ fetch('calendar.svg')
   })
   .catch(err => console.error("SVG読み込みエラー:", err));
 
+// --- 太陽と月の天文計算エンジン ---
 function getSolarLongitude(timeMs) {
   let jd = timeMs / 86400000 + 2440587.5;
   let t = (jd - 2451545.0) / 36525;
@@ -137,6 +137,39 @@ function getSolarLongitude(timeMs) {
   let lon = apparentLon % 360;
   if (lon < 0) lon += 360;
   return lon;
+}
+
+function getLunarLongitude(timeMs) {
+  let jd = timeMs / 86400000 + 2440587.5;
+  let T = (jd - 2451545.0) / 36525;
+  let Lp = 218.3164477 + 481267.88123421 * T;
+  let M = 357.5291092 + 35999.0502909 * T;
+  let Mp = 134.9633964 + 477198.8675055 * T;
+  let D = 297.8501921 + 445267.1114034 * T;
+  let F = 93.2720950 + 483202.0175233 * T;
+  let rad = Math.PI / 180;
+  let lon = Lp 
+    + 6.289 * Math.sin(Mp * rad)
+    - 1.274 * Math.sin((2*D - Mp) * rad)
+    + 0.658 * Math.sin(2*D * rad)
+    + 0.214 * Math.sin(2*Mp * rad)
+    - 0.186 * Math.sin(M * rad)
+    - 0.114 * Math.sin(2*F * rad);
+  let res = lon % 360;
+  if (res < 0) res += 360;
+  return res;
+}
+
+// 太陽と月の角度差から月相イベントを判定
+function getLunarPhaseEvent(timeMsStart, timeMsEnd) {
+  let diffStart = (getLunarLongitude(timeMsStart) - getSolarLongitude(timeMsStart) + 360) % 360;
+  let diffEnd = (getLunarLongitude(timeMsEnd) - getSolarLongitude(timeMsEnd) + 360) % 360;
+  
+  if (diffStart > 300 && diffEnd < 60) return "新月";
+  if (diffStart <= 90 && diffEnd > 90) return "上弦";
+  if (diffStart <= 180 && diffEnd > 180) return "満月";
+  if (diffStart <= 270 && diffEnd > 270) return "下弦";
+  return null;
 }
 
 function findTimeForLongitude(targetLon, left, right) {
@@ -184,7 +217,6 @@ function generateAstronomicalData() {
     let isSekkiStart = (deg % 15 === 0);
 
     generatedSeasons.push({ type: 'kou', name: kouName, start: p1.time });
-    
     if (isSekkiStart) {
       let sekkiIndex = Math.floor(((deg - 315 + 360) % 360) / 15);
       generatedSeasons.push({ type: 'sekki', name: sekkiNames[sekkiIndex], start: p1.time });
@@ -192,7 +224,7 @@ function generateAstronomicalData() {
   }
 }
 
-// 旧暦の漢数字変換関数（1〜30）
+// 漢数字変換
 function getLunarDayKanji(dayInt) {
   const kanji = ["", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"];
   if (dayInt <= 10) return kanji[dayInt] || "十";
@@ -213,21 +245,22 @@ function updateCalendarCycle() {
   const d = startDate.getDate();
   document.getElementById('cycleDisplay').innerHTML = `${y}年 ${m}月<br><span style="font-size:11px; color:#8b949e;">新月: ${m}月${d}日〜</span>`;
 
-  drawSolarDates(startDate); // 新暦・旧暦・曜日の描画
+  drawSolarDates(startDate); 
   drawTimeLabels(); 
   drawOuterSeasons(startDate.getTime()); 
-  drawLunarShadow();  
+  drawLunarShadow(startDate.getTime());  
   drawDynamicLines(); 
   drawTideGraph();    
   renderSavedData();
 }
 
-function drawLunarShadow() {
+// ★究極の月の鼓動（太陽・月の黄経差から影の面積を計算）
+function drawLunarShadow(cycleStartTime) {
   shadowLayer.innerHTML = "";
   if (concentricRings.length < 30) return;
   
   const rMin = concentricRings[0];
-  const rMax = concentricRings[concentricRings.length - 2]; 
+  const rMax = concentricRings[concentricRings.length - 2]; // 階層30の内側まで
   const maxArea = rMax * rMax - rMin * rMin; 
 
   const resolution = 10;
@@ -236,13 +269,16 @@ function drawLunarShadow() {
 
   let pathD = "";
   for (let i = 0; i <= totalHours * resolution; i++) {
-    const time_days = (i / resolution) / 24.0; 
-    const total_time_days = currentCycle * synodicMonth + time_days;
-
-    const phase_angle = (total_time_days / synodicMonth) * Math.PI * 2;
-    const illumination = 0.5 * (1 - Math.cos(phase_angle));
+    const timeMs = cycleStartTime + (i / resolution) * 3600000;
+    
+    // 太陽と月の黄経差（0=新月, 180=満月）
+    let diff = (getLunarLongitude(timeMs) - getSolarLongitude(timeMs) + 360) % 360;
+    
+    // 影の割合を天文学的に算出（新月で1.0、満月で0.0）
+    const illumination = 0.5 * (1 - Math.cos(diff * Math.PI / 180));
     const shadow = 1.0 - illumination;
 
+    // 影の割合を「面積」に変換して半径を導出
     const r = Math.sqrt(rMin * rMin + shadow * maxArea);
     const angle = startAngle + (i / resolution) * 0.5;
 
@@ -260,11 +296,96 @@ function drawLunarShadow() {
 
   const shadowPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   shadowPath.setAttribute("d", pathD);
-  shadowPath.setAttribute("fill", "rgba(0, 0, 0, 0.05)");
+  shadowPath.setAttribute("fill", "rgba(0, 0, 0, 0.05)"); // 透過率5%の墨色
   shadowLayer.appendChild(shadowPath);
 }
 
-// ★修正：レイアウトの余白とサイズを拡大
+// 左右セパレート・月相自動判定レイアウト
+function drawSolarDates(startDate) {
+  let dateLayer = document.getElementById("solar-dates-layer");
+  if(dateLayer) { dateLayer.innerHTML = ""; } 
+  else {
+    dateLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    dateLayer.setAttribute("id", "solar-dates-layer");
+    svg.appendChild(dateLayer);
+  }
+  const rIn = concentricRings[concentricRings.length - 2];
+  const rOut = concentricRings[concentricRings.length - 1];
+  
+  // 新暦と曜日は左側（0-6時）のセルに上下配置
+  const rMidDate = rIn + (rOut - rIn) * 0.65; 
+  const rMidDay  = rIn + (rOut - rIn) * 0.25; 
+  
+  // 旧暦丸囲みは右側（18-24時）のセルに大きく配置
+  const rMidLunar = (rIn + rOut) / 2;
+  const lunarRadius = (rOut - rIn) * 0.4; // 縦幅をほぼフルに使う大きな丸
+  
+  const daysStr = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+  for (let i = 0; i < 30; i++) {
+    const loopDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
+    const timeMsStart = loopDate.getTime();
+    const timeMsEnd = timeMsStart + 86400000;
+
+    const absoluteSegment = (currentStartSegment + i * 4) % 120;
+    const baseAngle = absoluteSegment * 3;
+    
+    // ★1. 左側のセル（0-6時の枠内）：新暦と曜日
+    const angleLeft = baseAngle + 1.5; 
+    
+    const ptDate = polarToCartesian(cx, cy, rMidDate, angleLeft);
+    const textDate = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    textDate.setAttribute("x", ptDate.x); textDate.setAttribute("y", ptDate.y);
+    textDate.setAttribute("text-anchor", "middle"); textDate.setAttribute("dominant-baseline", "central");
+    textDate.setAttribute("fill", "#727171"); textDate.setAttribute("font-size", "10px");
+    textDate.setAttribute("font-weight", "bold");
+    textDate.setAttribute("transform", `rotate(${angleLeft}, ${ptDate.x}, ${ptDate.y})`);
+    textDate.textContent = `${loopDate.getMonth() + 1}/${loopDate.getDate()}`;
+    dateLayer.appendChild(textDate);
+
+    const ptDay = polarToCartesian(cx, cy, rMidDay, angleLeft);
+    const textDay = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    textDay.setAttribute("x", ptDay.x); textDay.setAttribute("y", ptDay.y);
+    textDay.setAttribute("text-anchor", "middle"); textDay.setAttribute("dominant-baseline", "central");
+    textDay.setAttribute("fill", "#b0b0b0"); textDay.setAttribute("font-size", "7px");
+    textDay.setAttribute("transform", `rotate(${angleLeft}, ${ptDay.x}, ${ptDay.y})`);
+    textDay.textContent = daysStr[loopDate.getDay()];
+    dateLayer.appendChild(textDay);
+
+    // ★2. 右側のセル（18-24時の枠内）：旧暦・月相
+    const angleRight = baseAngle + 10.5;
+    const ptLunar = polarToCartesian(cx, cy, rMidLunar, angleRight);
+    
+    // 月相の自動判定（天文学的に90の倍数を跨ぐか）
+    const event = (i === 0) ? "新月" : getLunarPhaseEvent(timeMsStart, timeMsEnd);
+    const lunarLabel = event ? event : getLunarDayKanji(i + 1);
+    
+    // 丸（背景枠）
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("cx", ptLunar.x); circle.setAttribute("cy", ptLunar.y);
+    circle.setAttribute("r", lunarRadius);
+    circle.setAttribute("fill", "none");
+    circle.setAttribute("stroke", event ? "#d4af37" : "#555555"); // 月相の日は金色に
+    circle.setAttribute("stroke-width", event ? "1.2" : "0.8");
+    dateLayer.appendChild(circle);
+
+    // テキスト（文字数によってサイズを自動調整して横書き）
+    const textLunar = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    textLunar.setAttribute("x", ptLunar.x); textLunar.setAttribute("y", ptLunar.y);
+    textLunar.setAttribute("text-anchor", "middle"); textLunar.setAttribute("dominant-baseline", "central");
+    textLunar.setAttribute("fill", event ? "#d4af37" : "#2c3e50"); 
+    
+    // 2文字（十一、満月など）は少し小さくして丸に収める
+    const fontSize = lunarLabel.length > 1 ? "8px" : "11px";
+    textLunar.setAttribute("font-size", fontSize);
+    if(event) textLunar.setAttribute("font-weight", "bold");
+    textLunar.setAttribute("font-family", "'Shippori Mincho', serif");
+    textLunar.setAttribute("transform", `rotate(${angleRight}, ${ptLunar.x}, ${ptLunar.y})`);
+    textLunar.textContent = lunarLabel;
+    dateLayer.appendChild(textLunar);
+  }
+}
+
 function drawOuterSeasons(cycleStartTime) {
   outerSeasonLayer.innerHTML = ""; 
   if (concentricRings.length === 0) return;
@@ -273,15 +394,14 @@ function drawOuterSeasons(cycleStartTime) {
   const cycleEndTime = cycleStartTime + cycleLengthMs;
   const rMax = concentricRings[concentricRings.length - 1]; 
 
-  // ★新規：右上に和風月名（文月など）を大きく表示
-  let wafuIndex = (6 + currentCycle) % 12; // 6が文月(旧暦7月)
+  let wafuIndex = (6 + currentCycle) % 12; 
   if (wafuIndex < 0) wafuIndex += 12;
   const currentWafu = wafuNames[wafuIndex];
 
   const wafuText = document.createElementNS("http://www.w3.org/2000/svg", "text");
-  wafuText.setAttribute("x", viewBox.w - 180); // 右上の固定位置
+  wafuText.setAttribute("x", viewBox.w - 180); 
   wafuText.setAttribute("y", 180);
-  wafuText.setAttribute("fill", "#d4af37"); // 品のある金色
+  wafuText.setAttribute("fill", "#d4af37"); 
   wafuText.setAttribute("font-size", "48px");
   wafuText.setAttribute("font-family", "'Shippori Mincho', serif");
   wafuText.setAttribute("font-weight", "bold");
@@ -298,7 +418,6 @@ function drawOuterSeasons(cycleStartTime) {
       const isSekki = season.type === 'sekki';
 
       const p1 = polarToCartesian(cx, cy, rMax, angle);
-      // 線の長さを少し伸ばしてスペース確保
       const p2 = polarToCartesian(cx, cy, rMax + (isSekki ? 12 : 8), angle);
       const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
       line.setAttribute("x1", p1.x); line.setAttribute("y1", p1.y);
@@ -307,13 +426,11 @@ function drawOuterSeasons(cycleStartTime) {
       line.setAttribute("stroke-width", isSekki ? "1.5" : "0.5");
       outerSeasonLayer.appendChild(line);
 
-      // ★文字の配置半径（さらに外へ離す）
       const rText = rMax + (isSekki ? 32 : 16); 
       const ptText = polarToCartesian(cx, cy, rText, angle);
       
       const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
       text.setAttribute("fill", isSekki ? "#2c3e50" : "#666666"); 
-      // ★サイズを2pxずつアップ（14pxと11pxに）
       text.setAttribute("font-size", isSekki ? "14px" : "11px");
       if (isSekki) text.setAttribute("font-weight", "bold");
       text.setAttribute("font-family", "'Shippori Mincho', serif");
@@ -496,78 +613,6 @@ function drawDynamicLines() {
     line.setAttribute("x2", ptOuter.x); line.setAttribute("y2", ptOuter.y);
     line.setAttribute("stroke", "#555555"); line.setAttribute("stroke-width", "1.5"); 
     linesLayer.appendChild(line);
-  }
-}
-
-// ★修正：新暦(月/日)・丸囲み旧暦・曜日の3段レイアウト
-function drawSolarDates(startDate) {
-  let dateLayer = document.getElementById("solar-dates-layer");
-  if(dateLayer) { dateLayer.innerHTML = ""; } 
-  else {
-    dateLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
-    dateLayer.setAttribute("id", "solar-dates-layer");
-    svg.appendChild(dateLayer);
-  }
-  const rIn = concentricRings[concentricRings.length - 2];
-  const rOut = concentricRings[concentricRings.length - 1];
-  
-  // 階層30の中での半径位置（外側から 旧暦・新暦・曜日）
-  const rMidLunar = rIn + (rOut - rIn) * 0.8; 
-  const rMidDate  = rIn + (rOut - rIn) * 0.5; 
-  const rMidDay   = rIn + (rOut - rIn) * 0.2; 
-  
-  const daysStr = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-  for (let i = 0; i < 30; i++) {
-    const loopDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
-    const absoluteSegment = (currentStartSegment + i * 4) % 120;
-    const angle = absoluteSegment * 3 + 1.5; // セルの中央の角度
-    
-    // 1. 旧暦（丸囲みの漢数字）
-    const lunarDayInt = i + 1; // 1日スタート
-    const lunarKanji = getLunarDayKanji(lunarDayInt);
-    const ptLunar = polarToCartesian(cx, cy, rMidLunar, angle);
-    
-    // 丸（背景）
-    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    circle.setAttribute("cx", ptLunar.x); circle.setAttribute("cy", ptLunar.y);
-    circle.setAttribute("r", "7"); // 丸の大きさ
-    circle.setAttribute("fill", "none");
-    circle.setAttribute("stroke", "#555555");
-    circle.setAttribute("stroke-width", "0.8");
-    dateLayer.appendChild(circle);
-
-    // 漢数字
-    const textLunar = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    textLunar.setAttribute("x", ptLunar.x); textLunar.setAttribute("y", ptLunar.y);
-    textLunar.setAttribute("text-anchor", "middle"); textLunar.setAttribute("dominant-baseline", "central");
-    textLunar.setAttribute("fill", "#2c3e50"); textLunar.setAttribute("font-size", "8px");
-    textLunar.setAttribute("font-family", "'Shippori Mincho', serif");
-    textLunar.setAttribute("transform", `rotate(${angle}, ${ptLunar.x}, ${ptLunar.y})`);
-    textLunar.textContent = lunarKanji;
-    dateLayer.appendChild(textLunar);
-
-    // 2. 陽暦（新暦： 8/13 形式）
-    const ptDate = polarToCartesian(cx, cy, rMidDate, angle);
-    const textDate = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    textDate.setAttribute("x", ptDate.x); textDate.setAttribute("y", ptDate.y);
-    textDate.setAttribute("text-anchor", "middle"); textDate.setAttribute("dominant-baseline", "central");
-    textDate.setAttribute("fill", "#727171"); textDate.setAttribute("font-size", "11px");
-    textDate.setAttribute("font-weight", "bold");
-    textDate.setAttribute("transform", `rotate(${angle}, ${ptDate.x}, ${ptDate.y})`);
-    // 月と日を結合
-    textDate.textContent = `${loopDate.getMonth() + 1}/${loopDate.getDate()}`;
-    dateLayer.appendChild(textDate);
-
-    // 3. 曜日
-    const ptDay = polarToCartesian(cx, cy, rMidDay, angle);
-    const textDay = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    textDay.setAttribute("x", ptDay.x); textDay.setAttribute("y", ptDay.y);
-    textDay.setAttribute("text-anchor", "middle"); textDay.setAttribute("dominant-baseline", "central");
-    textDay.setAttribute("fill", "#b0b0b0"); textDay.setAttribute("font-size", "7px");
-    textDay.setAttribute("transform", `rotate(${angle}, ${ptDay.x}, ${ptDay.y})`);
-    textDay.textContent = daysStr[loopDate.getDay()];
-    dateLayer.appendChild(textDay);
   }
 }
 
