@@ -1,4 +1,4 @@
-// script.js (時間目盛り・潮汐8箇所ガイド・日付太線 追加版)
+// script.js (正確な線上配置・白フチ視認性向上・6分割対応版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
@@ -218,14 +218,14 @@ function updateCalendarCycle() {
   document.getElementById('cycleDisplay').innerHTML = `${y}年 ${m}月<br><span style="font-size:11px; color:#8b949e;">新月: ${m}月${d}日〜</span>`;
 
   drawSolarDates(startDate);
-  drawTimeLabels(); // ★新規：時間目盛りの描画
+  drawTimeLabels(); 
   drawSeasonsBlocks(startDate.getTime()); 
   drawTideGraph();    
   drawDynamicLines(); 
   renderSavedData();
 }
 
-// ★新規追加：階層20に「0, 6, 12, 18」の時間を描画
+// ★修正：時間目盛りを「正確に線上」に配置し、白フチ（Halo）を適用
 function drawTimeLabels() {
   let timeLayer = document.getElementById("time-labels-layer");
   if(timeLayer) { timeLayer.innerHTML = ""; } 
@@ -235,7 +235,6 @@ function drawTimeLabels() {
     svg.appendChild(timeLayer);
   }
   
-  // 階層20（インデックス19と20の間）に配置
   if (concentricRings.length < 20) return;
   const rIn = concentricRings[19];
   const rOut = concentricRings[20];
@@ -244,7 +243,8 @@ function drawTimeLabels() {
 
   for (let i = 0; i < 120; i++) {
     const absoluteSegment = (currentStartSegment + i) % 120;
-    const angle = absoluteSegment * 3 + 1.5;
+    // ★ +1.5 を削除し、正確に線の上（0度, 3度, 6度...）に配置
+    const angle = absoluteSegment * 3;
     
     const ptTime = polarToCartesian(cx, cy, rMidTime, angle);
     const textTime = document.createElementNS("http://www.w3.org/2000/svg", "text");
@@ -252,10 +252,10 @@ function drawTimeLabels() {
     textTime.setAttribute("y", ptTime.y);
     textTime.setAttribute("text-anchor", "middle"); 
     textTime.setAttribute("dominant-baseline", "central");
-    textTime.setAttribute("fill", "#999999"); // 控えめなグレー
+    textTime.setAttribute("fill", "#666666"); // 線上で目立つよう少し濃いグレーに
     textTime.setAttribute("font-size", "7px");
+    textTime.setAttribute("font-family", "'Shippori Mincho', serif");
     
-    // ★下半分の文字は逆さまにならないように反転させる
     let relAngle = angle % 360;
     if (relAngle < 0) relAngle += 360;
     if (relAngle > 90 && relAngle < 270) {
@@ -265,7 +265,16 @@ function drawTimeLabels() {
     }
     
     textTime.textContent = timeStr[i % 4];
-    timeLayer.appendChild(textTime);
+
+    // ★白フチ（Halo）を生成して線の影響をカット
+    const haloTime = textTime.cloneNode(true);
+    haloTime.setAttribute("stroke", "rgba(255, 255, 255, 0.95)"); // ほぼ不透明の白
+    haloTime.setAttribute("stroke-width", "3");
+    haloTime.setAttribute("stroke-linejoin", "round");
+    haloTime.setAttribute("fill", "none");
+
+    timeLayer.appendChild(haloTime); // 先にフチを描画
+    timeLayer.appendChild(textTime); // その上に文字を描画
   }
 }
 
@@ -369,51 +378,57 @@ function drawSeasonArc(rIn, rOut, startAngle, endAngle, color) {
   seasonLayer.appendChild(path);
 }
 
-// ★潮汐グラフ：目盛りの追加（-1.5, 7.5）と円周8箇所への配置
+// ★修正：潮汐目盛りを6分割（5日ごと）にし、正確な線上（太線）に配置・白フチ適用
 function drawTideGraph() {
   tideLayer.innerHTML = ""; 
   if (concentricRings.length < 23) return; 
   const rMin = concentricRings[16]; const rMax = concentricRings[22]; 
   const minTide = -1.5; const maxTide = 7.5; const range = maxTide - minTide;
 
-  // 目盛りに -1.5 と 7.5 を追加
   const guideTides = [-1.5, 0, 1.5, 3.0, 4.5, 6.0, 7.5];
   
   guideTides.forEach(ft => {
     const r = rMin + (rMax - rMin) * ((ft - minTide) / range);
-    // 円周の点線
     const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     circle.setAttribute("cx", cx); circle.setAttribute("cy", cy); circle.setAttribute("r", r);
     circle.setAttribute("fill", "none"); circle.setAttribute("stroke", "rgba(114, 113, 113, 0.4)"); 
     circle.setAttribute("stroke-width", "0.5"); circle.setAttribute("stroke-dasharray", "4,4"); 
     tideLayer.appendChild(circle);
     
-    // ★45度ごと（8箇所）に文字を均等配置
-    for(let i = 0; i < 8; i++) {
-      const labelAngle = currentStartSegment * 3 - 2 + (i * 45); 
+    // ★6分割（360度 / 6 = 60度）に変更。60度は正確に5日分のマス（太線）と一致
+    for(let i = 0; i < 6; i++) {
+      const labelAngle = currentStartSegment * 3 + (i * 60); 
       const labelPt = polarToCartesian(cx, cy, r, labelAngle); 
-      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
-      text.setAttribute("fill", "rgba(114, 113, 113, 0.8)"); 
-      text.setAttribute("font-size", "7px");
       
-      // ★文字が逆さまにならないように反転させる処理
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      text.setAttribute("x", labelPt.x); 
+      text.setAttribute("y", labelPt.y);
+      text.setAttribute("text-anchor", "middle"); 
+      text.setAttribute("dominant-baseline", "central");
+      text.setAttribute("fill", "rgba(114, 113, 113, 1)"); 
+      text.setAttribute("font-size", "7px");
+      text.setAttribute("font-family", "'Shippori Mincho', serif");
+      
       let relAngle = labelAngle % 360;
       if (relAngle < 0) relAngle += 360;
       
+      // 文字の反転処理（上下）
       if (relAngle > 90 && relAngle < 270) {
-        text.setAttribute("text-anchor", "start");
         text.setAttribute("transform", `rotate(${labelAngle - 180}, ${labelPt.x}, ${labelPt.y})`);
-        // 反転時の位置微調整
-        const offsetPt = polarToCartesian(cx, cy, r + 2, labelAngle);
-        text.setAttribute("x", offsetPt.x); text.setAttribute("y", offsetPt.y);
       } else {
-        text.setAttribute("text-anchor", "end");
         text.setAttribute("transform", `rotate(${labelAngle}, ${labelPt.x}, ${labelPt.y})`);
-        text.setAttribute("x", labelPt.x); text.setAttribute("y", labelPt.y);
       }
       
-      text.setAttribute("dominant-baseline", "bottom");
-      text.textContent = ft;
+      text.textContent = ft + "ft";
+
+      // ★白フチ（Halo）を生成して太線と点線をカット
+      const halo = text.cloneNode(true);
+      halo.setAttribute("stroke", "rgba(255, 255, 255, 0.95)");
+      halo.setAttribute("stroke-width", "3");
+      halo.setAttribute("stroke-linejoin", "round");
+      halo.setAttribute("fill", "none");
+
+      tideLayer.appendChild(halo);
       tideLayer.appendChild(text);
     }
   });
@@ -442,6 +457,15 @@ function drawTideGraph() {
     if (i === 0) pathD += `M ${pt.x},${pt.y} `; 
     else pathD += `L ${pt.x},${pt.y} `;
   }
+
+  const baseR = rMin + (rMax - rMin) * ((0 - minTide) / range); 
+  const pEndBase = polarToCartesian(cx, cy, baseR, startAngle + 360);
+  const fillD = pathD + ` L ${pEndBase.x},${pEndBase.y} Z`;
+
+  const fillArea = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  fillArea.setAttribute("d", fillD);
+  fillArea.setAttribute("fill", "rgba(59, 130, 246, 0.15)"); 
+  tideLayer.appendChild(fillArea);
 
   const wavePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
   wavePath.setAttribute("d", pathD); 
@@ -472,7 +496,6 @@ function drawDynamicLines() {
   ring3.setAttribute("stroke-width", "1.5");
   linesLayer.appendChild(ring3);
 
-  // ★新規追加：日付枠の内側の円周（下から2番目の外周円）を太線にする
   const ringDateInner = document.createElementNS("http://www.w3.org/2000/svg", "circle");
   ringDateInner.setAttribute("cx", cx); ringDateInner.setAttribute("cy", cy);
   ringDateInner.setAttribute("r", concentricRings[concentricRings.length - 2]);
