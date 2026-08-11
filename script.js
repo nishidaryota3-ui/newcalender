@@ -1,4 +1,4 @@
-// script.js (過去気象アーカイブAPI自動切替エンジン搭載版)
+// script.js (降水量リミッター解除・30mmスケール化・完全API版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
@@ -10,7 +10,7 @@ const cy = 1191.4759;
 const svgNS = "http://www.w3.org/2000/svg";
 
 // --- ツール＆操作ステータス ---
-let currentTool = 'pointer'; // 'pointer'(V), 'paint'(B), 'erase'(E)
+let currentTool = 'pointer'; 
 let activeBrush = "#38bdf8"; 
 let globalRotation = 0; 
 let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV10')) || {};
@@ -232,14 +232,12 @@ async function fetchMeteoData(startDateMs) {
     apiTideData = new Array(720).fill(null);
     apiRainData = new Array(720).fill(null);
 
-    // ★現在時刻と比較し、要求データが「5日以上前」ならHistorical Archive APIを使用する
     const isHistorical = dEnd.getTime() < Date.now() - (5 * 86400000);
     const rainApiUrl = isHistorical 
         ? `https://archive-api.open-meteo.com/v1/archive?latitude=${PALAU_LAT}&longitude=${PALAU_LON}&hourly=precipitation&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`
         : `https://api.open-meteo.com/v1/forecast?latitude=${PALAU_LAT}&longitude=${PALAU_LON}&hourly=precipitation&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`;
 
     try {
-        // 海洋(Marine)APIは過去から未来まで同じエンドポイントで対応可能
         const [tideRes, rainRes] = await Promise.all([
             fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${PALAU_LAT}&longitude=${PALAU_LON}&hourly=sea_level&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`),
             fetch(rainApiUrl)
@@ -387,13 +385,14 @@ function drawTideGraph() {
   });
 }
 
+// ★修正：降水量グラフのリミッター解除と30mmスケール化
 function drawRainfallGraph() {
   rainfallLayer.innerHTML = "";
   if (concentricRings.length < 21) return;
   
   const rMin = concentricRings[16]; 
   const rMax = concentricRings[20]; 
-  const maxRain = 10; 
+  const maxRain = 30; // ★基準を30mmに拡張
   
   const circle = document.createElementNS(svgNS, "circle");
   circle.setAttribute("cx", cx); circle.setAttribute("cy", cy); circle.setAttribute("r", rMin);
@@ -408,12 +407,13 @@ function drawRainfallGraph() {
     if(rain === null || isNaN(rain)) {
         let currentTide = getSimulatedTideValue(h);
         let nextTide = getSimulatedTideValue(h+0.1);
-        if(nextTide - currentTide < -0.1 && Math.random() > 0.9) rain = Math.random() * 5 + 2; 
+        if(nextTide - currentTide < -0.1 && Math.random() > 0.9) rain = Math.random() * 15 + 2; 
         else rain = 0;
     }
 
     if (rain > 0) {
-      const displayRain = Math.min(rain, maxRain);
+      // ★Math.minによるリミッターを撤廃し、30mmを超えたら飛び出させる
+      const displayRain = rain; 
       const r = rMin + (rMax - rMin) * (displayRain / maxRain);
       const angle = startAngle + h * 0.5 + 0.25; 
       const p1 = polarToCartesian(cx, cy, rMin, angle);
@@ -428,10 +428,11 @@ function drawRainfallGraph() {
     }
   }
 
+  // ★10, 20, 30mmの目盛りを追加
   const labelRelAngle = 96; 
   const labelAngle = startAngle + labelRelAngle;
   
-  [5, 10].forEach(val => {
+  [10, 20, 30].forEach(val => {
       const r = rMin + (rMax - rMin) * (val / maxRain);
       const p1 = polarToCartesian(cx, cy, r - 3, labelAngle);
       const p2 = polarToCartesian(cx, cy, r + 3, labelAngle);
@@ -574,10 +575,6 @@ function drawSolarDates(startDate) {
     dateLayer.appendChild(textLunar);
   }
 }
-
-// ---------------------------------------------------------------------
-// 以下、天文エンジン、影描画、イベント操作、ベース図形生成等
-// ---------------------------------------------------------------------
 
 function getSolarLongitude(timeMs) {
   let jd = timeMs / 86400000 + 2440587.5;
