@@ -1,4 +1,4 @@
-// script.js (ホイール回転機能・絶対放射状ラベル・雨量レイヤー最適化版)
+// script.js (背景とデータの一体化・完全回転対応版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
@@ -8,7 +8,7 @@ let viewBox = { x: 0, y: 0, w: 1841.3719, h: 2382.9518 };
 const cx = 920.6859;
 const cy = 1191.4759;
 let activeBrush = "#38bdf8"; 
-let globalRotation = 0; // 全体の回転角度
+let globalRotation = 0; 
 
 let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV5')) || {};
 let concentricRings = []; 
@@ -41,7 +41,6 @@ const tidePoints = realTideData.map(d => {
   return { t: hours, h: d.tide };
 });
 
-// --- UI コントロール ---
 const navDiv = document.createElement('div');
 navDiv.style = "position:fixed; top:30px; right:30px; background:rgba(25,30,40,0.85); padding:15px; border-radius:12px; color:#d4af37; z-index:100; display:flex; gap:15px; align-items:center; border: 1px solid rgba(212,175,55,0.3); backdrop-filter: blur(10px); box-shadow: 0 10px 30px rgba(0,0,0,0.2);";
 navDiv.innerHTML = `
@@ -56,7 +55,6 @@ clearBtn.innerHTML = "🧹 選択中の色をクリア";
 clearBtn.style = "position:fixed; bottom:30px; right:30px; background:rgba(25,30,40,0.85); color:#fff; border:1px solid rgba(255,255,255,0.2); padding:10px 15px; border-radius:8px; cursor:pointer; font-weight:bold; backdrop-filter:blur(10px); z-index:100; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition:0.2s;";
 document.body.appendChild(clearBtn);
 
-// ★新規追加：回転・パン切り替えボタン
 let interactionMode = 'pan'; 
 const modeBtn = document.createElement('button');
 modeBtn.innerHTML = "🖐️ 移動モード (クリックで回転)";
@@ -90,7 +88,6 @@ clearBtn.addEventListener('click', () => {
   }
 });
 
-// --- 初期化 ---
 fetch('calendar.svg')
   .then(response => response.text())
   .then(svgCode => {
@@ -108,16 +105,22 @@ fetch('calendar.svg')
     });
     concentricRings = [...new Set(radii)].sort((a, b) => a - b);
 
-    // ★すべてのレイヤーを内包する「マスターグループ（回転用）」を作成
+    // ★大改修：Illustratorの元データをすべて「回転用の箱」に収納する
     masterGroup = document.createElementNS("http://www.w3.org/2000/svg", "g");
     masterGroup.setAttribute("id", "master-group");
+
+    // svgの元々の中身（Illustratorの線や円）をすべてmasterGroupに移動
+    while (svg.firstChild) {
+      masterGroup.appendChild(svg.firstChild);
+    }
+    // 空になったsvgにmasterGroupをセット
     svg.appendChild(masterGroup);
 
+    // プログラムで作るレイヤーたちも、すべてmasterGroupの中に同居させる
     textPathDefs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
     textPathDefs.setAttribute("id", "text-path-defs");
-    svg.appendChild(textPathDefs);
+    masterGroup.appendChild(textPathDefs);
 
-    // 全てのレイヤーを masterGroup に追加
     dataLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     masterGroup.appendChild(dataLayer);
 
@@ -142,7 +145,6 @@ fetch('calendar.svg')
   })
   .catch(err => console.error("SVG読み込みエラー:", err));
 
-// --- 天文計算エンジン ---
 function getSolarLongitude(timeMs) {
   let jd = timeMs / 86400000 + 2440587.5;
   let t = (jd - 2451545.0) / 36525;
@@ -262,7 +264,6 @@ function getTideValue(t_hours) {
   return 3.0 + 3.5 * Math.sin(t_hours * 2 * Math.PI / 12.42) + 1.0 * Math.cos(t_hours * 2 * Math.PI / 24.84);
 }
 
-// --- メイン描画 ---
 function updateCalendarCycle() {
   const totalElapsedDays = currentCycle * synodicMonth;
   const startDate = new Date(baseDate.getTime() + totalElapsedDays * 24 * 60 * 60 * 1000);
@@ -317,12 +318,10 @@ function drawLunarShadow(cycleStartTime) {
   shadowLayer.appendChild(shadowPath);
 }
 
-// ★修正：雨量グラフを階層17〜18の間に配置
 function drawRainfallGraph() {
   rainfallLayer.innerHTML = "";
   if (concentricRings.length < 19) return;
   
-  // ★階層17(インデックス16)〜階層18(インデックス18)のエリアを使用
   const rMin = concentricRings[16]; 
   const rMax = concentricRings[18]; 
   const maxRain = 100; 
@@ -342,7 +341,6 @@ function drawRainfallGraph() {
     let nextTide = getTideValue(h + 0.1);
     let currentSlope = nextTide - currentTide;
     
-    // 潮が反転した瞬間に架空のスコールを発生
     if (prevSlope * currentSlope <= 0 && Math.abs(currentSlope) < 0.5) {
         let intensity = 40 + ((Math.sin(h * 7.89) * 0.5 + 0.5) * 60); 
         rainData[h] = intensity;
@@ -357,10 +355,8 @@ function drawRainfallGraph() {
     if (rainData[h] > 0) {
       const r = rMin + (rMax - rMin) * (rainData[h] / maxRain);
       const angle = startAngle + h * 0.5;
-      
       const p1 = polarToCartesian(cx, cy, rMin, angle);
       const p2 = polarToCartesian(cx, cy, r, angle);
-      
       const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
       line.setAttribute("x1", p1.x); line.setAttribute("y1", p1.y);
       line.setAttribute("x2", p2.x); line.setAttribute("y2", p2.y);
@@ -378,7 +374,7 @@ function drawSolarDates(startDate) {
   else {
     dateLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     dateLayer.setAttribute("id", "solar-dates-layer");
-    masterGroup.appendChild(dateLayer); // ★マスターグループに追加
+    masterGroup.appendChild(dateLayer); 
   }
   const rIn = concentricRings[concentricRings.length - 2];
   const rOut = concentricRings[concentricRings.length - 1];
@@ -457,12 +453,12 @@ function drawOuterSeasons(cycleStartTime) {
   if (wafuIndex < 0) wafuIndex += 12;
   const currentWafu = wafuNames[wafuIndex];
 
-  // 和風月名（回転させず常に右上に固定するため SVG直下に配置）
   let wafuText = document.getElementById("wafu-text-layer");
   if(wafuText) { wafuText.innerHTML = ""; }
   else {
     wafuText = document.createElementNS("http://www.w3.org/2000/svg", "text");
     wafuText.setAttribute("id", "wafu-text-layer");
+    // 和風月名は回転させないようSVG直下に配置（マスターグループの外）
     svg.appendChild(wafuText);
   }
   wafuText.setAttribute("x", viewBox.w - 180); 
@@ -509,7 +505,6 @@ function drawOuterSeasons(cycleStartTime) {
   });
 }
 
-// ★修正：反転なし（常に底辺が中心を向く絶対放射状配置）＋白フチ
 function drawTimeLabels() {
   let timeLayer = document.getElementById("time-labels-layer");
   if(timeLayer) { timeLayer.innerHTML = ""; } 
@@ -531,7 +526,6 @@ function drawTimeLabels() {
     textTime.setAttribute("fill", "#666666"); textTime.setAttribute("font-size", "7px");
     textTime.setAttribute("font-family", "'Shippori Mincho', serif");
     
-    // シンプルに角度のまま回転させることで、常に底辺が中心を向く
     textTime.setAttribute("transform", `rotate(${angle}, ${ptTime.x}, ${ptTime.y})`);
     textTime.textContent = timeStr[i % 4];
 
@@ -546,7 +540,6 @@ function drawTimeLabels() {
   }
 }
 
-// ★修正：潮汐目盛りも反転なしの絶対放射状配置＋白フチ
 function drawTideGraph() {
   tideLayer.innerHTML = ""; 
   if (concentricRings.length < 23) return; 
@@ -574,7 +567,6 @@ function drawTideGraph() {
       text.setAttribute("font-size", "7px");
       text.setAttribute("font-family", "'Shippori Mincho', serif");
       
-      // シンプルな回転（底辺が中心を向く）
       text.setAttribute("transform", `rotate(${labelAngle}, ${labelPt.x}, ${labelPt.y})`);
       text.textContent = ft + "ft";
 
@@ -694,7 +686,6 @@ document.querySelectorAll('.color-tag').forEach(tag => {
   });
 });
 
-// ★新規追加：ホイール回転（ドラッグ操作）の統合管理
 function initInteractions() {
   container.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -739,7 +730,6 @@ function initInteractions() {
       const currentAngleOffset = Math.atan2(svgP.y - cy, svgP.x - cx) * 180 / Math.PI;
       let delta = currentAngleOffset - startAngleOffset;
       
-      // 360度境界またぎの滑らかな処理
       if (delta > 180) delta -= 360;
       if (delta < -180) delta += 360;
       
@@ -752,7 +742,6 @@ function initInteractions() {
     }
 
     const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
-    // ★マスタグループ（回転後）のローカル座標を取得してセルを計算
     const svgP = pt.matrixTransform(masterGroup.getScreenCTM().inverse());
     const dx = svgP.x - cx, dy = svgP.y - cy;
     const distance = Math.sqrt(dx * dx + dy * dy);
@@ -781,7 +770,6 @@ function initInteractions() {
   svg.addEventListener('click', (e) => {
     if (dragDistance > 5) return;
     const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
-    // ★マスタグループ（回転後）のローカル座標を取得して色塗り
     const svgP = pt.matrixTransform(masterGroup.getScreenCTM().inverse());
     const dx = svgP.x - cx, dy = svgP.y - cy;
     const distance = Math.sqrt(dx * dx + dy * dy);
