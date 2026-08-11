@@ -1,4 +1,4 @@
-// script.js (降水量リミッター解除・30mmスケール化・完全API版)
+// script.js (プロUI統合・スペースキードラッグ・雨量フルスケール・季節ガイド線版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
@@ -10,13 +10,13 @@ const cy = 1191.4759;
 const svgNS = "http://www.w3.org/2000/svg";
 
 // --- ツール＆操作ステータス ---
-let currentTool = 'pointer'; 
+let currentTool = 'pointer'; // 'pointer', 'paint', 'erase'
+let interactionMode = 'pan'; // 'pan' or 'rotate'
 let activeBrush = "#38bdf8"; 
 let globalRotation = 0; 
-let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV10')) || {};
+let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV11')) || {};
 let concentricRings = []; 
 
-// コロールの緯度経度
 const PALAU_LAT = 7.34;
 const PALAU_LON = 134.48;
 
@@ -36,10 +36,16 @@ loader.style = "position:fixed; top:0; left:0; width:100vw; height:100vh; backgr
 loader.innerHTML = "☁️ パラオの気象・潮汐データを取得中...";
 document.body.appendChild(loader);
 
+// --- 白黒SVGアイコンの定義 ---
+const iconPan = `<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M21,10.5V9.5A1.5,1.5 0 0,0 19.5,8H19V6.5A1.5,1.5 0 0,0 17.5,5H17V3.5A1.5,1.5 0 0,0 15.5,2A1.5,1.5 0 0,0 14,3.5V11H13V8.5A1.5,1.5 0 0,0 11.5,7A1.5,1.5 0 0,0 10,8.5V11.5H9V10A1.5,1.5 0 0,0 7.5,8.5A1.5,1.5 0 0,0 6,10V14.5C6,17.5 8.5,20 11.5,20H15.5C18.5,20 21,17.5 21,14.5V10.5Z"/></svg>`;
+const iconRotate = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`;
+const iconPaint = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>`;
+const iconErase = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16C2.5 15.5 2.5 14.5 3 14L13 4C13.5 3.5 14.5 3.5 15 4L20 9C20.5 9.5 20.5 10.5 20 11L11 20H20V20Z"/><line x1="6" y1="11" x2="15" y2="20"/></svg>`;
+const iconTrash = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+
 function initUI() {
     const oldPalette = document.getElementById('palette');
     if (oldPalette) oldPalette.remove();
-
     document.querySelectorAll('.panel-ui').forEach(el => el.remove());
 
     const navDiv = document.createElement('div');
@@ -52,16 +58,17 @@ function initUI() {
     `;
     document.body.appendChild(navDiv);
 
+    // モノクロ・極細ツールバー
     const toolsDiv = document.createElement('div');
     toolsDiv.className = 'panel-ui';
     toolsDiv.style = "position:fixed; top:100px; left:20px; background:rgba(25,30,40,0.9); padding:8px; border-radius:8px; z-index:100; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.5); display:flex; flex-direction:column; gap:8px; width:44px; box-sizing:border-box;";
     
     toolsDiv.innerHTML = `
-      <button id="tool-pointer" title="移動 (V)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:rgba(212,175,55,0.85); border:1px solid #d4af37; font-size:14px; padding:0; display:flex; justify-content:center; align-items:center;">🖐️</button>
-      <button id="tool-paint" title="塗る (B)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; font-size:14px; padding:0; display:flex; justify-content:center; align-items:center;">🖋️</button>
-      <button id="tool-erase" title="消す (E)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; font-size:14px; padding:0; display:flex; justify-content:center; align-items:center;">🧽</button>
+      <button id="tool-pointer" title="移動/回転切替 (V)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#fff; padding:0; display:flex; justify-content:center; align-items:center;">${iconPan}</button>
+      <button id="tool-paint" title="塗る (B)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#fff; padding:0; display:flex; justify-content:center; align-items:center;">${iconPaint}</button>
+      <button id="tool-erase" title="消す (E)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#fff; padding:0; display:flex; justify-content:center; align-items:center;">${iconErase}</button>
       <hr style="border-color:rgba(255,255,255,0.1); width:100%; margin:4px 0;">
-      <button id="clearBtn" title="選択色を全消去" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; font-size:14px; padding:0; display:flex; justify-content:center; align-items:center;">🗑️</button>
+      <button id="clearBtn" title="選択色を全消去" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#fff; padding:0; display:flex; justify-content:center; align-items:center;">${iconTrash}</button>
     `;
     document.body.appendChild(toolsDiv);
 
@@ -71,13 +78,6 @@ function initUI() {
     paletteDiv.style = "position:fixed; top:134px; left:74px; background:rgba(25,30,40,0.9); padding:10px; border-radius:8px; z-index:99; border: 1px solid rgba(255,255,255,0.1); display:none; grid-template-columns:repeat(4, 1fr); gap:6px; width:120px; box-sizing:border-box;";
     document.body.appendChild(paletteDiv);
 
-    const modeBtn = document.createElement('button');
-    modeBtn.className = 'panel-ui';
-    modeBtn.id = 'modeBtn';
-    modeBtn.innerHTML = "🖐️ 移動モード (クリックで回転)";
-    modeBtn.style = "position:fixed; top:80px; right:30px; background:rgba(25,30,40,0.85); color:#fff; border:1px solid #d4af37; padding:8px 12px; border-radius:8px; cursor:pointer; font-weight:bold; font-size:12px; backdrop-filter:blur(10px); z-index:100; transition:0.2s;";
-    document.body.appendChild(modeBtn);
-
     document.getElementById('prevBtn').onclick = () => { currentCycle--; updateCalendarCycle(); };
     document.getElementById('nextBtn').onclick = () => { currentCycle++; updateCalendarCycle(); };
 
@@ -85,48 +85,77 @@ function initUI() {
     const btnPaint = document.getElementById('tool-paint');
     const btnErase = document.getElementById('tool-erase');
 
-    const setTool = (tool) => {
+    const setTool = (tool, mode = null) => {
         currentTool = tool;
+        if (tool === 'pointer' && mode) interactionMode = mode;
+
         [btnPointer, btnPaint, btnErase].forEach(b => {
-            b.style.background = 'transparent'; b.style.borderColor = 'transparent';
+            b.style.background = 'transparent'; b.style.borderColor = 'transparent'; b.style.color = '#fff';
         });
         paletteDiv.style.display = (tool === 'paint') ? 'grid' : 'none';
 
         const activeBtn = tool === 'pointer' ? btnPointer : tool === 'paint' ? btnPaint : btnErase;
         activeBtn.style.background = 'rgba(212,175,55,0.85)';
         activeBtn.style.borderColor = '#d4af37';
+        activeBtn.style.color = '#000';
 
-        if (tool === 'pointer') container.style.cursor = 'grab';
+        if (interactionMode === 'pan') {
+            btnPointer.innerHTML = iconPan;
+            btnPointer.title = "移動 (V)";
+        } else {
+            btnPointer.innerHTML = iconRotate;
+            btnPointer.title = "回転 (V)";
+        }
+
+        if (tool === 'pointer') container.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize';
         else if (tool === 'paint') container.style.cursor = 'crosshair';
         else if (tool === 'erase') container.style.cursor = 'cell';
     };
 
+    // ★ スペースキー制御用の変数
+    let previousTool = 'pointer';
+    let isSpacePressed = false;
+
     document.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        
+        // スペースキーを押している間だけ「手のひらツール」に
+        if (e.code === 'Space') {
+            e.preventDefault(); 
+            if (!isSpacePressed) {
+                isSpacePressed = true;
+                previousTool = currentTool;
+                setTool('pointer', 'pan');
+            }
+            return;
+        }
+
         const key = e.key.toLowerCase();
-        if (key === 'v') setTool('pointer');
+        if (key === 'v') {
+            if (currentTool === 'pointer') {
+                setTool('pointer', interactionMode === 'pan' ? 'rotate' : 'pan');
+            } else {
+                setTool('pointer', interactionMode);
+            }
+        }
         if (key === 'b') setTool('paint');
         if (key === 'e') setTool('erase');
     });
 
-    btnPointer.onclick = () => setTool('pointer');
+    document.addEventListener('keyup', (e) => {
+        // スペースキーを離したら元のツールに戻る
+        if (e.code === 'Space') {
+            isSpacePressed = false;
+            setTool(previousTool);
+        }
+    });
+
+    btnPointer.onclick = () => {
+        if (currentTool === 'pointer') setTool('pointer', interactionMode === 'pan' ? 'rotate' : 'pan');
+        else setTool('pointer', interactionMode);
+    };
     btnPaint.onclick = () => setTool('paint');
     btnErase.onclick = () => setTool('erase');
-
-    let interactionMode = 'pan';
-    modeBtn.onclick = () => {
-        if(interactionMode === 'pan') {
-            interactionMode = 'rotate';
-            modeBtn.innerHTML = "🔄 回転モード (クリックで移動)";
-            modeBtn.style.background = "rgba(212,175,55,0.85)";
-            modeBtn.style.color = "#000";
-        } else {
-            interactionMode = 'pan';
-            modeBtn.innerHTML = "🖐️ 移動モード (クリックで回転)";
-            modeBtn.style.background = "rgba(25,30,40,0.85)";
-            modeBtn.style.color = "#fff";
-        }
-    };
 
     const colors = [
         "#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", 
@@ -154,12 +183,12 @@ function initUI() {
             for (const key in calendarData) {
                 if (key.startsWith(`c${currentCycle}_`) && calendarData[key].color === activeBrush) delete calendarData[key];
             }
-            localStorage.setItem('polarCalendarDataV10', JSON.stringify(calendarData));
+            localStorage.setItem('polarCalendarDataV11', JSON.stringify(calendarData));
             renderSavedData();
         }
     };
 
-    container.style.cursor = 'grab';
+    setTool('pointer', 'pan');
 }
 
 initUI();
@@ -211,7 +240,6 @@ fetch('calendar.svg')
   })
   .catch(err => console.error("SVG読み込みエラー:", err));
 
-// --- API取得ロジック（アーカイブAPI自動切替） ---
 let apiTideData = [];
 let apiRainData = [];
 
@@ -262,7 +290,7 @@ async function fetchMeteoData(startDateMs) {
             }
         }
     } catch(e) {
-        console.warn("API取得エラー: 実測ベースの精密代替シミュレーションを使用します", e);
+        console.warn("APIエラー");
     }
     loader.style.display = 'none';
 }
@@ -275,7 +303,6 @@ function getSimulatedTideValue(t_hours) {
                + K1.a * Math.cos((K1.speed * t_hours - K1.phase) * Math.PI / 180);
 }
 
-// --- メイン描画・天文エンジン ---
 async function updateCalendarCycle() {
   const totalElapsedDays = currentCycle * synodicMonth;
   const cycleStartTimeMs = baseDate.getTime() + totalElapsedDays * 24 * 60 * 60 * 1000;
@@ -385,22 +412,15 @@ function drawTideGraph() {
   });
 }
 
-// ★修正：降水量グラフのリミッター解除と30mmスケール化
+// ★拡張：階層17(インデックス16)〜階層23内周(インデックス22)を雨のキャンバスに
 function drawRainfallGraph() {
   rainfallLayer.innerHTML = "";
-  if (concentricRings.length < 21) return;
+  if (concentricRings.length < 23) return;
   
   const rMin = concentricRings[16]; 
-  const rMax = concentricRings[20]; 
-  const maxRain = 30; // ★基準を30mmに拡張
+  const rMax = concentricRings[22]; 
+  const maxRain = 30; 
   
-  const circle = document.createElementNS(svgNS, "circle");
-  circle.setAttribute("cx", cx); circle.setAttribute("cy", cy); circle.setAttribute("r", rMin);
-  circle.setAttribute("fill", "none"); 
-  circle.setAttribute("stroke", "rgba(14, 165, 233, 0.3)"); 
-  circle.setAttribute("stroke-width", "1"); 
-  rainfallLayer.appendChild(circle);
-
   const startAngle = currentStartSegment * 3;
   for (let h = 0; h < 720; h++) {
     let rain = apiRainData[h];
@@ -412,7 +432,6 @@ function drawRainfallGraph() {
     }
 
     if (rain > 0) {
-      // ★Math.minによるリミッターを撤廃し、30mmを超えたら飛び出させる
       const displayRain = rain; 
       const r = rMin + (rMax - rMin) * (displayRain / maxRain);
       const angle = startAngle + h * 0.5 + 0.25; 
@@ -428,7 +447,6 @@ function drawRainfallGraph() {
     }
   }
 
-  // ★10, 20, 30mmの目盛りを追加
   const labelRelAngle = 96; 
   const labelAngle = startAngle + labelRelAngle;
   
@@ -575,6 +593,10 @@ function drawSolarDates(startDate) {
     dateLayer.appendChild(textLunar);
   }
 }
+
+// ---------------------------------------------------------------------
+// 以下、天文エンジン、影描画、イベント操作、ベース図形生成等
+// ---------------------------------------------------------------------
 
 function getSolarLongitude(timeMs) {
   let jd = timeMs / 86400000 + 2440587.5;
@@ -729,6 +751,7 @@ function drawLunarShadow(cycleStartTime) {
   shadowLayer.appendChild(shadowPath);
 }
 
+// ★修正：フォントの拡大、色の統一、そして美しい「季節のガイド線」の導入
 function drawOuterSeasons(cycleStartTime) {
   outerSeasonLayer.innerHTML = ""; 
   if (concentricRings.length === 0) return;
@@ -760,21 +783,26 @@ function drawOuterSeasons(cycleStartTime) {
       const angle = currentStartSegment * 3 + startDay * 12;
       const isSekki = season.type === 'sekki';
 
-      const p1 = polarToCartesian(cx, cy, rMax, angle);
-      const p2 = polarToCartesian(cx, cy, rMax + (isSekki ? 12 : 8), angle);
-      const line = document.createElementNS(svgNS, "line");
-      line.setAttribute("x1", p1.x); line.setAttribute("y1", p1.y);
-      line.setAttribute("x2", p2.x); line.setAttribute("y2", p2.y);
-      line.setAttribute("stroke", isSekki ? "#e5e7eb" : "#888888");
-      line.setAttribute("stroke-width", isSekki ? "1.5" : "0.5");
-      outerSeasonLayer.appendChild(line);
+      // ★美しいガイド線（中心リングから外側までスッと伸びる線）
+      const p1Inner = polarToCartesian(cx, cy, concentricRings[0], angle);
+      const p2Outer = polarToCartesian(cx, cy, rMax + (isSekki ? 12 : 8), angle);
+      
+      const guideLine = document.createElementNS(svgNS, "line");
+      guideLine.setAttribute("x1", p1Inner.x); guideLine.setAttribute("y1", p1Inner.y);
+      guideLine.setAttribute("x2", p2Outer.x); guideLine.setAttribute("y2", p2Outer.y);
+      guideLine.setAttribute("stroke", "#2c3e50");
+      guideLine.setAttribute("stroke-width", isSekki ? "0.6" : "0.3");
+      guideLine.setAttribute("stroke-dasharray", isSekki ? "4,4" : "2,4"); // 節気は少し太い点線
+      guideLine.setAttribute("opacity", "0.3");
+      outerSeasonLayer.appendChild(guideLine);
 
       const rText = rMax + (isSekki ? 32 : 16); 
       const ptText = polarToCartesian(cx, cy, rText, angle);
       
       const text = document.createElementNS(svgNS, "text");
-      text.setAttribute("fill", isSekki ? "#e5e7eb" : "#9ca3af"); 
-      text.setAttribute("font-size", isSekki ? "14px" : "11px");
+      // ★色を濃紺（#2c3e50）に統一し、フォントサイズを拡大
+      text.setAttribute("fill", "#2c3e50"); 
+      text.setAttribute("font-size", isSekki ? "17px" : "14px"); 
       if (isSekki) text.setAttribute("font-weight", "bold");
       text.setAttribute("font-family", "'Shippori Mincho', serif");
       text.setAttribute("dominant-baseline", "middle");
@@ -783,7 +811,15 @@ function drawOuterSeasons(cycleStartTime) {
       text.setAttribute("x", ptText.x);
       text.setAttribute("y", ptText.y);
       text.textContent = season.name;
+
+      // ★視認性向上のための白いハロ（フチ）
+      const halo = text.cloneNode(true);
+      halo.setAttribute("stroke", "rgba(255, 255, 255, 0.95)"); 
+      halo.setAttribute("stroke-width", "3");
+      halo.setAttribute("stroke-linejoin", "round");
+      halo.setAttribute("fill", "none");
       
+      outerSeasonLayer.appendChild(halo);
       outerSeasonLayer.appendChild(text);
     }
   });
@@ -849,6 +885,7 @@ function getRingInfo(distance) {
   return null;
 }
 
+// ★修正：スペースキー押下中の手のひらツール化
 function initInteractions() {
   container.addEventListener('wheel', (e) => {
     e.preventDefault();
@@ -871,8 +908,7 @@ function initInteractions() {
     lastPaintedCell = null;
 
     if (currentTool === 'pointer') {
-        container.style.cursor = 'grabbing'; 
-        let interactionMode = document.getElementById('modeBtn') && document.getElementById('modeBtn').innerHTML.includes('回転モード') ? 'rotate' : 'pan';
+        container.style.cursor = interactionMode === 'pan' ? 'grabbing' : 'ew-resize'; 
         if (interactionMode === 'rotate') {
             const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
             const svgP = pt.matrixTransform(svg.getScreenCTM().inverse()); 
@@ -886,7 +922,6 @@ function initInteractions() {
 
   window.addEventListener('mousemove', (e) => {
     if (isInteractionActive && currentTool === 'pointer') {
-        let interactionMode = document.getElementById('modeBtn') && document.getElementById('modeBtn').innerHTML.includes('回転モード') ? 'rotate' : 'pan';
         if (interactionMode === 'pan') {
             const dxScreen = startPos.x - e.clientX, dyScreen = startPos.y - e.clientY;
             dragDistance += Math.abs(dxScreen) + Math.abs(dyScreen);
@@ -941,8 +976,8 @@ function initInteractions() {
 
   window.addEventListener('mouseup', () => { 
     isInteractionActive = false;
-    if (currentTool === 'pointer') container.style.cursor = 'grab'; 
-    localStorage.setItem('polarCalendarDataV10', JSON.stringify(calendarData));
+    if (currentTool === 'pointer') container.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize'; 
+    localStorage.setItem('polarCalendarDataV11', JSON.stringify(calendarData));
   });
 
   svg.addEventListener('click', (e) => {
@@ -963,7 +998,7 @@ function initInteractions() {
       calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
     }
     
-    localStorage.setItem('polarCalendarDataV10', JSON.stringify(calendarData));
+    localStorage.setItem('polarCalendarDataV11', JSON.stringify(calendarData));
     renderSavedData();
   });
 }
