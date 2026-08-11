@@ -1,9 +1,9 @@
-// script.js (暦のレイアウト調整・白フチ削除・文字反転解除版)
+// script.js (月の鼓動(ハート型シャドウ)搭載・外周レイアウト最適化版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
 
-let svg, dataLayer, linesLayer, tideLayer, outerSeasonLayer;
+let svg, dataLayer, shadowLayer, linesLayer, tideLayer, outerSeasonLayer, textPathDefs;
 let viewBox = { x: 0, y: 0, w: 1841.3719, h: 2382.9518 };
 const cx = 920.6859;
 const cy = 1191.4759;
@@ -89,9 +89,18 @@ fetch('calendar.svg')
     });
     concentricRings = [...new Set(radii)].sort((a, b) => a - b);
 
+    textPathDefs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    textPathDefs.setAttribute("id", "text-path-defs");
+    svg.appendChild(textPathDefs);
+
     dataLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     dataLayer.setAttribute("id", "data-layer");
     svg.appendChild(dataLayer);
+
+    // ★新規：月の鼓動（シャドウ）レイヤーをデータの上に追加
+    shadowLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    shadowLayer.setAttribute("id", "lunar-shadow-layer");
+    svg.appendChild(shadowLayer);
 
     linesLayer = document.createElementNS("http://www.w3.org/2000/svg", "g");
     linesLayer.setAttribute("id", "dynamic-lines-layer");
@@ -194,12 +203,67 @@ function updateCalendarCycle() {
   drawSolarDates(startDate);
   drawTimeLabels(); 
   drawOuterSeasons(startDate.getTime()); 
+  drawLunarShadow();  // ★月の鼓動（カージオイド）の描画
   drawDynamicLines(); 
   drawTideGraph();    
   renderSavedData();
 }
 
-// ★修正：白フチなし、二十四節気(外)と七十二候(内)のレイアウトとサイズ変更
+// ★天才的アイデア：「月の影」を面積に変換して描画するカージオイド（ハート型）エンジン
+function drawLunarShadow() {
+  shadowLayer.innerHTML = "";
+  if (concentricRings.length < 30) return;
+  
+  const rMin = concentricRings[0];
+  // 階層29の外周（＝階層30の内周）
+  const rMax = concentricRings[concentricRings.length - 2]; 
+  const maxArea = rMax * rMax - rMin * rMin; // 円の面積比の計算用
+
+  const resolution = 10;
+  const totalHours = 720; // 30日分
+  const startAngle = currentStartSegment * 3;
+
+  let pathD = "";
+  for (let i = 0; i <= totalHours * resolution; i++) {
+    const time_days = (i / resolution) / 24.0; 
+    const total_time_days = currentCycle * synodicMonth + time_days;
+
+    // 月の満ち欠けの角度（新月=0, 満月=π, 新月=2π）
+    const phase_angle = (total_time_days / synodicMonth) * Math.PI * 2;
+    
+    // 照らされている割合（0〜1）
+    const illumination = 0.5 * (1 - Math.cos(phase_angle));
+    // 影の割合（新月で1.0、満月で0.0）
+    const shadow = 1.0 - illumination;
+
+    // ★影の割合をそのまま「面積」に変換して半径を計算
+    const r = Math.sqrt(rMin * rMin + shadow * maxArea);
+    const angle = startAngle + (i / resolution) * 0.5;
+
+    const pt = polarToCartesian(cx, cy, r, angle);
+
+    if (i === 0) {
+      pathD += `M ${pt.x},${pt.y} `;
+    } else {
+      pathD += `L ${pt.x},${pt.y} `;
+    }
+  }
+
+  // 最後に内側の円（rMin）を通ってスタート地点に戻る（閉じた図形にする）
+  const endAngle = startAngle + 360;
+  const pEndMin = polarToCartesian(cx, cy, rMin, endAngle);
+  const pStartMin = polarToCartesian(cx, cy, rMin, startAngle);
+
+  pathD += ` L ${pEndMin.x},${pEndMin.y} A ${rMin} ${rMin} 0 1 0 ${pStartMin.x} ${pStartMin.y} Z`;
+
+  const shadowPath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  shadowPath.setAttribute("d", pathD);
+  // 透過率5%の非常に薄く上品な墨色
+  shadowPath.setAttribute("fill", "rgba(0, 0, 0, 0.05)");
+  shadowLayer.appendChild(shadowPath);
+}
+
+// ★修正：外周レイアウトの間隔最適化（文字の詰まりとスペース確保）
 function drawOuterSeasons(cycleStartTime) {
   outerSeasonLayer.innerHTML = ""; 
   if (concentricRings.length === 0) return;
@@ -216,8 +280,8 @@ function drawOuterSeasons(cycleStartTime) {
       const angle = currentStartSegment * 3 + startDay * 12;
       const isSekki = season.type === 'sekki';
 
-      // 外周からの目印線（Tick）
       const p1 = polarToCartesian(cx, cy, rMax, angle);
+      // 線の長さも少し余裕を持たせる
       const p2 = polarToCartesian(cx, cy, rMax + (isSekki ? 6 : 4), angle);
       const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
       line.setAttribute("x1", p1.x); line.setAttribute("y1", p1.y);
@@ -226,20 +290,19 @@ function drawOuterSeasons(cycleStartTime) {
       line.setAttribute("stroke-width", isSekki ? "1.5" : "0.5");
       outerSeasonLayer.appendChild(line);
 
-      // 文字の配置半径（間隔を詰め、節気を外側に）
-      const rText = rMax + (isSekki ? 21 : 9); 
+      // ★文字の配置半径（72候を離し、24節気はそのすぐ外に配置）
+      const rText = rMax + (isSekki ? 23 : 14); 
       const ptText = polarToCartesian(cx, cy, rText, angle);
       
       const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
       text.setAttribute("fill", isSekki ? "#2c3e50" : "#666666"); 
-      // サイズ変更（節気を12pxに）
       text.setAttribute("font-size", isSekki ? "12px" : "9px");
       if (isSekki) text.setAttribute("font-weight", "bold");
       text.setAttribute("font-family", "'Shippori Mincho', serif");
       text.setAttribute("dominant-baseline", "middle");
       
-      // ★文字の反転処理を削除し、日付と同じように円周に沿って配置
-      text.setAttribute("text-anchor", "middle");
+      // 逆さま回避をなくし、シンプルに放射状に配置
+      text.setAttribute("text-anchor", "start");
       text.setAttribute("transform", `rotate(${angle}, ${ptText.x}, ${ptText.y})`);
       text.setAttribute("x", ptText.x);
       text.setAttribute("y", ptText.y);
