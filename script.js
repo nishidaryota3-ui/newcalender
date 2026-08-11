@@ -1,4 +1,4 @@
-// script.js (レイヤー順序最適化・スケール倍増・カーソルUI・完全API版)
+// script.js (過去気象アーカイブAPI自動切替エンジン搭載版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
@@ -13,7 +13,7 @@ const svgNS = "http://www.w3.org/2000/svg";
 let currentTool = 'pointer'; // 'pointer'(V), 'paint'(B), 'erase'(E)
 let activeBrush = "#38bdf8"; 
 let globalRotation = 0; 
-let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV9')) || {};
+let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV10')) || {};
 let concentricRings = []; 
 
 // コロールの緯度経度
@@ -37,7 +37,6 @@ loader.innerHTML = "☁️ パラオの気象・潮汐データを取得中...";
 document.body.appendChild(loader);
 
 function initUI() {
-    // ★古いindex.htmlに残っている「気配の筆」パネルをDOMから完全に削除
     const oldPalette = document.getElementById('palette');
     if (oldPalette) oldPalette.remove();
 
@@ -53,7 +52,6 @@ function initUI() {
     `;
     document.body.appendChild(navDiv);
 
-    // ★極細ツールバー
     const toolsDiv = document.createElement('div');
     toolsDiv.className = 'panel-ui';
     toolsDiv.style = "position:fixed; top:100px; left:20px; background:rgba(25,30,40,0.9); padding:8px; border-radius:8px; z-index:100; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.5); display:flex; flex-direction:column; gap:8px; width:44px; box-sizing:border-box;";
@@ -67,14 +65,12 @@ function initUI() {
     `;
     document.body.appendChild(toolsDiv);
 
-    // ★カラーパレット
     const paletteDiv = document.createElement('div');
     paletteDiv.className = 'panel-ui';
     paletteDiv.id = 'palette-container';
     paletteDiv.style = "position:fixed; top:134px; left:74px; background:rgba(25,30,40,0.9); padding:10px; border-radius:8px; z-index:99; border: 1px solid rgba(255,255,255,0.1); display:none; grid-template-columns:repeat(4, 1fr); gap:6px; width:120px; box-sizing:border-box;";
     document.body.appendChild(paletteDiv);
 
-    // 回転・移動モード切替ボタン（右側）
     const modeBtn = document.createElement('button');
     modeBtn.className = 'panel-ui';
     modeBtn.id = 'modeBtn';
@@ -100,14 +96,12 @@ function initUI() {
         activeBtn.style.background = 'rgba(212,175,55,0.85)';
         activeBtn.style.borderColor = '#d4af37';
 
-        // ★動的カーソルの切り替え
         if (tool === 'pointer') container.style.cursor = 'grab';
         else if (tool === 'paint') container.style.cursor = 'crosshair';
         else if (tool === 'erase') container.style.cursor = 'cell';
     };
 
     document.addEventListener('keydown', (e) => {
-        // 入力フィールドなどにフォーカスがある場合は無効化
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
         const key = e.key.toLowerCase();
         if (key === 'v') setTool('pointer');
@@ -160,7 +154,7 @@ function initUI() {
             for (const key in calendarData) {
                 if (key.startsWith(`c${currentCycle}_`) && calendarData[key].color === activeBrush) delete calendarData[key];
             }
-            localStorage.setItem('polarCalendarDataV9', JSON.stringify(calendarData));
+            localStorage.setItem('polarCalendarDataV10', JSON.stringify(calendarData));
             renderSavedData();
         }
     };
@@ -179,7 +173,6 @@ fetch('calendar.svg')
     svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
     svg.querySelectorAll('*[fill="#fff"]').forEach(el => el.setAttribute('fill', 'none'));
 
-    // 残っている古いSVGテキストなどを安全に除去
     svg.querySelectorAll('text, rect').forEach(el => el.remove());
 
     const radii = [];
@@ -196,14 +189,13 @@ fetch('calendar.svg')
     while (svg.firstChild) masterGroup.appendChild(svg.firstChild);
     svg.appendChild(masterGroup);
 
-    // ★描画レイヤーの順序を厳格に定義（下から順に積み重なる）
     textPathDefs = document.createElementNS(svgNS, "defs");
-    dataLayer = document.createElementNS(svgNS, "g");       // ペイント
-    shadowLayer = document.createElementNS(svgNS, "g");     // 月の影
-    tideLayer = document.createElementNS(svgNS, "g");       // 潮の波（下）
-    rainfallLayer = document.createElementNS(svgNS, "g");   // 雨（下）
-    linesLayer = document.createElementNS(svgNS, "g");      // 動的グリッド
-    outerSeasonLayer = document.createElementNS(svgNS, "g");// 季節ラベル
+    dataLayer = document.createElementNS(svgNS, "g");       
+    shadowLayer = document.createElementNS(svgNS, "g");     
+    tideLayer = document.createElementNS(svgNS, "g");       
+    rainfallLayer = document.createElementNS(svgNS, "g");   
+    linesLayer = document.createElementNS(svgNS, "g");      
+    outerSeasonLayer = document.createElementNS(svgNS, "g");
 
     masterGroup.appendChild(textPathDefs);
     masterGroup.appendChild(dataLayer);
@@ -219,8 +211,7 @@ fetch('calendar.svg')
   })
   .catch(err => console.error("SVG読み込みエラー:", err));
 
-
-// --- APIと代替シミュレーション処理 ---
+// --- API取得ロジック（アーカイブAPI自動切替） ---
 let apiTideData = [];
 let apiRainData = [];
 
@@ -241,10 +232,17 @@ async function fetchMeteoData(startDateMs) {
     apiTideData = new Array(720).fill(null);
     apiRainData = new Array(720).fill(null);
 
+    // ★現在時刻と比較し、要求データが「5日以上前」ならHistorical Archive APIを使用する
+    const isHistorical = dEnd.getTime() < Date.now() - (5 * 86400000);
+    const rainApiUrl = isHistorical 
+        ? `https://archive-api.open-meteo.com/v1/archive?latitude=${PALAU_LAT}&longitude=${PALAU_LON}&hourly=precipitation&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`
+        : `https://api.open-meteo.com/v1/forecast?latitude=${PALAU_LAT}&longitude=${PALAU_LON}&hourly=precipitation&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`;
+
     try {
+        // 海洋(Marine)APIは過去から未来まで同じエンドポイントで対応可能
         const [tideRes, rainRes] = await Promise.all([
             fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${PALAU_LAT}&longitude=${PALAU_LON}&hourly=sea_level&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`),
-            fetch(`https://api.open-meteo.com/v1/forecast?latitude=${PALAU_LAT}&longitude=${PALAU_LON}&hourly=precipitation&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`)
+            fetch(rainApiUrl)
         ]);
 
         if (tideRes.ok) {
@@ -252,7 +250,7 @@ async function fetchMeteoData(startDateMs) {
             if(tideJson.hourly && tideJson.hourly.sea_level) {
                 for(let i=0; i<720; i++) {
                     if(tideJson.hourly.sea_level[i] !== undefined) {
-                        apiTideData[i] = tideJson.hourly.sea_level[i] * 3.28084 + 3.0; // メートルをフィート＋MSLへ
+                        apiTideData[i] = tideJson.hourly.sea_level[i] * 3.28084 + 3.0; 
                     }
                 }
             }
@@ -266,7 +264,7 @@ async function fetchMeteoData(startDateMs) {
             }
         }
     } catch(e) {
-        console.warn("API取得エラー（未来の日付またはオフライン）: 実測ベースの精密代替シミュレーションを使用します");
+        console.warn("API取得エラー: 実測ベースの精密代替シミュレーションを使用します", e);
     }
     loader.style.display = 'none';
 }
@@ -293,14 +291,12 @@ async function updateCalendarCycle() {
 
   await fetchMeteoData(cycleStartTimeMs);
 
-  // まず波・雨・線を下層に描画
   drawLunarShadow(cycleStartTimeMs);  
   drawDynamicLines(); 
   drawTideGraph();    
   drawRainfallGraph(); 
   renderSavedData();
 
-  // その後、一番手前にラベル類を描画（重なり防止）
   drawOuterSeasons(cycleStartTimeMs); 
   drawTimeLabels(); 
   drawSolarDates(startDate); 
@@ -311,14 +307,12 @@ function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
   return { x: centerX + (radius * Math.cos(angleInRadians)), y: centerY + (radius * Math.sin(angleInRadians)) };
 }
 
-// ★修正：描画順序の逆転（波を先に描き、テキストを上に乗せる）
 function drawTideGraph() {
   tideLayer.innerHTML = ""; 
   if (concentricRings.length < 23) return; 
   const rMin = concentricRings[16]; const rMax = concentricRings[22]; 
   const minTide = -1.5; const maxTide = 7.5; const range = maxTide - minTide;
 
-  // 1. 先に波（背景と線）を描画
   let pathD = "";
   const resolution = 10; 
   const totalHours = 720;
@@ -359,7 +353,6 @@ function drawTideGraph() {
   wavePath.setAttribute("stroke-width", "1.5");
   tideLayer.appendChild(wavePath);
 
-  // 2. その後で目盛りの線とテキストを描画（これで波の上に文字が乗る）
   const guideTides = [-1.5, 0, 1.5, 3.0, 4.5, 6.0, 7.5];
   guideTides.forEach(ft => {
     const r = rMin + (rMax - rMin) * ((ft - minTide) / range);
@@ -394,13 +387,12 @@ function drawTideGraph() {
   });
 }
 
-// ★修正：降水量のスケール倍増（階層20まで）と専用目盛りの追加
 function drawRainfallGraph() {
   rainfallLayer.innerHTML = "";
   if (concentricRings.length < 21) return;
   
   const rMin = concentricRings[16]; 
-  const rMax = concentricRings[20]; // 倍増
+  const rMax = concentricRings[20]; 
   const maxRain = 10; 
   
   const circle = document.createElementNS(svgNS, "circle");
@@ -410,7 +402,6 @@ function drawRainfallGraph() {
   circle.setAttribute("stroke-width", "1"); 
   rainfallLayer.appendChild(circle);
 
-  // 先に雨の線を描画
   const startAngle = currentStartSegment * 3;
   for (let h = 0; h < 720; h++) {
     let rain = apiRainData[h];
@@ -437,7 +428,6 @@ function drawRainfallGraph() {
     }
   }
 
-  // --- ★専用目盛り（第8日目と9日目の境界＝相対角度96度）を上に乗せる ---
   const labelRelAngle = 96; 
   const labelAngle = startAngle + labelRelAngle;
   
@@ -457,7 +447,7 @@ function drawRainfallGraph() {
       text.setAttribute("x", ptLabel.x); text.setAttribute("y", ptLabel.y);
       text.setAttribute("text-anchor", "middle"); 
       text.setAttribute("dominant-baseline", "central");
-      text.setAttribute("fill", "rgba(14, 165, 233, 1)"); // 水色の文字
+      text.setAttribute("fill", "rgba(14, 165, 233, 1)"); 
       text.setAttribute("font-size", "7px");
       text.setAttribute("font-family", "'Shippori Mincho', serif");
       text.setAttribute("font-weight", "bold");
@@ -465,7 +455,7 @@ function drawRainfallGraph() {
       text.textContent = val + "mm";
 
       const halo = text.cloneNode(true);
-      halo.setAttribute("stroke", "rgba(255, 255, 255, 0.95)"); // 白いハロ
+      halo.setAttribute("stroke", "rgba(255, 255, 255, 0.95)"); 
       halo.setAttribute("stroke-width", "2.5");
       halo.setAttribute("stroke-linejoin", "round");
       halo.setAttribute("fill", "none");
@@ -884,7 +874,7 @@ function initInteractions() {
     lastPaintedCell = null;
 
     if (currentTool === 'pointer') {
-        container.style.cursor = 'grabbing'; // ドラッグ中は掴むアイコン
+        container.style.cursor = 'grabbing'; 
         let interactionMode = document.getElementById('modeBtn') && document.getElementById('modeBtn').innerHTML.includes('回転モード') ? 'rotate' : 'pan';
         if (interactionMode === 'rotate') {
             const pt = svg.createSVGPoint(); pt.x = e.clientX; pt.y = e.clientY;
@@ -955,7 +945,7 @@ function initInteractions() {
   window.addEventListener('mouseup', () => { 
     isInteractionActive = false;
     if (currentTool === 'pointer') container.style.cursor = 'grab'; 
-    localStorage.setItem('polarCalendarDataV9', JSON.stringify(calendarData));
+    localStorage.setItem('polarCalendarDataV10', JSON.stringify(calendarData));
   });
 
   svg.addEventListener('click', (e) => {
@@ -976,7 +966,7 @@ function initInteractions() {
       calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
     }
     
-    localStorage.setItem('polarCalendarDataV9', JSON.stringify(calendarData));
+    localStorage.setItem('polarCalendarDataV10', JSON.stringify(calendarData));
     renderSavedData();
   });
 }
