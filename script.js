@@ -1,4 +1,4 @@
-// script.js (雨の目盛り外側向き対応・最新版)
+// script.js (ローカルCSV＆APIハイブリッドエンジン搭載版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
@@ -9,12 +9,11 @@ const cx = 920.6859;
 const cy = 1191.4759;
 const svgNS = "http://www.w3.org/2000/svg";
 
-// --- ツール＆操作ステータス ---
 let currentTool = 'pointer'; 
 let interactionMode = 'pan'; 
 let activeBrush = "#38bdf8"; 
 let globalRotation = 0; 
-let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV15')) || {};
+let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV16')) || {};
 let concentricRings = []; 
 
 const PALAU_LAT = 7.34;
@@ -33,7 +32,7 @@ let generatedSeasons = [];
 
 const loader = document.createElement('div');
 loader.style = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,17,26,0.8); z-index:999; display:flex; justify-content:center; align-items:center; color:#d4af37; font-size:24px; font-weight:bold; backdrop-filter:blur(5px); display:none;";
-loader.innerHTML = "☁️ パラオの気象・潮汐データを取得中...";
+loader.innerHTML = "☁️ 観測データを統合中...";
 document.body.appendChild(loader);
 
 // --- 白黒SVGアイコン ---
@@ -191,7 +190,7 @@ function initUI() {
             for (const key in calendarData) {
                 if (key.startsWith(`c${currentCycle}_`) && calendarData[key].color === activeBrush) delete calendarData[key];
             }
-            localStorage.setItem('polarCalendarDataV15', JSON.stringify(calendarData));
+            localStorage.setItem('polarCalendarDataV16', JSON.stringify(calendarData));
             renderSavedData();
         }
     };
@@ -199,53 +198,82 @@ function initUI() {
     setTool('pointer', 'pan');
 }
 
+// --- ★ローカルCSV読み込み機能 ---
+let localRainData = {};
+
+async function loadLocalRainCSV() {
+    try {
+        const res = await fetch('palau_rain.csv');
+        if (!res.ok) throw new Error("CSV not found");
+        const text = await res.text();
+        const lines = text.split('\n');
+        
+        for (let i = 1; i < lines.length; i++) {
+            const parts = lines[i].split(',');
+            if (parts.length >= 2) {
+                const date = parts[0].trim();
+                const rain = parseFloat(parts[1].trim());
+                if (date && !isNaN(rain)) {
+                    localRainData[date] = rain; // "YYYY-MM-DD" をキーに降水量を保存
+                }
+            }
+        }
+        console.log("📂 ローカルの雨量データ(palau_rain.csv)を読み込みました！");
+    } catch(e) {
+        console.log("⚠️ ローカルCSVが見つかりません。APIのデータのみを使用します。");
+    }
+}
+
 initUI();
 
-fetch('calendar.svg')
-  .then(response => response.text())
-  .then(svgCode => {
-    container.innerHTML = svgCode;
-    svg = container.querySelector('svg');
-    svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
-    svg.querySelectorAll('*[fill="#fff"]').forEach(el => el.setAttribute('fill', 'none'));
+// 起動時にまずCSVを探しに行く
+loadLocalRainCSV().then(() => {
+    fetch('calendar.svg')
+      .then(response => response.text())
+      .then(svgCode => {
+        container.innerHTML = svgCode;
+        svg = container.querySelector('svg');
+        svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+        svg.querySelectorAll('*[fill="#fff"]').forEach(el => el.setAttribute('fill', 'none'));
 
-    svg.querySelectorAll('text, rect').forEach(el => el.remove());
+        svg.querySelectorAll('text, rect').forEach(el => el.remove());
 
-    const radii = [];
-    svg.querySelectorAll('circle').forEach(c => {
-      const r = parseFloat(c.getAttribute('r'));
-      const cx_val = parseFloat(c.getAttribute('cx'));
-      const cy_val = parseFloat(c.getAttribute('cy'));
-      if (r && Math.abs(cx_val - cx) < 1 && Math.abs(cy_val - cy) < 1) radii.push(r);
-    });
-    concentricRings = [...new Set(radii)].sort((a, b) => a - b);
+        const radii = [];
+        svg.querySelectorAll('circle').forEach(c => {
+          const r = parseFloat(c.getAttribute('r'));
+          const cx_val = parseFloat(c.getAttribute('cx'));
+          const cy_val = parseFloat(c.getAttribute('cy'));
+          if (r && Math.abs(cx_val - cx) < 1 && Math.abs(cy_val - cy) < 1) radii.push(r);
+        });
+        concentricRings = [...new Set(radii)].sort((a, b) => a - b);
 
-    masterGroup = document.createElementNS(svgNS, "g");
-    masterGroup.setAttribute("id", "master-group");
-    while (svg.firstChild) masterGroup.appendChild(svg.firstChild);
-    svg.appendChild(masterGroup);
+        masterGroup = document.createElementNS(svgNS, "g");
+        masterGroup.setAttribute("id", "master-group");
+        while (svg.firstChild) masterGroup.appendChild(svg.firstChild);
+        svg.appendChild(masterGroup);
 
-    textPathDefs = document.createElementNS(svgNS, "defs");
-    dataLayer = document.createElementNS(svgNS, "g");       
-    shadowLayer = document.createElementNS(svgNS, "g");     
-    linesLayer = document.createElementNS(svgNS, "g");      
-    tideLayer = document.createElementNS(svgNS, "g");       
-    rainfallLayer = document.createElementNS(svgNS, "g");   
-    outerSeasonLayer = document.createElementNS(svgNS, "g");
+        textPathDefs = document.createElementNS(svgNS, "defs");
+        dataLayer = document.createElementNS(svgNS, "g");       
+        shadowLayer = document.createElementNS(svgNS, "g");     
+        linesLayer = document.createElementNS(svgNS, "g");      
+        tideLayer = document.createElementNS(svgNS, "g");       
+        rainfallLayer = document.createElementNS(svgNS, "g");   
+        outerSeasonLayer = document.createElementNS(svgNS, "g");
 
-    masterGroup.appendChild(textPathDefs);
-    masterGroup.appendChild(dataLayer);
-    masterGroup.appendChild(shadowLayer);
-    masterGroup.appendChild(linesLayer);
-    masterGroup.appendChild(tideLayer);
-    masterGroup.appendChild(rainfallLayer);
-    masterGroup.appendChild(outerSeasonLayer);
+        masterGroup.appendChild(textPathDefs);
+        masterGroup.appendChild(dataLayer);
+        masterGroup.appendChild(shadowLayer);
+        masterGroup.appendChild(linesLayer);
+        masterGroup.appendChild(tideLayer);
+        masterGroup.appendChild(rainfallLayer);
+        masterGroup.appendChild(outerSeasonLayer);
 
-    generateAstronomicalData();
-    updateCalendarCycle();
-    initInteractions();
-  })
-  .catch(err => console.error("SVG読み込みエラー:", err));
+        generateAstronomicalData();
+        updateCalendarCycle();
+        initInteractions();
+      })
+      .catch(err => console.error("SVG読み込みエラー:", err));
+});
 
 let apiTideData = [];
 let apiRainData = [];
@@ -326,7 +354,7 @@ async function updateCalendarCycle() {
   drawLunarShadow(cycleStartTimeMs);  
   drawDynamicLines(); 
   drawTideGraph();    
-  drawRainfallGraph(); 
+  drawRainfallGraph(cycleStartTimeMs); // ★時間を渡すように修正
   renderSavedData();
 
   drawOuterSeasons(cycleStartTimeMs); 
@@ -422,7 +450,8 @@ function drawTideGraph() {
   });
 }
 
-function drawRainfallGraph() {
+// ★修正：ローカルCSVとAPIデータのハイブリッド処理
+function drawRainfallGraph(cycleStartTimeMs) {
   rainfallLayer.innerHTML = "";
   if (concentricRings.length < 23) return;
   
@@ -439,18 +468,32 @@ function drawRainfallGraph() {
 
   const startAngle = currentStartSegment * 3;
   for (let h = 0; h < 720; h++) {
-    let rain = apiRainData[h];
-    if(rain === null || isNaN(rain)) {
-        let currentTide = getSimulatedTideValue(h);
-        let nextTide = getSimulatedTideValue(h+0.1);
-        if(nextTide - currentTide < -0.1 && Math.random() > 0.9) rain = Math.random() * 15 + 2; 
-        else rain = 0;
+    // 描画中の「今この時間」の日付（YYYY-MM-DD）を計算
+    const currentDrawDate = new Date(cycleStartTimeMs + h * 3600000);
+    const dateStr = formatDateStr(currentDrawDate);
+    const currentHour = currentDrawDate.getHours();
+
+    let rain = 0;
+
+    // ★ハイブリッド処理：もしCSVにその日のデータがあれば優先する
+    if (localRainData[dateStr] !== undefined) {
+        // CSVは「1日の合計雨量」なので、見栄えを良くするためお昼(12時)にドカンと針を描画する
+        if (currentHour === 12) {
+            rain = localRainData[dateStr];
+        }
+    } else {
+        // CSVにデータがなければ、今まで通りAPIの1時間ごとのデータを使う
+        rain = apiRainData[h];
+        if(rain === null || isNaN(rain)) {
+            rain = 0;
+        }
     }
 
     if (rain > 0) {
       const displayRain = rain; 
       const r = rMax - (rMax - rMin) * (displayRain / maxRain);
       const angle = startAngle + h * 0.5 + 0.25; 
+      // 30mmを超えて中心(rMin)を突き抜ける場合は中心で止めるかそのまま突き刺すか。今回は突き刺します！
       const p1 = polarToCartesian(cx, cy, rMax, angle);
       const p2 = polarToCartesian(cx, cy, r, angle);
       const line = document.createElementNS(svgNS, "line");
@@ -486,7 +529,6 @@ function drawRainfallGraph() {
       text.setAttribute("font-size", "7px");
       text.setAttribute("font-family", "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif");
       text.setAttribute("font-weight", "bold");
-      // ★修正：円の外側に立って正立して読めるように180度回転を追加
       text.setAttribute("transform", `rotate(${labelAngle + 180}, ${ptLabel.x}, ${ptLabel.y})`);
       text.textContent = val + "mm";
 
@@ -975,7 +1017,7 @@ function initInteractions() {
   window.addEventListener('mouseup', () => { 
     isInteractionActive = false;
     if (currentTool === 'pointer') container.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize'; 
-    localStorage.setItem('polarCalendarDataV15', JSON.stringify(calendarData));
+    localStorage.setItem('polarCalendarDataV16', JSON.stringify(calendarData));
   });
 
   svg.addEventListener('click', (e) => {
@@ -996,7 +1038,7 @@ function initInteractions() {
       calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
     }
     
-    localStorage.setItem('polarCalendarDataV15', JSON.stringify(calendarData));
+    localStorage.setItem('polarCalendarDataV16', JSON.stringify(calendarData));
     renderSavedData();
   });
 }
