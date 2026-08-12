@@ -1,9 +1,9 @@
-// script.js (V25: 雨量目盛り反転修正 ＆ 雫アイコン色修正 ＆ 楽譜としての完成度向上)
+// script.js (V26: 二十七宿（Lunar Mansions）ダイナミック軌道プロトタイプ版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
 
-let svg, masterGroup, bgGroup, dataLayer, shadowLayer, linesLayer, rainfallLayer, tideLayer, outerSeasonLayer, textPathDefs;
+let svg, masterGroup, bgGroup, dataLayer, shadowLayer, linesLayer, rainfallLayer, tideLayer, lunarMansionLayer, outerSeasonLayer, textPathDefs;
 let viewBox = { x: 0, y: 0, w: 1841.3719, h: 2382.9518 };
 const cx = 920.6859;
 const cy = 1191.4759;
@@ -13,7 +13,7 @@ let currentTool = 'pointer';
 let interactionMode = 'pan'; 
 let activeBrush = "#38bdf8"; 
 let globalRotation = 0; 
-let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV25')) || {};
+let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV26')) || {};
 let concentricRings = []; 
 
 const PALAU_LAT = 7.34;
@@ -28,6 +28,19 @@ const sekkiNames = "立春,雨水,啓蟄,春分,清明,穀雨,立夏,小満,芒�
 const kouNames = "東風解凍,黄鶯睍睆,魚上氷,土脉潤起,霞始靆,草木萠動,蟄虫啓戸,桃始笑,菜虫化蝶,雀始巣,桜始開,雷乃発声,玄鳥至,雁音北,虹始見,葭始生,霜止出苗,牡丹華,蛙始鳴,蚯蚓出,竹笋生,蚕起食桑,紅花栄,麦秋至,螳螂生,鵙乃鳴,梅子黄,乃東枯,菖蒲華,半夏生,温風至,蓮始開,鷹乃学習,桐始結花,土潤溽暑,大雨時行,涼風至,寒蝉鳴,蒙霧升降,綿柎開,天地始粛,禾乃登,草露白,鶺鴒鳴,玄鳥去,雷乃収声,蟄虫坏戸,水始涸,鴻雁来,菊花開,蟋蟀在戸,霜始降,霎時施,楓蔦黄,山茶始開,地始凍,金盞香,虹蔵不見,朔風払葉,橘始黄,閉塞成冬,熊蟄穴,鱖魚群,乃東生,麋角解,雪下出麦,芹乃栄,水泉動,雉始雊,款冬華,水沢腹堅,鶏始乳".split(',');
 const wafuNames = ["睦月", "如月", "弥生", "卯月", "皐月", "水無月", "文月", "葉月", "長月", "神無月", "霜月", "師走"];
 
+// 二十七宿のデータ (四象エレメント分け)
+// 1~7:西(白虎), 8~14:南(朱雀), 15~21:東(蒼龍), 22~27:北(玄武)
+const mansions = [
+    { name: "婁", color: "#b0b0b0" }, { name: "胃", color: "#b0b0b0" }, { name: "昴", color: "#b0b0b0" },
+    { name: "畢", color: "#b0b0b0" }, { name: "觜", color: "#b0b0b0" }, { name: "参", color: "#b0b0b0" }, { name: "井", color: "#b0b0b0" },
+    { name: "鬼", color: "#fb7185" }, { name: "柳", color: "#fb7185" }, { name: "星", color: "#fb7185" },
+    { name: "張", color: "#fb7185" }, { name: "翼", color: "#fb7185" }, { name: "軫", color: "#fb7185" }, { name: "角", color: "#fb7185" },
+    { name: "亢", color: "#38bdf8" }, { name: "氐", color: "#38bdf8" }, { name: "房", color: "#38bdf8" },
+    { name: "心", color: "#38bdf8" }, { name: "尾", color: "#38bdf8" }, { name: "箕", color: "#38bdf8" }, { name: "斗", color: "#38bdf8" },
+    { name: "女", color: "#c084fc" }, { name: "虚", color: "#c084fc" }, { name: "危", color: "#c084fc" },
+    { name: "室", color: "#c084fc" }, { name: "壁", color: "#c084fc" }, { name: "奎", color: "#c084fc" }
+];
+
 let generatedSeasons = []; 
 
 const loader = document.createElement('div');
@@ -41,8 +54,6 @@ const iconPaint = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" s
 const iconErase = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16C2.5 15.5 2.5 14.5 3 14L13 4C13.5 3.5 14.5 3.5 15 4L20 9C20.5 9.5 20.5 10.5 20 11L11 20H20V20Z"/><line x1="6" y1="11" x2="15" y2="20"/></svg>`;
 const iconTrash = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
 const iconHome = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>`;
-
-// ★SVGアイコンの中に直接「水色（#0ea5e9）」を埋め込んで強制的に色を変える
 const iconDrop = `<svg viewBox="0 0 24 24" width="10" height="10" fill="#0ea5e9"><path d="M12 2c0 0-8 8.4-8 13.5a8 8 0 1 0 16 0c0-5.1-8-13.5-8-13.5z"/></svg>`;
 
 function initUI() {
@@ -204,14 +215,13 @@ function initUI() {
             for (const key in calendarData) {
                 if (key.startsWith(`c${currentCycle}_`) && calendarData[key].color === activeBrush) delete calendarData[key];
             }
-            localStorage.setItem('polarCalendarDataV25', JSON.stringify(calendarData));
+            localStorage.setItem('polarCalendarDataV26', JSON.stringify(calendarData));
             renderSavedData();
         }
     };
     setTool('pointer', 'pan');
 }
 
-// --- CSVデータの読み込み ---
 let localRainData = {};
 let highLowTidePoints = []; 
 
@@ -238,7 +248,6 @@ async function loadLocalCSV() {
         if (res.ok) {
             const text = await res.text();
             const lines = text.split('\n');
-            
             for (let i = 1; i < lines.length; i++) {
                 const parts = lines[i].split(',');
                 if (parts.length >= 3) {
@@ -256,13 +265,9 @@ async function loadLocalCSV() {
                     if(timeParts.length < 2) continue; 
                     const h = timeParts[0].padStart(2, '0');
                     const min = timeParts[1].padStart(2, '0');
-                    
                     const timeMs = new Date(`${dateStr}T${h}:${min}:00`).getTime();
                     const tide = parseFloat(parts[2].trim());
-                    
-                    if (!isNaN(timeMs) && !isNaN(tide)) {
-                        highLowTidePoints.push({ time: timeMs, tide: tide });
-                    }
+                    if (!isNaN(timeMs) && !isNaN(tide)) highLowTidePoints.push({ time: timeMs, tide: tide });
                 }
             }
             highLowTidePoints.sort((a, b) => a.time - b.time);
@@ -308,6 +313,11 @@ loadLocalCSV().then(() => {
         linesLayer = document.createElementNS(svgNS, "g");      
         tideLayer = document.createElementNS(svgNS, "g");       
         rainfallLayer = document.createElementNS(svgNS, "g");   
+        
+        // ★ 二十七宿用のレイヤーを新設（季節線より下に配置）
+        lunarMansionLayer = document.createElementNS(svgNS, "g");
+        lunarMansionLayer.setAttribute("id", "lunar-mansion-layer");
+        
         outerSeasonLayer = document.createElementNS(svgNS, "g");
 
         masterGroup.appendChild(textPathDefs);
@@ -316,6 +326,7 @@ loadLocalCSV().then(() => {
         masterGroup.appendChild(linesLayer);
         masterGroup.appendChild(tideLayer);
         masterGroup.appendChild(rainfallLayer);
+        masterGroup.appendChild(lunarMansionLayer);
         masterGroup.appendChild(outerSeasonLayer);
 
         generateAstronomicalData();
@@ -391,7 +402,6 @@ function getInterpolatedTide(timeMs) {
 function getTideRadius(tide, rMin, rMax) {
     const totalWidth = rMax - rMin;
     let ratio = 0;
-    
     if (tide <= 0) {
         let clamped = Math.max(-1.5, tide);
         ratio = 0.25 * ((clamped + 1.5) / 1.5);
@@ -423,6 +433,10 @@ async function updateCalendarCycle() {
   drawTideGraph(cycleStartTimeMs);    
   drawRainfallGraph(cycleStartTimeMs); 
   drawDailyRainStats(startDate);
+  
+  // ★ 二十七宿を描画
+  drawLunarMansions(cycleStartTimeMs);
+
   renderSavedData();
   drawOuterSeasons(cycleStartTimeMs); 
   drawTimeLabels(); 
@@ -435,6 +449,121 @@ async function updateCalendarCycle() {
 function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
   const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
   return { x: centerX + (radius * Math.cos(angleInRadians)), y: centerY + (radius * Math.sin(angleInRadians)) };
+}
+
+// ★ 二十七宿 (Lunar Mansions) 描画関数
+function drawLunarMansions(cycleStartTimeMs) {
+    lunarMansionLayer.innerHTML = "";
+    if (concentricRings.length === 0) return;
+    
+    // カレンダーの少し外側に専用トラックを設ける
+    const rBase = concentricRings[concentricRings.length - 1] + 60; 
+    const rMax = rBase + 30; // トラックの幅
+    const resolution = 20; 
+    const totalHours = 720;
+    const startAngle = currentStartSegment * 3;
+    
+    // トラックの背景（ごく薄いリング）
+    const trackBg = document.createElementNS(svgNS, "circle");
+    trackBg.setAttribute("cx", cx); trackBg.setAttribute("cy", cy); trackBg.setAttribute("r", rBase + 15);
+    trackBg.setAttribute("fill", "none"); 
+    trackBg.setAttribute("stroke", "rgba(255, 255, 255, 0.05)"); 
+    trackBg.setAttribute("stroke-width", "30"); 
+    lunarMansionLayer.appendChild(trackBg);
+
+    // 1時間ごとに月の位置（宿）を計算し、切り替わるタイミングで線と星座を描く
+    let currentMansionIndex = -1;
+    let mansionStartAngle = 0;
+    
+    for (let i = 0; i <= totalHours * resolution; i++) {
+        const t = i / resolution; 
+        const timeMs = cycleStartTimeMs + t * 3600000;
+        
+        // 月の黄経（0〜360度）を取得し、27分割（13.333度ずつ）して現在の宿を割り出す
+        const lunarLon = getLunarLongitude(timeMs);
+        const index = Math.floor(lunarLon / (360 / 27));
+        const angle = startAngle + (t * 0.5);
+
+        if (index !== currentMansionIndex) {
+            if (currentMansionIndex !== -1) {
+                // 前の宿のエリアが終了したので、中心に星座マークを描画する
+                drawConstellationMark(mansionStartAngle, angle, currentMansionIndex, rBase + 15);
+            }
+            
+            // 新しい宿の境界線を引く
+            const p1 = polarToCartesian(cx, cy, rBase, angle);
+            const p2 = polarToCartesian(cx, cy, rMax, angle);
+            const line = document.createElementNS(svgNS, "line");
+            line.setAttribute("x1", p1.x); line.setAttribute("y1", p1.y);
+            line.setAttribute("x2", p2.x); line.setAttribute("y2", p2.y);
+            line.setAttribute("stroke", mansions[index].color);
+            line.setAttribute("stroke-width", "0.5");
+            line.setAttribute("opacity", "0.5");
+            lunarMansionLayer.appendChild(line);
+
+            currentMansionIndex = index;
+            mansionStartAngle = angle;
+        }
+    }
+    // 最後のエリアの星座マークを描画
+    const finalAngle = startAngle + 360;
+    drawConstellationMark(mansionStartAngle, finalAngle, currentMansionIndex, rBase + 15);
+}
+
+// 宿エリアの真ん中に、抽象的な「星座のドットと線」と文字を描画する補助関数
+function drawConstellationMark(startAng, endAng, index, rCenter) {
+    if(endAng < startAng) endAng += 360;
+    const midAngle = startAng + (endAng - startAng) / 2;
+    const mansion = mansions[index];
+    
+    const g = document.createElementNS(svgNS, "g");
+    
+    // 文字の描画
+    const ptText = polarToCartesian(cx, cy, rCenter + 22, midAngle);
+    const text = document.createElementNS(svgNS, "text");
+    text.setAttribute("x", ptText.x); text.setAttribute("y", ptText.y);
+    text.setAttribute("text-anchor", "middle"); text.setAttribute("dominant-baseline", "central");
+    text.setAttribute("fill", mansion.color); 
+    text.setAttribute("font-size", "9px");
+    text.setAttribute("font-family", "'Shippori Mincho', 'YuMincho', serif");
+    text.setAttribute("transform", `rotate(${midAngle}, ${ptText.x}, ${ptText.y})`);
+    text.textContent = mansion.name;
+    g.appendChild(text);
+
+    // 幾何学的な星座の描画（擬似乱数を使って3〜5個の星を線で結ぶ）
+    // ※再現性を持たせるため、宿のインデックスをシードにする
+    let seed = index * 12345;
+    const rand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
+    
+    const starCount = Math.floor(rand() * 3) + 3; // 3〜5個
+    const stars = [];
+    
+    for(let i=0; i<starCount; i++) {
+        // エリア内にランダムに星を散らす
+        const sAngle = midAngle + (rand() - 0.5) * 8; 
+        const sR = rCenter + (rand() - 0.5) * 15;
+        const pt = polarToCartesian(cx, cy, sR, sAngle);
+        stars.push(pt);
+        
+        const circle = document.createElementNS(svgNS, "circle");
+        circle.setAttribute("cx", pt.x); circle.setAttribute("cy", pt.y);
+        circle.setAttribute("r", rand() > 0.8 ? "1.5" : "0.8"); // たまに少し大きい星
+        circle.setAttribute("fill", mansion.color);
+        g.appendChild(circle);
+    }
+    
+    // 星同士を細い線で結ぶ
+    for(let i=0; i<stars.length - 1; i++) {
+        const line = document.createElementNS(svgNS, "line");
+        line.setAttribute("x1", stars[i].x); line.setAttribute("y1", stars[i].y);
+        line.setAttribute("x2", stars[i+1].x); line.setAttribute("y2", stars[i+1].y);
+        line.setAttribute("stroke", mansion.color);
+        line.setAttribute("stroke-width", "0.3");
+        line.setAttribute("opacity", "0.7");
+        g.appendChild(line);
+    }
+    
+    lunarMansionLayer.appendChild(g);
 }
 
 function drawDailyRainStats(startDate) {
@@ -637,7 +766,6 @@ function drawRainfallGraph(cycleStartTimeMs) {
           text.setAttribute("font-family", "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif");
           text.setAttribute("font-weight", "bold");
           
-          // ★ 右側（第24日目側）のテキストは、外から見て真っ直ぐ読めるように180度反転させる
           let textRot = labelAngle + 180;
           if (target.isRightSide) { textRot = labelAngle; } 
           
@@ -1130,7 +1258,7 @@ function initInteractions() {
   window.addEventListener('mouseup', () => { 
     isInteractionActive = false;
     if (currentTool === 'pointer') container.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize'; 
-    localStorage.setItem('polarCalendarDataV25', JSON.stringify(calendarData));
+    localStorage.setItem('polarCalendarDataV26', JSON.stringify(calendarData));
   });
 
   svg.addEventListener('click', (e) => {
@@ -1151,7 +1279,7 @@ function initInteractions() {
       calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
     }
     
-    localStorage.setItem('polarCalendarDataV25', JSON.stringify(calendarData));
+    localStorage.setItem('polarCalendarDataV26', JSON.stringify(calendarData));
     renderSavedData();
   });
 }
