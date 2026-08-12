@@ -1,9 +1,9 @@
-// script.js (APIとCSVの最強ハイブリッド共存版)
+// script.js (背景透過・雨量テキスト階層23配置・年月ワープ機能搭載版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
 
-let svg, masterGroup, dataLayer, shadowLayer, linesLayer, rainfallLayer, tideLayer, outerSeasonLayer, textPathDefs;
+let svg, masterGroup, bgGroup, dataLayer, shadowLayer, linesLayer, rainfallLayer, tideLayer, outerSeasonLayer, textPathDefs;
 let viewBox = { x: 0, y: 0, w: 1841.3719, h: 2382.9518 };
 const cx = 920.6859;
 const cy = 1191.4759;
@@ -13,7 +13,7 @@ let currentTool = 'pointer';
 let interactionMode = 'pan'; 
 let activeBrush = "#38bdf8"; 
 let globalRotation = 0; 
-let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV17')) || {};
+let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV18')) || {};
 let concentricRings = []; 
 
 const PALAU_LAT = 7.34;
@@ -35,13 +35,14 @@ loader.style = "position:fixed; top:0; left:0; width:100vw; height:100vh; backgr
 loader.innerHTML = "☁️ 観測データを統合中...";
 document.body.appendChild(loader);
 
-// --- 白黒SVGアイコン ---
+// モノクロSVGアイコン
 const iconPan = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg>`;
 const iconRotate = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`;
 const iconPaint = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>`;
 const iconErase = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16C2.5 15.5 2.5 14.5 3 14L13 4C13.5 3.5 14.5 3.5 15 4L20 9C20.5 9.5 20.5 10.5 20 11L11 20H20V20Z"/><line x1="6" y1="11" x2="15" y2="20"/></svg>`;
 const iconTrash = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
 const iconHome = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>`;
+const iconDrop = `<svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor" opacity="0.8"><path d="M12 2c0 0-8 8.4-8 13.5a8 8 0 1 0 16 0c0-5.1-8-13.5-8-13.5z"/></svg>`;
 
 function initUI() {
     const oldPalette = document.getElementById('palette');
@@ -53,15 +54,28 @@ function initUI() {
     navDiv.style = "position:fixed; top:30px; right:30px; background:rgba(25,30,40,0.85); padding:10px 15px; border-radius:8px; color:#d4af37; z-index:100; display:flex; gap:15px; align-items:center; border: 1px solid rgba(212,175,55,0.3); backdrop-filter: blur(10px);";
     navDiv.innerHTML = `
       <button id="prevBtn" style="background:transparent; border:1px solid #d4af37; color:#d4af37; padding:4px 8px; cursor:pointer; border-radius:4px;">◀</button>
-      <div id="cycleDisplay" style="font-weight:bold; font-size:14px; text-align:center; min-width:120px;">--</div>
+      <div id="cycleDisplay" title="クリックして年月を移動" style="font-weight:bold; font-size:14px; text-align:center; min-width:120px; cursor:pointer; padding:4px; border-radius:4px; transition:background 0.2s;">--</div>
       <button id="nextBtn" style="background:#d4af37; border:none; color:#000; padding:4px 8px; cursor:pointer; border-radius:4px; font-weight:bold;">▶</button>
     `;
     document.body.appendChild(navDiv);
 
+    // ★年月ジャンプ（ワープ）機能のUI
+    const jumpDiv = document.createElement('div');
+    jumpDiv.className = 'panel-ui';
+    jumpDiv.id = 'jumpMenu';
+    jumpDiv.style = "position:fixed; top:80px; right:30px; background:rgba(25,30,40,0.9); padding:10px; border-radius:8px; border: 1px solid rgba(212,175,55,0.5); display:none; z-index:101; flex-direction:column; gap:8px;";
+    jumpDiv.innerHTML = `
+      <div style="font-size:12px; color:#fff;">移動先の年月 (例: 2021-10)</div>
+      <div style="display:flex; gap:5px;">
+        <input type="month" id="jumpInput" style="padding:4px; border-radius:4px; border:1px solid #555; background:#222; color:#fff;">
+        <button id="jumpGoBtn" style="background:#d4af37; border:none; color:#000; padding:4px 8px; border-radius:4px; cursor:pointer; font-weight:bold;">GO</button>
+      </div>
+    `;
+    document.body.appendChild(jumpDiv);
+
     const toolsDiv = document.createElement('div');
     toolsDiv.className = 'panel-ui';
     toolsDiv.style = "position:fixed; top:100px; left:20px; background:rgba(25,30,40,0.9); padding:8px; border-radius:8px; z-index:100; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.5); display:flex; flex-direction:column; gap:8px; width:44px; box-sizing:border-box;";
-    
     toolsDiv.innerHTML = `
       <button id="tool-pointer" title="移動/回転切替 (V)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:rgba(212,175,55,0.85); border:1px solid #d4af37; color:#000; padding:0; display:flex; justify-content:center; align-items:center;">${iconPan}</button>
       <button id="tool-paint" title="塗る (B)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#fff; padding:0; display:flex; justify-content:center; align-items:center;">${iconPaint}</button>
@@ -81,6 +95,26 @@ function initUI() {
 
     document.getElementById('prevBtn').onclick = () => { currentCycle--; updateCalendarCycle(); };
     document.getElementById('nextBtn').onclick = () => { currentCycle++; updateCalendarCycle(); };
+
+    // ★年月ワープの処理
+    const cycleDisplay = document.getElementById('cycleDisplay');
+    cycleDisplay.onmouseover = () => { cycleDisplay.style.background = "rgba(255,255,255,0.1)"; };
+    cycleDisplay.onmouseout = () => { cycleDisplay.style.background = "transparent"; };
+    cycleDisplay.onclick = () => {
+        jumpDiv.style.display = jumpDiv.style.display === 'none' ? 'flex' : 'none';
+    };
+
+    document.getElementById('jumpGoBtn').onclick = () => {
+        const val = document.getElementById('jumpInput').value;
+        if(!val) return;
+        const targetDate = new Date(val + "-15"); // その月の真ん中あたりを狙う
+        // 基準日（baseDate）から何サイクル離れているかを計算
+        const diffMs = targetDate.getTime() - baseDate.getTime();
+        const diffDays = diffMs / (1000 * 60 * 60 * 24);
+        currentCycle = Math.round(diffDays / synodicMonth);
+        jumpDiv.style.display = 'none';
+        updateCalendarCycle();
+    };
 
     const btnPointer = document.getElementById('tool-pointer');
     const btnPaint = document.getElementById('tool-paint');
@@ -190,7 +224,7 @@ function initUI() {
             for (const key in calendarData) {
                 if (key.startsWith(`c${currentCycle}_`) && calendarData[key].color === activeBrush) delete calendarData[key];
             }
-            localStorage.setItem('polarCalendarDataV17', JSON.stringify(calendarData));
+            localStorage.setItem('polarCalendarDataV18', JSON.stringify(calendarData));
             renderSavedData();
         }
     };
@@ -198,7 +232,7 @@ function initUI() {
     setTool('pointer', 'pan');
 }
 
-// --- ★ローカルCSV読み込み機能 ---
+// --- ローカルCSV読み込み ---
 let localRainData = {};
 
 async function loadLocalRainCSV() {
@@ -214,11 +248,11 @@ async function loadLocalRainCSV() {
                 const date = parts[0].trim();
                 const rain = parseFloat(parts[1].trim());
                 if (date && !isNaN(rain)) {
-                    localRainData[date] = rain; // "YYYY-MM-DD" をキーに降水量を保存
+                    localRainData[date] = rain; 
                 }
             }
         }
-        console.log("📂 ローカルの雨量データ(palau_rain.csv)を読み込みました！ハイブリッドモードで起動します。");
+        console.log("📂 ローカルの雨量データ(palau_rain.csv)を読み込みました！");
     } catch(e) {
         console.log("⚠️ ローカルCSVが見つかりません。APIのデータのみを使用します。");
     }
@@ -226,7 +260,6 @@ async function loadLocalRainCSV() {
 
 initUI();
 
-// 起動時にまずCSVを探しに行く
 loadLocalRainCSV().then(() => {
     fetch('calendar.svg')
       .then(response => response.text())
@@ -249,7 +282,14 @@ loadLocalRainCSV().then(() => {
 
         masterGroup = document.createElementNS(svgNS, "g");
         masterGroup.setAttribute("id", "master-group");
-        while (svg.firstChild) masterGroup.appendChild(svg.firstChild);
+        
+        // ★元のイラレの背景群をグループ化して不透明度80%にする
+        bgGroup = document.createElementNS(svgNS, "g");
+        bgGroup.setAttribute("id", "bg-group");
+        bgGroup.setAttribute("opacity", "0.8");
+        while (svg.firstChild) bgGroup.appendChild(svg.firstChild);
+        
+        masterGroup.appendChild(bgGroup);
         svg.appendChild(masterGroup);
 
         textPathDefs = document.createElementNS(svgNS, "defs");
@@ -347,7 +387,7 @@ async function updateCalendarCycle() {
   const y = startDate.getFullYear();
   const m = startDate.getMonth() + 1;
   const d = startDate.getDate();
-  document.getElementById('cycleDisplay').innerHTML = `${y}年 ${m}月<br><span style="font-size:11px; color:#8b949e;">新月: ${m}月${d}日〜</span>`;
+  document.getElementById('cycleDisplay').innerHTML = `${y}年 ${m}月 <span style="font-size:10px;">▼</span><br><span style="font-size:11px; color:#8b949e;">新月: ${m}月${d}日〜</span>`;
 
   await fetchMeteoData(cycleStartTimeMs);
 
@@ -355,10 +395,7 @@ async function updateCalendarCycle() {
   drawDynamicLines(); 
   drawTideGraph();    
   
-  // ★ APIによる1時間ごとの波（タイミング）を描画
   drawRainfallGraph(cycleStartTimeMs); 
-  
-  // ★ CSVによる日別の総雨量（ボリューム）をヒートマップと数値で描画
   drawDailyRainStats(startDate);
   
   renderSavedData();
@@ -376,32 +413,31 @@ function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
   return { x: centerX + (radius * Math.cos(angleInRadians)), y: centerY + (radius * Math.sin(angleInRadians)) };
 }
 
-// --- ★ CSVデータを背景の帯（ヒートマップ）と数値で描画する関数 ---
+// ★修正：雨量文字を階層23の中央に配置、ハロなし、モノクロSVGアイコン、8pt
 function drawDailyRainStats(startDate) {
   let dailyRainLayer = document.getElementById("daily-rain-layer");
   if(dailyRainLayer) { dailyRainLayer.innerHTML = ""; } 
   else {
     dailyRainLayer = document.createElementNS(svgNS, "g");
     dailyRainLayer.setAttribute("id", "daily-rain-layer");
-    // グラフ線の下（背景）に配置する
     masterGroup.insertBefore(dailyRainLayer, tideLayer); 
   }
   
   const rMin = concentricRings[16]; 
   const rMax = concentricRings[22]; 
+  // 階層23（一番外側の枠）の内周と外周の中間点を計算
+  const layer23CenterR = (concentricRings[22] + concentricRings[23]) / 2;
 
   for (let i = 0; i < 30; i++) {
     const loopDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
     const dateStr = formatDateStr(loopDate);
     
-    // CSVにその日の雨量データが存在し、かつ0mmより多い場合
     if (localRainData[dateStr] !== undefined && localRainData[dateStr] > 0) {
       const rain = localRainData[dateStr];
       const startAngle = (currentStartSegment + i * 4) * 3;
-      const endAngle = startAngle + 12; // 1日は12度分
+      const endAngle = startAngle + 12; 
       
-      // ★背景の扇形（ヒートマップ帯）を描画
-      // 150mmをMAXの濃さとして透明度を計算（0.05 〜 0.35）
+      // 背景ヒートマップ
       let opacity = Math.min(rain / 150, 1) * 0.3 + 0.05; 
       
       const startIn = polarToCartesian(cx, cy, rMin, endAngle);
@@ -415,32 +451,33 @@ function drawDailyRainStats(startDate) {
       path.setAttribute("fill", "rgba(14, 165, 233, " + opacity + ")"); 
       dailyRainLayer.appendChild(path);
 
-      // ★日別の総雨量をテキストで印字
-      const rText = rMax - 6; // グラフの根本（外側）の少し内側に配置
-      const angleMid = startAngle + 6; // 1日の真ん中（お昼の12時）の角度
-      const ptText = polarToCartesian(cx, cy, rText, angleMid);
+      // 階層23の真ん中に文字とアイコンを配置
+      const angleMid = startAngle + 6; 
+      const ptText = polarToCartesian(cx, cy, layer23CenterR, angleMid);
       
-      const text = document.createElementNS(svgNS, "text");
-      text.setAttribute("x", ptText.x); 
-      text.setAttribute("y", ptText.y);
-      text.setAttribute("text-anchor", "middle"); 
-      text.setAttribute("dominant-baseline", "central");
-      text.setAttribute("fill", "rgba(14, 165, 233, 0.95)"); 
-      text.setAttribute("font-size", "7px");
-      text.setAttribute("font-weight", "bold");
-      text.setAttribute("font-family", "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif");
-      // 外側から読めるように反転
-      text.setAttribute("transform", `rotate(${angleMid + 180}, ${ptText.x}, ${ptText.y})`);
-      text.textContent = "💧 " + rain.toFixed(1) + "mm";
-      
-      const halo = text.cloneNode(true);
-      halo.setAttribute("stroke", "rgba(255, 255, 255, 0.85)"); 
-      halo.setAttribute("stroke-width", "2.5");
-      halo.setAttribute("stroke-linejoin", "round");
-      halo.setAttribute("fill", "none");
+      const textGroup = document.createElementNS(svgNS, "g");
+      textGroup.setAttribute("transform", `rotate(${angleMid + 180}, ${ptText.x}, ${ptText.y})`);
 
-      dailyRainLayer.appendChild(halo);
-      dailyRainLayer.appendChild(text);
+      // モノクロ雫アイコン (SVG)
+      const iconGroup = document.createElementNS(svgNS, "g");
+      iconGroup.setAttribute("transform", `translate(${ptText.x - 14}, ${ptText.y - 4})`);
+      iconGroup.setAttribute("fill", "#2c3e50"); // 黒/濃紺のモノクロ
+      iconGroup.innerHTML = iconDrop;
+      textGroup.appendChild(iconGroup);
+
+      const text = document.createElementNS(svgNS, "text");
+      text.setAttribute("x", ptText.x - 2); 
+      text.setAttribute("y", ptText.y);
+      text.setAttribute("text-anchor", "start"); 
+      text.setAttribute("dominant-baseline", "central");
+      text.setAttribute("fill", "#2c3e50"); // 文字もモノクロ
+      text.setAttribute("font-size", "8px"); // 1ptアップ
+      text.setAttribute("font-weight", "bold");
+      text.setAttribute("font-family", "'Arial', sans-serif"); // スッキリしたフォント
+      text.textContent = rain.toFixed(1) + "mm";
+      textGroup.appendChild(text);
+
+      dailyRainLayer.appendChild(textGroup);
     }
   }
 }
@@ -542,7 +579,6 @@ function drawRainfallGraph(cycleStartTimeMs) {
 
   const startAngle = currentStartSegment * 3;
   for (let h = 0; h < 720; h++) {
-    // ★APIの1時間ごとのデータを常に描画する（タイミングの波として使用）
     let rain = apiRainData[h];
     if(rain === null || isNaN(rain)) {
         let currentTide = getSimulatedTideValue(h);
@@ -1078,7 +1114,7 @@ function initInteractions() {
   window.addEventListener('mouseup', () => { 
     isInteractionActive = false;
     if (currentTool === 'pointer') container.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize'; 
-    localStorage.setItem('polarCalendarDataV17', JSON.stringify(calendarData));
+    localStorage.setItem('polarCalendarDataV18', JSON.stringify(calendarData));
   });
 
   svg.addEventListener('click', (e) => {
@@ -1099,7 +1135,7 @@ function initInteractions() {
       calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
     }
     
-    localStorage.setItem('polarCalendarDataV17', JSON.stringify(calendarData));
+    localStorage.setItem('polarCalendarDataV18', JSON.stringify(calendarData));
     renderSavedData();
   });
 }
