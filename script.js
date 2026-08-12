@@ -1,4 +1,4 @@
-// script.js (背景透過・雨量テキスト階層23配置・年月ワープ機能搭載版)
+// script.js (V21: NOAAの生テキスト形式・3列分割対応版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
@@ -13,7 +13,7 @@ let currentTool = 'pointer';
 let interactionMode = 'pan'; 
 let activeBrush = "#38bdf8"; 
 let globalRotation = 0; 
-let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV18')) || {};
+let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV21')) || {};
 let concentricRings = []; 
 
 const PALAU_LAT = 7.34;
@@ -35,7 +35,6 @@ loader.style = "position:fixed; top:0; left:0; width:100vw; height:100vh; backgr
 loader.innerHTML = "☁️ 観測データを統合中...";
 document.body.appendChild(loader);
 
-// モノクロSVGアイコン
 const iconPan = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z"/><path d="M13 13l6 6"/></svg>`;
 const iconRotate = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`;
 const iconPaint = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/><circle cx="11" cy="11" r="2"/></svg>`;
@@ -59,7 +58,6 @@ function initUI() {
     `;
     document.body.appendChild(navDiv);
 
-    // ★年月ジャンプ（ワープ）機能のUI
     const jumpDiv = document.createElement('div');
     jumpDiv.className = 'panel-ui';
     jumpDiv.id = 'jumpMenu';
@@ -96,7 +94,6 @@ function initUI() {
     document.getElementById('prevBtn').onclick = () => { currentCycle--; updateCalendarCycle(); };
     document.getElementById('nextBtn').onclick = () => { currentCycle++; updateCalendarCycle(); };
 
-    // ★年月ワープの処理
     const cycleDisplay = document.getElementById('cycleDisplay');
     cycleDisplay.onmouseover = () => { cycleDisplay.style.background = "rgba(255,255,255,0.1)"; };
     cycleDisplay.onmouseout = () => { cycleDisplay.style.background = "transparent"; };
@@ -107,8 +104,7 @@ function initUI() {
     document.getElementById('jumpGoBtn').onclick = () => {
         const val = document.getElementById('jumpInput').value;
         if(!val) return;
-        const targetDate = new Date(val + "-15"); // その月の真ん中あたりを狙う
-        // 基準日（baseDate）から何サイクル離れているかを計算
+        const targetDate = new Date(val + "-15");
         const diffMs = targetDate.getTime() - baseDate.getTime();
         const diffDays = diffMs / (1000 * 60 * 60 * 24);
         currentCycle = Math.round(diffDays / synodicMonth);
@@ -154,7 +150,6 @@ function initUI() {
 
     document.addEventListener('keydown', (e) => {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-        
         if (e.code === 'Space') {
             e.preventDefault(); 
             if (!isSpacePressed) {
@@ -164,15 +159,8 @@ function initUI() {
             }
             return;
         }
-
         const key = e.key.toLowerCase();
-        if (key === 'v') {
-            if (currentTool === 'pointer') {
-                setTool('pointer', interactionMode === 'pan' ? 'rotate' : 'pan');
-            } else {
-                setTool('pointer', interactionMode);
-            }
-        }
+        if (key === 'v') setTool('pointer', interactionMode === 'pan' ? 'rotate' : 'pan');
         if (key === 'b') setTool('paint');
         if (key === 'e') setTool('erase');
     });
@@ -184,10 +172,7 @@ function initUI() {
         }
     });
 
-    btnPointer.onclick = () => {
-        if (currentTool === 'pointer') setTool('pointer', interactionMode === 'pan' ? 'rotate' : 'pan');
-        else setTool('pointer', interactionMode);
-    };
+    btnPointer.onclick = () => setTool('pointer', interactionMode === 'pan' ? 'rotate' : 'pan');
     btnPaint.onclick = () => setTool('paint');
     btnErase.onclick = () => setTool('erase');
 
@@ -198,18 +183,11 @@ function initUI() {
         svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
     };
 
-    const colors = [
-        "#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", 
-        "#22c55e", "#10b981", "#14b8a6", "#06b6d4", "#0ea5e9", 
-        "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef", 
-        "#ec4899", "#f43f5e", "#fb7185", "#a8a29e", "#57534e"
-    ];
-    
+    const colors = ["#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", "#22c55e", "#10b981", "#14b8a6", "#06b6d4", "#0ea5e9", "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#ec4899", "#f43f5e", "#fb7185", "#a8a29e", "#57534e"];
     colors.forEach(color => {
         const div = document.createElement('div');
         div.style = `width:100%; aspect-ratio:1; background-color:${color}; border-radius:4px; border:2px solid transparent; cursor:pointer; transition:0.1s; box-sizing:border-box;`;
         if(color === activeBrush) { div.style.borderColor = '#fff'; div.style.transform = 'scale(1.1)'; }
-        
         div.onclick = () => {
             paletteDiv.querySelectorAll('div').forEach(el => { el.style.borderColor = 'transparent'; el.style.transform = 'scale(1)'; });
             div.style.borderColor = '#fff'; div.style.transform = 'scale(1.1)';
@@ -219,48 +197,84 @@ function initUI() {
     });
 
     document.getElementById('clearBtn').onclick = () => {
-        if(currentTool !== 'paint') return alert("ペン(B)で消したい色を選択してから、このボタンを押してください。");
+        if(currentTool !== 'paint') return alert("ペン(B)で消したい色を選択してください。");
         if(confirm(`現在の月（輪）から、選択中の色をすべて削除しますか？`)) {
             for (const key in calendarData) {
                 if (key.startsWith(`c${currentCycle}_`) && calendarData[key].color === activeBrush) delete calendarData[key];
             }
-            localStorage.setItem('polarCalendarDataV18', JSON.stringify(calendarData));
+            localStorage.setItem('polarCalendarDataV21', JSON.stringify(calendarData));
             renderSavedData();
         }
     };
-
     setTool('pointer', 'pan');
 }
 
-// --- ローカルCSV読み込み ---
+// --- CSVデータの読み込み ---
 let localRainData = {};
+let localTideData = {};
 
-async function loadLocalRainCSV() {
+async function loadLocalCSV() {
+    // 雨の読み込み
     try {
         const res = await fetch('palau_rain.csv');
-        if (!res.ok) throw new Error("CSV not found");
-        const text = await res.text();
-        const lines = text.split('\n');
-        
-        for (let i = 1; i < lines.length; i++) {
-            const parts = lines[i].split(',');
-            if (parts.length >= 2) {
-                const date = parts[0].trim();
-                const rain = parseFloat(parts[1].trim());
-                if (date && !isNaN(rain)) {
-                    localRainData[date] = rain; 
+        if (res.ok) {
+            const text = await res.text();
+            const lines = text.split('\n');
+            for (let i = 1; i < lines.length; i++) {
+                const parts = lines[i].split(',');
+                if (parts.length >= 2) {
+                    const date = parts[0].trim();
+                    const rain = parseFloat(parts[1].trim());
+                    if (date && !isNaN(rain)) localRainData[date] = rain; 
                 }
             }
+            console.log("📂 palau_rain.csv を読み込みました！");
         }
-        console.log("📂 ローカルの雨量データ(palau_rain.csv)を読み込みました！");
-    } catch(e) {
-        console.log("⚠️ ローカルCSVが見つかりません。APIのデータのみを使用します。");
-    }
+    } catch(e) {}
+
+    // ★潮汐の読み込み (palau_tide.csv) - 3列分割・スラッシュ対応
+    try {
+        const res = await fetch('palau_tide.csv');
+        if (res.ok) {
+            const text = await res.text();
+            const lines = text.split('\n');
+            for (let i = 1; i < lines.length; i++) {
+                const parts = lines[i].split(',');
+                // Date, Time, Water Level の3列以上ある場合を処理
+                if (parts.length >= 3) {
+                    // 1. 日付列のスラッシュをハイフンに置換 (例: 2026/08/01 -> 2026-08-01)
+                    // 2. 日付の月や日が1桁の場合（例：2026/7/1）でもプログラムが読めるようにフォーマット
+                    let dateStr = parts[0].trim().replace(/\//g, '-');
+                    const dateParts = dateStr.split('-');
+                    if(dateParts.length === 3) {
+                        const y = dateParts[0];
+                        const m = dateParts[1].padStart(2, '0');
+                        const d = dateParts[2].padStart(2, '0');
+                        dateStr = `${y}-${m}-${d}`;
+                    }
+
+                    // 時間列を取得 (例: 00:00)
+                    let timeStrRaw = parts[1].trim();
+                    // 万が一秒まで入っていたらHH:MMの形にする
+                    if(timeStrRaw.length > 5) timeStrRaw = timeStrRaw.substring(0, 5);
+
+                    // A列とB列を合体させて "2026-08-01 00:00" というキーを作る
+                    const timeKey = `${dateStr} ${timeStrRaw}`; 
+                    
+                    // C列（フィート）を取得
+                    const tide = parseFloat(parts[2].trim());
+                    
+                    if (timeKey && !isNaN(tide)) localTideData[timeKey] = tide; 
+                }
+            }
+            console.log("🌊 palau_tide.csv (実測潮汐 ft・3列版) を読み込みました！");
+        }
+    } catch(e) {}
 }
 
 initUI();
 
-loadLocalRainCSV().then(() => {
+loadLocalCSV().then(() => {
     fetch('calendar.svg')
       .then(response => response.text())
       .then(svgCode => {
@@ -268,7 +282,6 @@ loadLocalRainCSV().then(() => {
         svg = container.querySelector('svg');
         svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
         svg.querySelectorAll('*[fill="#fff"]').forEach(el => el.setAttribute('fill', 'none'));
-
         svg.querySelectorAll('text, rect').forEach(el => el.remove());
 
         const radii = [];
@@ -282,8 +295,6 @@ loadLocalRainCSV().then(() => {
 
         masterGroup = document.createElementNS(svgNS, "g");
         masterGroup.setAttribute("id", "master-group");
-        
-        // ★元のイラレの背景群をグループ化して不透明度80%にする
         bgGroup = document.createElementNS(svgNS, "g");
         bgGroup.setAttribute("id", "bg-group");
         bgGroup.setAttribute("opacity", "0.8");
@@ -315,8 +326,15 @@ loadLocalRainCSV().then(() => {
       .catch(err => console.error("SVG読み込みエラー:", err));
 });
 
-let apiTideData = [];
 let apiRainData = [];
+
+function formatTimeStr(dateObj) {
+    const y = dateObj.getFullYear();
+    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const d = String(dateObj.getDate()).padStart(2, '0');
+    const h = String(dateObj.getHours()).padStart(2, '0');
+    return `${y}-${m}-${d} ${h}:00`;
+}
 
 function formatDateStr(dateObj) {
     const y = dateObj.getFullYear();
@@ -332,48 +350,31 @@ async function fetchMeteoData(startDateMs) {
     const startStr = formatDateStr(dStart);
     const endStr = formatDateStr(dEnd);
     
-    apiTideData = new Array(720).fill(null);
     apiRainData = new Array(720).fill(null);
-
     const isHistorical = dEnd.getTime() < Date.now() - (5 * 86400000);
     const rainApiUrl = isHistorical 
         ? `https://archive-api.open-meteo.com/v1/archive?latitude=${PALAU_LAT}&longitude=${PALAU_LON}&hourly=precipitation&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`
         : `https://api.open-meteo.com/v1/forecast?latitude=${PALAU_LAT}&longitude=${PALAU_LON}&hourly=precipitation&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`;
 
     try {
-        const [tideRes, rainRes] = await Promise.all([
-            fetch(`https://marine-api.open-meteo.com/v1/marine?latitude=${PALAU_LAT}&longitude=${PALAU_LON}&hourly=sea_level&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`),
-            fetch(rainApiUrl)
-        ]);
-
-        if (tideRes.ok) {
-            const tideJson = await tideRes.json();
-            if(tideJson.hourly && tideJson.hourly.sea_level) {
-                for(let i=0; i<720; i++) {
-                    if(tideJson.hourly.sea_level[i] !== undefined) {
-                        apiTideData[i] = tideJson.hourly.sea_level[i] * 3.28084 + 3.0; 
-                    }
-                }
-            }
-        }
+        const rainRes = await fetch(rainApiUrl);
         if (rainRes.ok) {
             const rainJson = await rainRes.json();
             if(rainJson.hourly && rainJson.hourly.precipitation) {
-                for(let i=0; i<720; i++) {
-                    apiRainData[i] = rainJson.hourly.precipitation[i] || 0;
-                }
+                for(let i=0; i<720; i++) apiRainData[i] = rainJson.hourly.precipitation[i] || 0;
             }
         }
-    } catch(e) {
-        console.warn("API取得エラー");
-    }
+    } catch(e) {}
     loader.style.display = 'none';
 }
 
-function getSimulatedTideValue(t_hours) {
-    const M2 = { a: 2.2, speed: 28.984, phase: 210 }; 
-    const K1 = { a: 1.2, speed: 15.041, phase: 50 }; 
+function getSimulatedTideValue(timeMs) {
     const MSL = 3.2; 
+    const diff = (getLunarLongitude(timeMs) - getSolarLongitude(timeMs) + 360) % 360;
+    const phaseFactor = 0.7 + 0.3 * Math.cos(diff * 2 * Math.PI / 180); 
+    const t_hours = timeMs / 3600000;
+    const M2 = { a: 2.2 * phaseFactor, speed: 28.984, phase: 210 }; 
+    const K1 = { a: 1.2, speed: 15.041, phase: 50 }; 
     return MSL + M2.a * Math.cos((M2.speed * t_hours - M2.phase) * Math.PI / 180) 
                + K1.a * Math.cos((K1.speed * t_hours - K1.phase) * Math.PI / 180);
 }
@@ -393,13 +394,10 @@ async function updateCalendarCycle() {
 
   drawLunarShadow(cycleStartTimeMs);  
   drawDynamicLines(); 
-  drawTideGraph();    
-  
+  drawTideGraph(cycleStartTimeMs);    
   drawRainfallGraph(cycleStartTimeMs); 
   drawDailyRainStats(startDate);
-  
   renderSavedData();
-
   drawOuterSeasons(cycleStartTimeMs); 
   drawTimeLabels(); 
   drawSolarDates(startDate); 
@@ -413,7 +411,6 @@ function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
   return { x: centerX + (radius * Math.cos(angleInRadians)), y: centerY + (radius * Math.sin(angleInRadians)) };
 }
 
-// ★修正：雨量文字を階層23の中央に配置、ハロなし、モノクロSVGアイコン、8pt
 function drawDailyRainStats(startDate) {
   let dailyRainLayer = document.getElementById("daily-rain-layer");
   if(dailyRainLayer) { dailyRainLayer.innerHTML = ""; } 
@@ -425,7 +422,6 @@ function drawDailyRainStats(startDate) {
   
   const rMin = concentricRings[16]; 
   const rMax = concentricRings[22]; 
-  // 階層23（一番外側の枠）の内周と外周の中間点を計算
   const layer23CenterR = (concentricRings[22] + concentricRings[23]) / 2;
 
   for (let i = 0; i < 30; i++) {
@@ -437,7 +433,6 @@ function drawDailyRainStats(startDate) {
       const startAngle = (currentStartSegment + i * 4) * 3;
       const endAngle = startAngle + 12; 
       
-      // 背景ヒートマップ
       let opacity = Math.min(rain / 150, 1) * 0.3 + 0.05; 
       
       const startIn = polarToCartesian(cx, cy, rMin, endAngle);
@@ -451,17 +446,17 @@ function drawDailyRainStats(startDate) {
       path.setAttribute("fill", "rgba(14, 165, 233, " + opacity + ")"); 
       dailyRainLayer.appendChild(path);
 
-      // 階層23の真ん中に文字とアイコンを配置
       const angleMid = startAngle + 6; 
       const ptText = polarToCartesian(cx, cy, layer23CenterR, angleMid);
       
       const textGroup = document.createElementNS(svgNS, "g");
       textGroup.setAttribute("transform", `rotate(${angleMid + 180}, ${ptText.x}, ${ptText.y})`);
 
-      // モノクロ雫アイコン (SVG)
+      const iconColor = "rgba(14, 165, 233, 1)"; 
+      
       const iconGroup = document.createElementNS(svgNS, "g");
       iconGroup.setAttribute("transform", `translate(${ptText.x - 14}, ${ptText.y - 4})`);
-      iconGroup.setAttribute("fill", "#2c3e50"); // 黒/濃紺のモノクロ
+      iconGroup.setAttribute("fill", iconColor); 
       iconGroup.innerHTML = iconDrop;
       textGroup.appendChild(iconGroup);
 
@@ -470,10 +465,10 @@ function drawDailyRainStats(startDate) {
       text.setAttribute("y", ptText.y);
       text.setAttribute("text-anchor", "start"); 
       text.setAttribute("dominant-baseline", "central");
-      text.setAttribute("fill", "#2c3e50"); // 文字もモノクロ
-      text.setAttribute("font-size", "8px"); // 1ptアップ
+      text.setAttribute("fill", iconColor); 
+      text.setAttribute("font-size", "8px"); 
       text.setAttribute("font-weight", "bold");
-      text.setAttribute("font-family", "'Arial', sans-serif"); // スッキリしたフォント
+      text.setAttribute("font-family", "'Arial', sans-serif"); 
       text.textContent = rain.toFixed(1) + "mm";
       textGroup.appendChild(text);
 
@@ -482,10 +477,13 @@ function drawDailyRainStats(startDate) {
   }
 }
 
-function drawTideGraph() {
+// ★ 潮汐CSV (ft ＆ MLLW)
+function drawTideGraph(cycleStartTimeMs) {
   tideLayer.innerHTML = ""; 
   if (concentricRings.length < 23) return; 
   const rMin = concentricRings[16]; const rMax = concentricRings[22]; 
+  
+  // ★ MLLWに合わせたスケール（-1.5ft 〜 7.5ft）
   const minTide = -1.5; const maxTide = 7.5; const range = maxTide - minTide;
 
   let pathD = "";
@@ -495,14 +493,15 @@ function drawTideGraph() {
 
   for (let i = 0; i <= totalHours * resolution; i++) {
     const t = i / resolution; 
+    const timeMs = cycleStartTimeMs + t * 3600000;
+    const timeStr = formatTimeStr(new Date(timeMs)); 
+    
     let tide = 3.0; 
-    const hourIdx = Math.floor(t);
-    if(apiTideData[hourIdx] !== null && !isNaN(apiTideData[hourIdx])) {
-        let h1 = apiTideData[hourIdx];
-        let h2 = apiTideData[hourIdx+1] || h1;
-        tide = h1 + (h2 - h1) * (t - hourIdx);
+    
+    if(localTideData[timeStr] !== undefined) {
+        tide = localTideData[timeStr]; // CSVのftデータを使用
     } else {
-        tide = getSimulatedTideValue(t);
+        tide = getSimulatedTideValue(timeMs); 
     }
 
     const r = rMin + (rMax - rMin) * ((tide - minTide) / range);
@@ -528,6 +527,7 @@ function drawTideGraph() {
   wavePath.setAttribute("stroke-width", "1.5");
   tideLayer.appendChild(wavePath);
 
+  // ガイドライン (-1.5ft 〜 7.5ft)
   const guideTides = [-1.5, 0, 1.5, 3.0, 4.5, 6.0, 7.5];
   guideTides.forEach(ft => {
     const r = rMin + (rMax - rMin) * ((ft - minTide) / range);
@@ -581,8 +581,8 @@ function drawRainfallGraph(cycleStartTimeMs) {
   for (let h = 0; h < 720; h++) {
     let rain = apiRainData[h];
     if(rain === null || isNaN(rain)) {
-        let currentTide = getSimulatedTideValue(h);
-        let nextTide = getSimulatedTideValue(h+0.1);
+        let currentTide = getSimulatedTideValue(cycleStartTimeMs + h * 3600000);
+        let nextTide = getSimulatedTideValue(cycleStartTimeMs + (h+0.1) * 3600000);
         if(nextTide - currentTide < -0.1 && Math.random() > 0.9) rain = Math.random() * 15 + 2; 
         else rain = 0;
     }
@@ -1114,7 +1114,7 @@ function initInteractions() {
   window.addEventListener('mouseup', () => { 
     isInteractionActive = false;
     if (currentTool === 'pointer') container.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize'; 
-    localStorage.setItem('polarCalendarDataV18', JSON.stringify(calendarData));
+    localStorage.setItem('polarCalendarDataV21', JSON.stringify(calendarData));
   });
 
   svg.addEventListener('click', (e) => {
@@ -1135,7 +1135,7 @@ function initInteractions() {
       calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
     }
     
-    localStorage.setItem('polarCalendarDataV18', JSON.stringify(calendarData));
+    localStorage.setItem('polarCalendarDataV21', JSON.stringify(calendarData));
     renderSavedData();
   });
 }
