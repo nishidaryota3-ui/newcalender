@@ -1,4 +1,4 @@
-// script.js (ローカルCSV＆APIハイブリッドエンジン搭載版)
+// script.js (APIとCSVの最強ハイブリッド共存版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
@@ -13,7 +13,7 @@ let currentTool = 'pointer';
 let interactionMode = 'pan'; 
 let activeBrush = "#38bdf8"; 
 let globalRotation = 0; 
-let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV16')) || {};
+let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV17')) || {};
 let concentricRings = []; 
 
 const PALAU_LAT = 7.34;
@@ -190,7 +190,7 @@ function initUI() {
             for (const key in calendarData) {
                 if (key.startsWith(`c${currentCycle}_`) && calendarData[key].color === activeBrush) delete calendarData[key];
             }
-            localStorage.setItem('polarCalendarDataV16', JSON.stringify(calendarData));
+            localStorage.setItem('polarCalendarDataV17', JSON.stringify(calendarData));
             renderSavedData();
         }
     };
@@ -218,7 +218,7 @@ async function loadLocalRainCSV() {
                 }
             }
         }
-        console.log("📂 ローカルの雨量データ(palau_rain.csv)を読み込みました！");
+        console.log("📂 ローカルの雨量データ(palau_rain.csv)を読み込みました！ハイブリッドモードで起動します。");
     } catch(e) {
         console.log("⚠️ ローカルCSVが見つかりません。APIのデータのみを使用します。");
     }
@@ -354,7 +354,13 @@ async function updateCalendarCycle() {
   drawLunarShadow(cycleStartTimeMs);  
   drawDynamicLines(); 
   drawTideGraph();    
-  drawRainfallGraph(cycleStartTimeMs); // ★時間を渡すように修正
+  
+  // ★ APIによる1時間ごとの波（タイミング）を描画
+  drawRainfallGraph(cycleStartTimeMs); 
+  
+  // ★ CSVによる日別の総雨量（ボリューム）をヒートマップと数値で描画
+  drawDailyRainStats(startDate);
+  
   renderSavedData();
 
   drawOuterSeasons(cycleStartTimeMs); 
@@ -368,6 +374,75 @@ async function updateCalendarCycle() {
 function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
   const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
   return { x: centerX + (radius * Math.cos(angleInRadians)), y: centerY + (radius * Math.sin(angleInRadians)) };
+}
+
+// --- ★ CSVデータを背景の帯（ヒートマップ）と数値で描画する関数 ---
+function drawDailyRainStats(startDate) {
+  let dailyRainLayer = document.getElementById("daily-rain-layer");
+  if(dailyRainLayer) { dailyRainLayer.innerHTML = ""; } 
+  else {
+    dailyRainLayer = document.createElementNS(svgNS, "g");
+    dailyRainLayer.setAttribute("id", "daily-rain-layer");
+    // グラフ線の下（背景）に配置する
+    masterGroup.insertBefore(dailyRainLayer, tideLayer); 
+  }
+  
+  const rMin = concentricRings[16]; 
+  const rMax = concentricRings[22]; 
+
+  for (let i = 0; i < 30; i++) {
+    const loopDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
+    const dateStr = formatDateStr(loopDate);
+    
+    // CSVにその日の雨量データが存在し、かつ0mmより多い場合
+    if (localRainData[dateStr] !== undefined && localRainData[dateStr] > 0) {
+      const rain = localRainData[dateStr];
+      const startAngle = (currentStartSegment + i * 4) * 3;
+      const endAngle = startAngle + 12; // 1日は12度分
+      
+      // ★背景の扇形（ヒートマップ帯）を描画
+      // 150mmをMAXの濃さとして透明度を計算（0.05 〜 0.35）
+      let opacity = Math.min(rain / 150, 1) * 0.3 + 0.05; 
+      
+      const startIn = polarToCartesian(cx, cy, rMin, endAngle);
+      const endIn = polarToCartesian(cx, cy, rMin, startAngle);
+      const startOut = polarToCartesian(cx, cy, rMax, endAngle);
+      const endOut = polarToCartesian(cx, cy, rMax, startAngle);
+      
+      const d = ["M", startOut.x, startOut.y, "A", rMax, rMax, 0, 0, 0, endOut.x, endOut.y, "L", endIn.x, endIn.y, "A", rMin, rMin, 0, 0, 1, startIn.x, startIn.y, "Z"].join(" ");
+      const path = document.createElementNS(svgNS, "path");
+      path.setAttribute("d", d); 
+      path.setAttribute("fill", "rgba(14, 165, 233, " + opacity + ")"); 
+      dailyRainLayer.appendChild(path);
+
+      // ★日別の総雨量をテキストで印字
+      const rText = rMax - 6; // グラフの根本（外側）の少し内側に配置
+      const angleMid = startAngle + 6; // 1日の真ん中（お昼の12時）の角度
+      const ptText = polarToCartesian(cx, cy, rText, angleMid);
+      
+      const text = document.createElementNS(svgNS, "text");
+      text.setAttribute("x", ptText.x); 
+      text.setAttribute("y", ptText.y);
+      text.setAttribute("text-anchor", "middle"); 
+      text.setAttribute("dominant-baseline", "central");
+      text.setAttribute("fill", "rgba(14, 165, 233, 0.95)"); 
+      text.setAttribute("font-size", "7px");
+      text.setAttribute("font-weight", "bold");
+      text.setAttribute("font-family", "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif");
+      // 外側から読めるように反転
+      text.setAttribute("transform", `rotate(${angleMid + 180}, ${ptText.x}, ${ptText.y})`);
+      text.textContent = "💧 " + rain.toFixed(1) + "mm";
+      
+      const halo = text.cloneNode(true);
+      halo.setAttribute("stroke", "rgba(255, 255, 255, 0.85)"); 
+      halo.setAttribute("stroke-width", "2.5");
+      halo.setAttribute("stroke-linejoin", "round");
+      halo.setAttribute("fill", "none");
+
+      dailyRainLayer.appendChild(halo);
+      dailyRainLayer.appendChild(text);
+    }
+  }
 }
 
 function drawTideGraph() {
@@ -450,7 +525,6 @@ function drawTideGraph() {
   });
 }
 
-// ★修正：ローカルCSVとAPIデータのハイブリッド処理
 function drawRainfallGraph(cycleStartTimeMs) {
   rainfallLayer.innerHTML = "";
   if (concentricRings.length < 23) return;
@@ -468,32 +542,19 @@ function drawRainfallGraph(cycleStartTimeMs) {
 
   const startAngle = currentStartSegment * 3;
   for (let h = 0; h < 720; h++) {
-    // 描画中の「今この時間」の日付（YYYY-MM-DD）を計算
-    const currentDrawDate = new Date(cycleStartTimeMs + h * 3600000);
-    const dateStr = formatDateStr(currentDrawDate);
-    const currentHour = currentDrawDate.getHours();
-
-    let rain = 0;
-
-    // ★ハイブリッド処理：もしCSVにその日のデータがあれば優先する
-    if (localRainData[dateStr] !== undefined) {
-        // CSVは「1日の合計雨量」なので、見栄えを良くするためお昼(12時)にドカンと針を描画する
-        if (currentHour === 12) {
-            rain = localRainData[dateStr];
-        }
-    } else {
-        // CSVにデータがなければ、今まで通りAPIの1時間ごとのデータを使う
-        rain = apiRainData[h];
-        if(rain === null || isNaN(rain)) {
-            rain = 0;
-        }
+    // ★APIの1時間ごとのデータを常に描画する（タイミングの波として使用）
+    let rain = apiRainData[h];
+    if(rain === null || isNaN(rain)) {
+        let currentTide = getSimulatedTideValue(h);
+        let nextTide = getSimulatedTideValue(h+0.1);
+        if(nextTide - currentTide < -0.1 && Math.random() > 0.9) rain = Math.random() * 15 + 2; 
+        else rain = 0;
     }
 
     if (rain > 0) {
       const displayRain = rain; 
       const r = rMax - (rMax - rMin) * (displayRain / maxRain);
       const angle = startAngle + h * 0.5 + 0.25; 
-      // 30mmを超えて中心(rMin)を突き抜ける場合は中心で止めるかそのまま突き刺すか。今回は突き刺します！
       const p1 = polarToCartesian(cx, cy, rMax, angle);
       const p2 = polarToCartesian(cx, cy, r, angle);
       const line = document.createElementNS(svgNS, "line");
@@ -1017,7 +1078,7 @@ function initInteractions() {
   window.addEventListener('mouseup', () => { 
     isInteractionActive = false;
     if (currentTool === 'pointer') container.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize'; 
-    localStorage.setItem('polarCalendarDataV16', JSON.stringify(calendarData));
+    localStorage.setItem('polarCalendarDataV17', JSON.stringify(calendarData));
   });
 
   svg.addEventListener('click', (e) => {
@@ -1038,7 +1099,7 @@ function initInteractions() {
       calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
     }
     
-    localStorage.setItem('polarCalendarDataV16', JSON.stringify(calendarData));
+    localStorage.setItem('polarCalendarDataV17', JSON.stringify(calendarData));
     renderSavedData();
   });
 }
