@@ -1,4 +1,4 @@
-// script.js (V22: 絶対正確・実測潮汐マッチング＆タイムゾーン補正版)
+// script.js (V23: High/Lowデータ対応・自動滑らか補間エンジン搭載版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
@@ -13,7 +13,7 @@ let currentTool = 'pointer';
 let interactionMode = 'pan'; 
 let activeBrush = "#38bdf8"; 
 let globalRotation = 0; 
-let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV22')) || {};
+let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV23')) || {};
 let concentricRings = []; 
 
 const PALAU_LAT = 7.34;
@@ -202,16 +202,16 @@ function initUI() {
             for (const key in calendarData) {
                 if (key.startsWith(`c${currentCycle}_`) && calendarData[key].color === activeBrush) delete calendarData[key];
             }
-            localStorage.setItem('polarCalendarDataV22', JSON.stringify(calendarData));
+            localStorage.setItem('polarCalendarDataV23', JSON.stringify(calendarData));
             renderSavedData();
         }
     };
     setTool('pointer', 'pan');
 }
 
-// --- CSVデータの最強読み込み処理 ---
+// --- CSVデータの最強読み込み処理 (High/Lowの「点」の配列として保持) ---
 let localRainData = {};
-let localTideData = {};
+let highLowTidePoints = []; // ★オブジェクトではなく、時間順の配列として保持
 
 async function loadLocalCSV() {
     try {
@@ -231,19 +231,17 @@ async function loadLocalCSV() {
         }
     } catch(e) {}
 
-    // ★最強の潮汐読み込みエンジン (ゆらぎ許容＆UTC補正)
+    // ★High/Lowデータを「点（時間と潮位）」のリストとして読み込む
     try {
         const res = await fetch('palau_tide.csv');
         if (res.ok) {
             const text = await res.text();
             const lines = text.split('\n');
-            let loadedCount = 0;
-
+            
             for (let i = 1; i < lines.length; i++) {
                 const parts = lines[i].split(',');
-                if (parts.length >= 3) { // A列:日付, B列:時間, C列:潮位
+                if (parts.length >= 3) {
                     
-                    // 1. 日付のゆらぎ吸収 (2026/8/1 -> 2026-08-01)
                     let dateStr = parts[0].trim().replace(/\//g, '-');
                     const dateParts = dateStr.split('-');
                     if(dateParts.length === 3) {
@@ -253,44 +251,29 @@ async function loadLocalCSV() {
                         dateStr = `${y}-${m}-${d}`;
                     }
 
-                    // 2. 時間のゆらぎ吸収 (2:00 -> 02:00)
+                    // 分単位の時間も正確に取得 (例: 02:18)
                     let timeStrRaw = parts[1].trim();
+                    if(timeStrRaw.length > 5) timeStrRaw = timeStrRaw.substring(0, 5);
                     const timeParts = timeStrRaw.split(':');
-                    if(timeParts.length >= 2) {
-                        const h = timeParts[0].padStart(2, '0');
-                        timeStrRaw = `${h}:00`;
-                    } else {
-                        // コロンがない場合（数字だけの場合）も念のためカバー
-                        const h = timeStrRaw.padStart(2, '0');
-                        timeStrRaw = `${h}:00`;
-                    }
-
-                    // 3. UTC(GMT)かLSTか分からないNOAAデータ対策！
-                    // 一旦 Date オブジェクトに変換して、そこに+9時間（パラオ時間）を足してからキーを作り直す
-                    const rawTimeMs = new Date(`${dateStr}T${timeStrRaw}:00Z`).getTime();
-                    // ※あえてUTC（Z）として解釈させ、それにパラオのオフセット（+9時間）を乗せてLSTとする
-                    // （もしNOAAのデータがすでにLSTで出力されている場合は、この処理を外す必要がありますが、
-                    //   今回はズレの症状から見てUTCの可能性が高いため、いったん補正をかけます）
-                    const correctedTimeMs = rawTimeMs + (9 * 60 * 60 * 1000); 
-                    const correctedDate = new Date(correctedTimeMs);
+                    if(timeParts.length < 2) continue; // 不正な時間はスキップ
+                    const h = timeParts[0].padStart(2, '0');
+                    const min = timeParts[1].padStart(2, '0');
                     
-                    // 補正後の時間でキーを作成 "2026-08-13 02:00"
-                    const c_y = correctedDate.getUTCFullYear();
-                    const c_m = String(correctedDate.getUTCMonth() + 1).padStart(2, '0');
-                    const c_d = String(correctedDate.getUTCDate()).padStart(2, '0');
-                    const c_h = String(correctedDate.getUTCHours()).padStart(2, '0');
-                    const timeKey = `${c_y}-${c_m}-${c_d} ${c_h}:00`;
-                    
-                    // 潮位の取得
+                    // NOAAデータ（LSTの場合）をミリ秒（タイムスタンプ）に変換
+                    // ※今回は現地時間として正しく描画されるようUTC補正はしません。
+                    // (JSは「YYYY-MM-DDTHH:mm:ss」をローカル時間として解釈します)
+                    const timeMs = new Date(`${dateStr}T${h}:${min}:00`).getTime();
                     const tide = parseFloat(parts[2].trim());
                     
-                    if (timeKey && !isNaN(tide)) {
-                        localTideData[timeKey] = tide; 
-                        loadedCount++;
+                    if (!isNaN(timeMs) && !isNaN(tide)) {
+                        highLowTidePoints.push({ time: timeMs, tide: tide });
                     }
                 }
             }
-            console.log(`🌊 palau_tide.csv (実測潮汐) を ${loadedCount}件 読み込みました！（※UTC+9時間補正適用済）`);
+            
+            // 時間順に並び替え
+            highLowTidePoints.sort((a, b) => a.time - b.time);
+            console.log(`🌊 palau_tide.csv (High/Low) を ${highLowTidePoints.length}点 読み込みました！`);
         }
     } catch(e) {
         console.log("⚠️ palau_tide.csv の読み込みに失敗しました。");
@@ -353,14 +336,6 @@ loadLocalCSV().then(() => {
 
 let apiRainData = [];
 
-function formatTimeStr(dateObj) {
-    const y = dateObj.getFullYear();
-    const m = String(dateObj.getMonth() + 1).padStart(2, '0');
-    const d = String(dateObj.getDate()).padStart(2, '0');
-    const h = String(dateObj.getHours()).padStart(2, '0');
-    return `${y}-${m}-${d} ${h}:00`;
-}
-
 function formatDateStr(dateObj) {
     const y = dateObj.getFullYear();
     const m = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -403,6 +378,37 @@ function getSimulatedTideValue(timeMs) {
     return MSL + M2.a * Math.cos((M2.speed * t_hours - M2.phase) * Math.PI / 180) 
                + K1.a * Math.cos((K1.speed * t_hours - K1.phase) * Math.PI / 180);
 }
+
+// ★ 新搭載：High/Lowの点の間を滑らかな曲線（コサイン補間）で結ぶエンジン
+function getInterpolatedTide(timeMs) {
+    if (highLowTidePoints.length === 0) return getSimulatedTideValue(timeMs);
+
+    // その時間(timeMs)の前後のポイントを探す
+    let p1 = null;
+    let p2 = null;
+    
+    for (let i = 0; i < highLowTidePoints.length - 1; i++) {
+        if (timeMs >= highLowTidePoints[i].time && timeMs <= highLowTidePoints[i+1].time) {
+            p1 = highLowTidePoints[i];
+            p2 = highLowTidePoints[i+1];
+            break;
+        }
+    }
+
+    // もし前後の点が見つかれば、コサイン曲線で補間（S字カーブで繋ぐ）
+    if (p1 && p2) {
+        const timeRange = p2.time - p1.time;
+        if (timeRange === 0) return p1.tide; // ゼロ割防止
+        const ratio = (timeMs - p1.time) / timeRange; // 0.0 〜 1.0
+        // コサイン補間: (1 - cos(π * ratio)) / 2 で滑らかなS字を作る
+        const smoothRatio = (1 - Math.cos(Math.PI * ratio)) / 2;
+        return p1.tide + (p2.tide - p1.tide) * smoothRatio;
+    }
+
+    // もしデータ範囲外ならシミュレーションを返す
+    return getSimulatedTideValue(timeMs);
+}
+
 
 async function updateCalendarCycle() {
   const totalElapsedDays = currentCycle * synodicMonth;
@@ -502,7 +508,7 @@ function drawDailyRainStats(startDate) {
   }
 }
 
-// ★ 潮汐CSV描画（仮シミュレーションではなく絶対データを描く）
+// ★ 潮汐描画：補間エンジンを使って滑らかな波を描く
 function drawTideGraph(cycleStartTimeMs) {
   tideLayer.innerHTML = ""; 
   if (concentricRings.length < 23) return; 
@@ -511,7 +517,8 @@ function drawTideGraph(cycleStartTimeMs) {
   const minTide = -1.5; const maxTide = 7.5; const range = maxTide - minTide;
 
   let pathD = "";
-  const resolution = 10; 
+  // 補間で描くので、より細かい解像度(resolution=20)にして超滑らかに描画
+  const resolution = 20; 
   const totalHours = 720;
   const startAngle = currentStartSegment * 3;
 
@@ -519,17 +526,8 @@ function drawTideGraph(cycleStartTimeMs) {
     const t = i / resolution; 
     const timeMs = cycleStartTimeMs + t * 3600000;
     
-    // ★ここが超重要：時間を完全に合わせたフォーマットでキーを作る
-    const timeStr = formatTimeStr(new Date(timeMs)); 
-    
-    let tide = 3.0; 
-    
-    if(localTideData[timeStr] !== undefined) {
-        tide = localTideData[timeStr]; // CSVから読み込めたらそれを使う！
-    } else {
-        // もしデータがない時間帯は、前後のデータから補間するか、シミュレーションを描く
-        tide = getSimulatedTideValue(timeMs); 
-    }
+    // 補間エンジンから潮の高さを取得
+    let tide = getInterpolatedTide(timeMs);
 
     const r = rMin + (rMax - rMin) * ((tide - minTide) / range);
     const angle = startAngle + (t * 0.5);
@@ -1140,7 +1138,7 @@ function initInteractions() {
   window.addEventListener('mouseup', () => { 
     isInteractionActive = false;
     if (currentTool === 'pointer') container.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize'; 
-    localStorage.setItem('polarCalendarDataV22', JSON.stringify(calendarData));
+    localStorage.setItem('polarCalendarDataV23', JSON.stringify(calendarData));
   });
 
   svg.addEventListener('click', (e) => {
@@ -1161,7 +1159,7 @@ function initInteractions() {
       calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
     }
     
-    localStorage.setItem('polarCalendarDataV22', JSON.stringify(calendarData));
+    localStorage.setItem('polarCalendarDataV23', JSON.stringify(calendarData));
     renderSavedData();
   });
 }
