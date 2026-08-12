@@ -1,4 +1,4 @@
-// script.js (V24: 潮位両端強調スケール＆ビジュアル徹底調整版)
+// script.js (V25: 雨量目盛り反転修正 ＆ 雫アイコン色修正 ＆ 楽譜としての完成度向上)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
@@ -13,7 +13,7 @@ let currentTool = 'pointer';
 let interactionMode = 'pan'; 
 let activeBrush = "#38bdf8"; 
 let globalRotation = 0; 
-let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV24')) || {};
+let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV25')) || {};
 let concentricRings = []; 
 
 const PALAU_LAT = 7.34;
@@ -41,8 +41,9 @@ const iconPaint = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" s
 const iconErase = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20H7L3 16C2.5 15.5 2.5 14.5 3 14L13 4C13.5 3.5 14.5 3.5 15 4L20 9C20.5 9.5 20.5 10.5 20 11L11 20H20V20Z"/><line x1="6" y1="11" x2="15" y2="20"/></svg>`;
 const iconTrash = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
 const iconHome = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>`;
-// fill="currentColor" を指定して文字色と完全連動させます
-const iconDrop = `<svg viewBox="0 0 24 24" width="10" height="10" fill="currentColor"><path d="M12 2c0 0-8 8.4-8 13.5a8 8 0 1 0 16 0c0-5.1-8-13.5-8-13.5z"/></svg>`;
+
+// ★SVGアイコンの中に直接「水色（#0ea5e9）」を埋め込んで強制的に色を変える
+const iconDrop = `<svg viewBox="0 0 24 24" width="10" height="10" fill="#0ea5e9"><path d="M12 2c0 0-8 8.4-8 13.5a8 8 0 1 0 16 0c0-5.1-8-13.5-8-13.5z"/></svg>`;
 
 function initUI() {
     const oldPalette = document.getElementById('palette');
@@ -203,14 +204,14 @@ function initUI() {
             for (const key in calendarData) {
                 if (key.startsWith(`c${currentCycle}_`) && calendarData[key].color === activeBrush) delete calendarData[key];
             }
-            localStorage.setItem('polarCalendarDataV24', JSON.stringify(calendarData));
+            localStorage.setItem('polarCalendarDataV25', JSON.stringify(calendarData));
             renderSavedData();
         }
     };
     setTool('pointer', 'pan');
 }
 
-// --- CSVデータの最強読み込み処理 ---
+// --- CSVデータの読み込み ---
 let localRainData = {};
 let highLowTidePoints = []; 
 
@@ -387,20 +388,16 @@ function getInterpolatedTide(timeMs) {
     return getSimulatedTideValue(timeMs);
 }
 
-// ★ アプローチ2：潮位から半径を計算する「両端強調スケール」エンジン
 function getTideRadius(tide, rMin, rMax) {
     const totalWidth = rMax - rMin;
     let ratio = 0;
     
     if (tide <= 0) {
-        // -1.5ft 〜 0ft : 全体の25%の幅を使う (0.0 〜 0.25)
         let clamped = Math.max(-1.5, tide);
         ratio = 0.25 * ((clamped + 1.5) / 1.5);
     } else if (tide <= 6.0) {
-        // 0ft 〜 6.0ft : 全体の50%の幅を使う (0.25 〜 0.75)
         ratio = 0.25 + 0.5 * (tide / 6.0);
     } else {
-        // 6.0ft 〜 7.5ft : 全体の25%の幅を使う (0.75 〜 1.0)
         let clamped = Math.min(7.5, tide);
         ratio = 0.75 + 0.25 * ((clamped - 6.0) / 1.5);
     }
@@ -485,7 +482,6 @@ function drawDailyRainStats(startDate) {
       
       const iconGroup = document.createElementNS(svgNS, "g");
       iconGroup.setAttribute("transform", `translate(${ptText.x - 14}, ${ptText.y - 4})`);
-      iconGroup.setAttribute("fill", iconColor); // 色を完全に水色で統一
       iconGroup.innerHTML = iconDrop;
       textGroup.appendChild(iconGroup);
 
@@ -506,7 +502,6 @@ function drawDailyRainStats(startDate) {
   }
 }
 
-// ★ 両端強調スケールを適用した潮汐描画
 function drawTideGraph(cycleStartTimeMs) {
   tideLayer.innerHTML = ""; 
   if (concentricRings.length < 23) return; 
@@ -522,8 +517,6 @@ function drawTideGraph(cycleStartTimeMs) {
     const timeMs = cycleStartTimeMs + t * 3600000;
     
     let tide = getInterpolatedTide(timeMs);
-
-    // ★ 両端強調スケールのエンジンを通す
     const r = getTideRadius(tide, rMin, rMax);
     
     const angle = startAngle + (t * 0.5);
@@ -532,7 +525,6 @@ function drawTideGraph(cycleStartTimeMs) {
     else pathD += `L ${pt.x},${pt.y} `;
   }
 
-  // ★ 塗りつぶしエリア（fillArea）を削除し、波の線だけを描画
   const wavePath = document.createElementNS(svgNS, "path");
   wavePath.setAttribute("d", pathD); 
   wavePath.setAttribute("fill", "none"); 
@@ -540,10 +532,8 @@ function drawTideGraph(cycleStartTimeMs) {
   wavePath.setAttribute("stroke-width", "1.5");
   tideLayer.appendChild(wavePath);
 
-  // ガイドライン（等間隔ではなく、歪んだスケールに合わせて描画）
   const guideTides = [-1.5, 0, 1.5, 3.0, 4.5, 6.0, 7.5];
   guideTides.forEach(ft => {
-    // ★ ここも両端強調スケールのエンジンを通す
     const r = getTideRadius(ft, rMin, rMax);
     
     const circle = document.createElementNS(svgNS, "circle");
@@ -566,7 +556,7 @@ function drawTideGraph(cycleStartTimeMs) {
       text.textContent = ft + "ft";
 
       const halo = text.cloneNode(true);
-      halo.setAttribute("stroke", "rgba(255, 255, 255, 0.5)"); // ★ハロを半透明(50%)に変更
+      halo.setAttribute("stroke", "rgba(255, 255, 255, 0.5)"); 
       halo.setAttribute("stroke-width", "3");
       halo.setAttribute("stroke-linejoin", "round");
       halo.setAttribute("fill", "none");
@@ -618,10 +608,9 @@ function drawRainfallGraph(cycleStartTimeMs) {
     }
   }
 
-  // ★雨量目盛りを描く処理（左右2箇所）
   const labelsToDraw = [
-      { relAngle: 96 },   // 元々ある左側（第8日目あたり）
-      { relAngle: 288 }   // ★追加：右側（第24日目あたり）
+      { relAngle: 96, isRightSide: false },   
+      { relAngle: 288, isRightSide: true }    
   ];
 
   labelsToDraw.forEach(target => {
@@ -648,14 +637,15 @@ function drawRainfallGraph(cycleStartTimeMs) {
           text.setAttribute("font-family", "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif");
           text.setAttribute("font-weight", "bold");
           
-          // 右側のテキストが逆さまにならないように反転処理
+          // ★ 右側（第24日目側）のテキストは、外から見て真っ直ぐ読めるように180度反転させる
           let textRot = labelAngle + 180;
-          if (target.relAngle > 180) { textRot = labelAngle; } 
+          if (target.isRightSide) { textRot = labelAngle; } 
+          
           text.setAttribute("transform", `rotate(${textRot}, ${ptLabel.x}, ${ptLabel.y})`);
           text.textContent = val + "mm";
 
           const halo = text.cloneNode(true);
-          halo.setAttribute("stroke", "rgba(255, 255, 255, 0.5)"); // ★ハロを半透明(50%)に
+          halo.setAttribute("stroke", "rgba(255, 255, 255, 0.5)"); 
           halo.setAttribute("stroke-width", "2.5");
           halo.setAttribute("stroke-linejoin", "round");
           halo.setAttribute("fill", "none");
@@ -692,7 +682,7 @@ function drawTimeLabels() {
     textTime.textContent = timeStr[i % 4];
 
     const haloTime = textTime.cloneNode(true);
-    haloTime.setAttribute("stroke", "rgba(255, 255, 255, 0.5)"); // ★ハロを半透明(50%)に
+    haloTime.setAttribute("stroke", "rgba(255, 255, 255, 0.5)"); 
     haloTime.setAttribute("stroke-width", "3");
     haloTime.setAttribute("stroke-linejoin", "round");
     haloTime.setAttribute("fill", "none");
@@ -925,7 +915,7 @@ function drawLunarShadow(cycleStartTime) {
 
   const shadowPath = document.createElementNS(svgNS, "path");
   shadowPath.setAttribute("d", pathD);
-  shadowPath.setAttribute("fill", "rgba(0, 0, 0, 0.03)"); // ★ 透過率を3%に変更
+  shadowPath.setAttribute("fill", "rgba(0, 0, 0, 0.03)"); 
   shadowLayer.appendChild(shadowPath);
 }
 
@@ -945,7 +935,6 @@ function drawOuterSeasons(cycleStartTime) {
     wafuText.setAttribute("id", "wafu-text-layer");
     svg.appendChild(wafuText);
   }
-  // ★ 水無月などの文字を外側に約1文字分（80px）逃がす
   wafuText.setAttribute("x", cx + 780); 
   wafuText.setAttribute("y", cy - 730); 
   wafuText.setAttribute("fill", "#d4af37"); 
@@ -1141,7 +1130,7 @@ function initInteractions() {
   window.addEventListener('mouseup', () => { 
     isInteractionActive = false;
     if (currentTool === 'pointer') container.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize'; 
-    localStorage.setItem('polarCalendarDataV24', JSON.stringify(calendarData));
+    localStorage.setItem('polarCalendarDataV25', JSON.stringify(calendarData));
   });
 
   svg.addEventListener('click', (e) => {
@@ -1162,7 +1151,7 @@ function initInteractions() {
       calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
     }
     
-    localStorage.setItem('polarCalendarDataV24', JSON.stringify(calendarData));
+    localStorage.setItem('polarCalendarDataV25', JSON.stringify(calendarData));
     renderSavedData();
   });
 }
