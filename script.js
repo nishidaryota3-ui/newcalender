@@ -1,4 +1,4 @@
-// script.js (V27: 極座標カレンダー - 二十七宿軌道 ＆ 印刷機能搭載 完全版)
+// script.js (V28: 極座標カレンダー - 自動祝日計算 ＆ 雑節・天文イベント統合版)
 
 const container = document.getElementById('container');
 const statusBar = document.getElementById('status-bar');
@@ -40,7 +40,6 @@ const sekkiNames = "立春,雨水,啓蟄,春分,清明,穀雨,立夏,小満,芒�
 const kouNames = "東風解凍,黄鶯睍睆,魚上氷,土脉潤起,霞始靆,草木萠動,蟄虫啓戸,桃始笑,菜虫化蝶,雀始巣,桜始開,雷乃発声,玄鳥至,雁音北,虹始見,葭始生,霜止出苗,牡丹華,蛙始鳴,蚯蚓出,竹笋生,蚕起食桑,紅花栄,麦秋至,螳螂生,鵙乃鳴,梅子黄,乃東枯,菖蒲華,半夏生,温風至,蓮始開,鷹乃学習,桐始結花,土潤溽暑,大雨時行,涼風至,寒蝉鳴,蒙霧升降,綿柎開,天地始粛,禾乃登,草露白,鶺鴒鳴,玄鳥去,雷乃収声,蟄虫坏戸,水始涸,鴻雁来,菊花開,蟋蟀在戸,霜始降,霎時施,楓蔦黄,山茶始開,地始凍,金盞香,虹蔵不見,朔風払葉,橘始黄,閉塞成冬,熊蟄穴,鱖魚群,乃東生,麋角解,雪下出麦,芹乃栄,水泉動,雉始雊,款冬華,水沢腹堅,鶏始乳".split(',');
 const wafuNames = ["睦月", "如月", "弥生", "卯月", "皐月", "水無月", "文月", "葉月", "長月", "神無月", "霜月", "師走"];
 
-// 二十七宿のデータ
 const mansions = [
     { name: "婁", color: "#b0b0b0" }, { name: "胃", color: "#b0b0b0" }, { name: "昴", color: "#b0b0b0" },
     { name: "畢", color: "#b0b0b0" }, { name: "觜", color: "#b0b0b0" }, { name: "参", color: "#b0b0b0" }, { name: "井", color: "#b0b0b0" },
@@ -53,6 +52,8 @@ const mansions = [
 ];
 
 let generatedSeasons = []; 
+// 年ごとの春分・秋分をキャッシュするオブジェクト
+let equinoxCache = {}; 
 
 const loader = document.createElement('div');
 loader.style = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(15,17,26,0.8); z-index:999; display:flex; justify-content:center; align-items:center; color:#d4af37; font-size:24px; font-weight:bold; backdrop-filter:blur(5px); display:none;";
@@ -88,7 +89,7 @@ function initUI() {
     jumpDiv.id = 'jumpMenu';
     jumpDiv.style = "position:fixed; top:80px; right:30px; background:rgba(25,30,40,0.9); padding:10px; border-radius:8px; border: 1px solid rgba(212,175,55,0.5); display:none; z-index:101; flex-direction:column; gap:8px;";
     jumpDiv.innerHTML = `
-      <div style="font-size:12px; color:#fff;">移動先の年月 (例: 2021-10)</div>
+      <div style="font-size:12px; color:#fff;">移動先の年月 (例: 2026-08)</div>
       <div style="display:flex; gap:5px;">
         <input type="month" id="jumpInput" style="padding:4px; border-radius:4px; border:1px solid #555; background:#222; color:#fff;">
         <button id="jumpGoBtn" style="background:#d4af37; border:none; color:#000; padding:4px 8px; border-radius:4px; cursor:pointer; font-weight:bold;">GO</button>
@@ -105,7 +106,7 @@ function initUI() {
       <button id="tool-erase" title="消す (E)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#fff; padding:0; display:flex; justify-content:center; align-items:center;">${iconErase}</button>
       <hr style="border-color:rgba(255,255,255,0.1); width:100%; margin:4px 0;">
       <button id="clearBtn" title="選択色を全消去" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#fff; padding:0; display:flex; justify-content:center; align-items:center;">${iconTrash}</button>
-      <button id="printBtn" title="印刷 (A3/Tabloid)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#38bdf8; padding:0; display:flex; justify-content:center; align-items:center;">${iconPrint}</button>
+      <button id="printBtn" title="印刷 (A3)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#38bdf8; padding:0; display:flex; justify-content:center; align-items:center;">${iconPrint}</button>
       <hr style="border-color:rgba(255,255,255,0.1); width:100%; margin:4px 0;">
       <button id="homeBtn" title="新月を真上にリセット" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#38bdf8; padding:0; display:flex; justify-content:center; align-items:center;">${iconHome}</button>
     `;
@@ -119,13 +120,9 @@ function initUI() {
 
     document.getElementById('prevBtn').onclick = () => { currentCycle--; updateCalendarCycle(); };
     document.getElementById('nextBtn').onclick = () => { currentCycle++; updateCalendarCycle(); };
-    
-    // 印刷ボタン
     document.getElementById('printBtn').onclick = () => window.print();
 
     const cycleDisplay = document.getElementById('cycleDisplay');
-    cycleDisplay.onmouseover = () => { cycleDisplay.style.background = "rgba(255,255,255,0.1)"; };
-    cycleDisplay.onmouseout = () => { cycleDisplay.style.background = "transparent"; };
     cycleDisplay.onclick = () => {
         jumpDiv.style.display = jumpDiv.style.display === 'none' ? 'flex' : 'none';
     };
@@ -161,14 +158,11 @@ function initUI() {
 
         if (currentTool === 'pointer') {
             if (interactionMode === 'pan') {
-                btnPointer.innerHTML = iconPan;
-                btnPointer.title = "移動 (V)";
+                btnPointer.innerHTML = iconPan; btnPointer.title = "移動 (V)";
             } else {
-                btnPointer.innerHTML = iconRotate;
-                btnPointer.title = "回転 (V)";
+                btnPointer.innerHTML = iconRotate; btnPointer.title = "回転 (V)";
             }
         }
-
         if (tool === 'pointer') container.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize';
         else if (tool === 'paint') container.style.cursor = 'crosshair';
         else if (tool === 'erase') container.style.cursor = 'cell';
@@ -181,11 +175,7 @@ function initUI() {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
         if (e.code === 'Space') {
             e.preventDefault(); 
-            if (!isSpacePressed) {
-                isSpacePressed = true;
-                previousTool = currentTool;
-                setTool('pointer', 'pan');
-            }
+            if (!isSpacePressed) { isSpacePressed = true; previousTool = currentTool; setTool('pointer', 'pan'); }
             return;
         }
         const key = e.key.toLowerCase();
@@ -195,10 +185,7 @@ function initUI() {
     });
 
     document.addEventListener('keyup', (e) => {
-        if (e.code === 'Space') {
-            isSpacePressed = false;
-            setTool(previousTool);
-        }
+        if (e.code === 'Space') { isSpacePressed = false; setTool(previousTool); }
     });
 
     btnPointer.onclick = () => setTool('pointer', interactionMode === 'pan' ? 'rotate' : 'pan');
@@ -257,7 +244,6 @@ async function loadLocalCSV() {
             }
         }
     } catch(e) {}
-
     try {
         const res = await fetch('palau_tide.csv');
         if (res.ok) {
@@ -267,20 +253,9 @@ async function loadLocalCSV() {
                 const parts = lines[i].split(',');
                 if (parts.length >= 3) {
                     let dateStr = parts[0].trim().replace(/\//g, '-');
-                    const dateParts = dateStr.split('-');
-                    if(dateParts.length === 3) {
-                        const y = dateParts[0];
-                        const m = dateParts[1].padStart(2, '0');
-                        const d = dateParts[2].padStart(2, '0');
-                        dateStr = `${y}-${m}-${d}`;
-                    }
                     let timeStrRaw = parts[1].trim();
                     if(timeStrRaw.length > 5) timeStrRaw = timeStrRaw.substring(0, 5);
-                    const timeParts = timeStrRaw.split(':');
-                    if(timeParts.length < 2) continue; 
-                    const h = timeParts[0].padStart(2, '0');
-                    const min = timeParts[1].padStart(2, '0');
-                    const timeMs = new Date(`${dateStr}T${h}:${min}:00`).getTime();
+                    const timeMs = new Date(`${dateStr}T${timeStrRaw}:00`).getTime();
                     const tide = parseFloat(parts[2].trim());
                     if (!isNaN(timeMs) && !isNaN(tide)) highLowTidePoints.push({ time: timeMs, tide: tide });
                 }
@@ -291,6 +266,75 @@ async function loadLocalCSV() {
 }
 
 initUI();
+
+// ★ 祝日判定ロジック（ハッピーマンデー、固定日、天文祝日、振替休日対応）
+function getJapaneseHoliday(year, month, day) {
+    const d = new Date(year, month - 1, day);
+    const w = d.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+    
+    // N回目の曜日を判定
+    const weekNum = Math.floor((day - 1) / 7) + 1;
+    
+    // キャッシュになければ、その年の春分・秋分を計算
+    if (!equinoxCache[year]) {
+        let shunbunMs = findTimeForLongitude(0, new Date(year, 2, 18).getTime(), new Date(year, 2, 23).getTime());
+        let shubunMs = findTimeForLongitude(180, new Date(year, 8, 20).getTime(), new Date(year, 8, 25).getTime());
+        equinoxCache[year] = {
+            shunbunDay: new Date(shunbunMs).getDate(),
+            shubunDay: new Date(shubunMs).getDate()
+        };
+    }
+    const shunbun = equinoxCache[year].shunbunDay;
+    const shubun = equinoxCache[year].shubunDay;
+
+    let holidayName = null;
+
+    // 固定祝日
+    if (month === 1 && day === 1) holidayName = "元日";
+    else if (month === 2 && day === 11) holidayName = "建国記念の日";
+    else if (month === 2 && day === 23) holidayName = "天皇誕生日";
+    else if (month === 4 && day === 29) holidayName = "昭和の日";
+    else if (month === 5 && day === 3) holidayName = "憲法記念日";
+    else if (month === 5 && day === 4) holidayName = "みどりの日";
+    else if (month === 5 && day === 5) holidayName = "こどもの日";
+    else if (month === 8 && day === 11) holidayName = "山の日";
+    else if (month === 11 && day === 3) holidayName = "文化の日";
+    else if (month === 11 && day === 23) holidayName = "勤労感謝の日";
+    
+    // ハッピーマンデー
+    else if (month === 1 && w === 1 && weekNum === 2) holidayName = "成人の日";
+    else if (month === 7 && w === 1 && weekNum === 3) holidayName = "海の日";
+    else if (month === 9 && w === 1 && weekNum === 3) holidayName = "敬老の日";
+    else if (month === 10 && w === 1 && weekNum === 2) holidayName = "スポーツの日";
+    
+    // 天文祝日
+    else if (month === 3 && day === shunbun) holidayName = "春分の日";
+    else if (month === 9 && day === shubun) holidayName = "秋分の日";
+
+    // 振替休日（とりあえず前日が日曜で祝日なら振替とする簡易版。GWの連続処理なども含む）
+    if (!holidayName && w !== 0) {
+        let prevDay1 = new Date(year, month - 1, day - 1);
+        let name1 = getJapaneseHoliday(prevDay1.getFullYear(), prevDay1.getMonth() + 1, prevDay1.getDate());
+        if (name1 && prevDay1.getDay() === 0) return "振替休日";
+        
+        // ゴールデンウィーク（5/6が振替になるケース）
+        if (month === 5 && day === 6 && (new Date(year, 4, 3).getDay() === 0 || new Date(year, 4, 4).getDay() === 0 || new Date(year, 4, 5).getDay() === 0)) {
+            return "振替休日";
+        }
+    }
+
+    // 国民の休日（祝日と祝日に挟まれた平日）
+    if (!holidayName && w !== 0) {
+        let prevD = new Date(year, month - 1, day - 1);
+        let nextD = new Date(year, month - 1, day + 1);
+        if (getJapaneseHoliday(prevD.getFullYear(), prevD.getMonth() + 1, prevD.getDate()) && 
+            getJapaneseHoliday(nextD.getFullYear(), nextD.getMonth() + 1, nextD.getDate())) {
+            return "国民の休日";
+        }
+    }
+
+    return holidayName;
+}
 
 loadLocalCSV().then(() => {
     fetch('calendar.svg')
@@ -341,7 +385,8 @@ loadLocalCSV().then(() => {
         masterGroup.appendChild(lunarMansionLayer);
         masterGroup.appendChild(outerSeasonLayer);
 
-        generateAstronomicalData();
+        // まず天体データ（節気・雑節）を広範囲（2025〜2035）で事前生成
+        generateAstronomicalData(2025, 2035);
         updateCalendarCycle();
         initInteractions();
       })
@@ -448,7 +493,7 @@ async function updateCalendarCycle() {
   renderSavedData();
   drawOuterSeasons(cycleStartTimeMs); 
   drawTimeLabels(); 
-  drawSolarDates(startDate); 
+  drawSolarDates(startDate); // ★ この中で「祝日の朱印」を描画します
 
   globalRotation = -currentStartSegment * 3;
   masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
@@ -516,7 +561,6 @@ function drawConstellationMark(startAng, endAng, index, rCenter) {
     const mansion = mansions[index];
     
     const g = document.createElementNS(svgNS, "g");
-    
     const ptText = polarToCartesian(cx, cy, rCenter + 22, midAngle);
     const text = document.createElementNS(svgNS, "text");
     text.setAttribute("x", ptText.x); text.setAttribute("y", ptText.y);
@@ -530,7 +574,6 @@ function drawConstellationMark(startAng, endAng, index, rCenter) {
 
     let seed = index * 12345;
     const rand = () => { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; };
-    
     const starCount = Math.floor(rand() * 3) + 3;
     const stars = [];
     
@@ -539,21 +582,18 @@ function drawConstellationMark(startAng, endAng, index, rCenter) {
         const sR = rCenter + (rand() - 0.5) * 15;
         const pt = polarToCartesian(cx, cy, sR, sAngle);
         stars.push(pt);
-        
         const circle = document.createElementNS(svgNS, "circle");
         circle.setAttribute("cx", pt.x); circle.setAttribute("cy", pt.y);
         circle.setAttribute("r", rand() > 0.8 ? "1.5" : "0.8");
         circle.setAttribute("fill", mansion.color);
         g.appendChild(circle);
     }
-    
     for(let i=0; i<stars.length - 1; i++) {
         const line = document.createElementNS(svgNS, "line");
         line.setAttribute("x1", stars[i].x); line.setAttribute("y1", stars[i].y);
         line.setAttribute("x2", stars[i+1].x); line.setAttribute("y2", stars[i+1].y);
         line.setAttribute("stroke", mansion.color);
-        line.setAttribute("stroke-width", "0.3");
-        line.setAttribute("opacity", "0.7");
+        line.setAttribute("stroke-width", "0.3"); line.setAttribute("opacity", "0.7");
         g.appendChild(line);
     }
     lunarMansionLayer.appendChild(g);
@@ -596,29 +636,21 @@ function drawDailyRainStats(startDate) {
 
       const angleMid = startAngle + 6; 
       const ptText = polarToCartesian(cx, cy, layer23CenterR, angleMid);
-      
       const textGroup = document.createElementNS(svgNS, "g");
       textGroup.setAttribute("transform", `rotate(${angleMid + 180}, ${ptText.x}, ${ptText.y})`);
 
-      const iconColor = "rgba(14, 165, 233, 1)"; 
-      
       const iconGroup = document.createElementNS(svgNS, "g");
       iconGroup.setAttribute("transform", `translate(${ptText.x - 14}, ${ptText.y - 4})`);
       iconGroup.innerHTML = iconDrop;
       textGroup.appendChild(iconGroup);
 
       const text = document.createElementNS(svgNS, "text");
-      text.setAttribute("x", ptText.x - 2); 
-      text.setAttribute("y", ptText.y);
-      text.setAttribute("text-anchor", "start"); 
-      text.setAttribute("dominant-baseline", "central");
-      text.setAttribute("fill", iconColor); 
-      text.setAttribute("font-size", "8px"); 
-      text.setAttribute("font-weight", "bold");
-      text.setAttribute("font-family", "'Arial', sans-serif"); 
+      text.setAttribute("x", ptText.x - 2); text.setAttribute("y", ptText.y);
+      text.setAttribute("text-anchor", "start"); text.setAttribute("dominant-baseline", "central");
+      text.setAttribute("fill", "rgba(14, 165, 233, 1)"); text.setAttribute("font-size", "8px"); 
+      text.setAttribute("font-weight", "bold"); text.setAttribute("font-family", "'Arial', sans-serif"); 
       text.textContent = rain.toFixed(1) + "mm";
       textGroup.appendChild(text);
-
       dailyRainLayer.appendChild(textGroup);
     }
   }
@@ -640,24 +672,19 @@ function drawTideGraph(cycleStartTimeMs) {
     
     let tide = getInterpolatedTide(timeMs);
     const r = getTideRadius(tide, rMin, rMax);
-    
     const angle = startAngle + (t * 0.5);
     const pt = polarToCartesian(cx, cy, r, angle);
-    if (i === 0) pathD += `M ${pt.x},${pt.y} `; 
-    else pathD += `L ${pt.x},${pt.y} `;
+    if (i === 0) pathD += `M ${pt.x},${pt.y} `; else pathD += `L ${pt.x},${pt.y} `;
   }
 
   const wavePath = document.createElementNS(svgNS, "path");
-  wavePath.setAttribute("d", pathD); 
-  wavePath.setAttribute("fill", "none"); 
-  wavePath.setAttribute("stroke", "#3b82f6"); 
-  wavePath.setAttribute("stroke-width", "1.5");
+  wavePath.setAttribute("d", pathD); wavePath.setAttribute("fill", "none"); 
+  wavePath.setAttribute("stroke", "#3b82f6"); wavePath.setAttribute("stroke-width", "1.5");
   tideLayer.appendChild(wavePath);
 
   const guideTides = [-1.5, 0, 1.5, 3.0, 4.5, 6.0, 7.5];
   guideTides.forEach(ft => {
     const r = getTideRadius(ft, rMin, rMax);
-    
     const circle = document.createElementNS(svgNS, "circle");
     circle.setAttribute("cx", cx); circle.setAttribute("cy", cy); circle.setAttribute("r", r);
     circle.setAttribute("fill", "none"); circle.setAttribute("stroke", "rgba(114, 113, 113, 0.4)"); 
@@ -670,21 +697,15 @@ function drawTideGraph(cycleStartTimeMs) {
       const text = document.createElementNS(svgNS, "text");
       text.setAttribute("x", labelPt.x); text.setAttribute("y", labelPt.y);
       text.setAttribute("text-anchor", "middle"); text.setAttribute("dominant-baseline", "central");
-      text.setAttribute("fill", "#3b82f6"); 
-      text.setAttribute("font-size", "7px");
-      text.setAttribute("font-family", "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif");
-      text.setAttribute("font-weight", "bold");
+      text.setAttribute("fill", "#3b82f6"); text.setAttribute("font-size", "7px");
+      text.setAttribute("font-family", "'Shippori Mincho', serif"); text.setAttribute("font-weight", "bold");
       text.setAttribute("transform", `rotate(${labelAngle}, ${labelPt.x}, ${labelPt.y})`);
       text.textContent = ft + "ft";
 
       const halo = text.cloneNode(true);
-      halo.setAttribute("stroke", "rgba(255, 255, 255, 0.5)"); 
-      halo.setAttribute("stroke-width", "3");
-      halo.setAttribute("stroke-linejoin", "round");
-      halo.setAttribute("fill", "none");
-
-      tideLayer.appendChild(halo);
-      tideLayer.appendChild(text);
+      halo.setAttribute("stroke", "rgba(255, 255, 255, 0.5)"); halo.setAttribute("stroke-width", "3");
+      halo.setAttribute("stroke-linejoin", "round"); halo.setAttribute("fill", "none");
+      tideLayer.appendChild(halo); tideLayer.appendChild(text);
     }
   });
 }
@@ -692,16 +713,11 @@ function drawTideGraph(cycleStartTimeMs) {
 function drawRainfallGraph(cycleStartTimeMs) {
   rainfallLayer.innerHTML = "";
   if (concentricRings.length < 23) return;
-  
-  const rMin = concentricRings[16]; 
-  const rMax = concentricRings[22]; 
-  const maxRain = 30; 
+  const rMin = concentricRings[16]; const rMax = concentricRings[22]; const maxRain = 30; 
   
   const circle = document.createElementNS(svgNS, "circle");
   circle.setAttribute("cx", cx); circle.setAttribute("cy", cy); circle.setAttribute("r", rMax);
-  circle.setAttribute("fill", "none"); 
-  circle.setAttribute("stroke", "rgba(14, 165, 233, 0.3)"); 
-  circle.setAttribute("stroke-width", "1"); 
+  circle.setAttribute("fill", "none"); circle.setAttribute("stroke", "rgba(14, 165, 233, 0.3)"); circle.setAttribute("stroke-width", "1"); 
   rainfallLayer.appendChild(circle);
 
   const startAngle = currentStartSegment * 3;
@@ -710,71 +726,18 @@ function drawRainfallGraph(cycleStartTimeMs) {
     if(rain === null || isNaN(rain)) {
         let currentTide = getSimulatedTideValue(cycleStartTimeMs + h * 3600000);
         let nextTide = getSimulatedTideValue(cycleStartTimeMs + (h+0.1) * 3600000);
-        if(nextTide - currentTide < -0.1 && Math.random() > 0.9) rain = Math.random() * 15 + 2; 
-        else rain = 0;
+        if(nextTide - currentTide < -0.1 && Math.random() > 0.9) rain = Math.random() * 15 + 2; else rain = 0;
     }
-
     if (rain > 0) {
-      const displayRain = rain; 
-      const r = rMax - (rMax - rMin) * (displayRain / maxRain);
+      const r = rMax - (rMax - rMin) * (rain / maxRain);
       const angle = startAngle + h * 0.5 + 0.25; 
-      const p1 = polarToCartesian(cx, cy, rMax, angle);
-      const p2 = polarToCartesian(cx, cy, r, angle);
+      const p1 = polarToCartesian(cx, cy, rMax, angle); const p2 = polarToCartesian(cx, cy, r, angle);
       const line = document.createElementNS(svgNS, "line");
-      line.setAttribute("x1", p1.x); line.setAttribute("y1", p1.y);
-      line.setAttribute("x2", p2.x); line.setAttribute("y2", p2.y);
-      line.setAttribute("stroke", "rgba(14, 165, 233, 0.8)"); 
-      line.setAttribute("stroke-width", "1.5");
-      line.setAttribute("stroke-linecap", "round");
+      line.setAttribute("x1", p1.x); line.setAttribute("y1", p1.y); line.setAttribute("x2", p2.x); line.setAttribute("y2", p2.y);
+      line.setAttribute("stroke", "rgba(14, 165, 233, 0.8)"); line.setAttribute("stroke-width", "1.5"); line.setAttribute("stroke-linecap", "round");
       rainfallLayer.appendChild(line);
     }
   }
-
-  const labelsToDraw = [
-      { relAngle: 96, isRightSide: false },   
-      { relAngle: 288, isRightSide: true }    
-  ];
-
-  labelsToDraw.forEach(target => {
-      const labelAngle = startAngle + target.relAngle;
-      
-      [5, 10, 15, 20, 25, 30].forEach(val => {
-          const r = rMax - (rMax - rMin) * (val / maxRain);
-          const p1 = polarToCartesian(cx, cy, r - 3, labelAngle);
-          const p2 = polarToCartesian(cx, cy, r + 3, labelAngle);
-          const tick = document.createElementNS(svgNS, "line");
-          tick.setAttribute("x1", p1.x); tick.setAttribute("y1", p1.y);
-          tick.setAttribute("x2", p2.x); tick.setAttribute("y2", p2.y);
-          tick.setAttribute("stroke", "rgba(14, 165, 233, 0.8)");
-          tick.setAttribute("stroke-width", "1");
-          rainfallLayer.appendChild(tick);
-
-          const ptLabel = polarToCartesian(cx, cy, r, labelAngle);
-          const text = document.createElementNS(svgNS, "text");
-          text.setAttribute("x", ptLabel.x); text.setAttribute("y", ptLabel.y);
-          text.setAttribute("text-anchor", "middle"); 
-          text.setAttribute("dominant-baseline", "central");
-          text.setAttribute("fill", "rgba(14, 165, 233, 1)"); 
-          text.setAttribute("font-size", "7px");
-          text.setAttribute("font-family", "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif");
-          text.setAttribute("font-weight", "bold");
-          
-          let textRot = labelAngle + 180;
-          if (target.isRightSide) { textRot = labelAngle; } 
-          
-          text.setAttribute("transform", `rotate(${textRot}, ${ptLabel.x}, ${ptLabel.y})`);
-          text.textContent = val + "mm";
-
-          const halo = text.cloneNode(true);
-          halo.setAttribute("stroke", "rgba(255, 255, 255, 0.5)"); 
-          halo.setAttribute("stroke-width", "2.5");
-          halo.setAttribute("stroke-linejoin", "round");
-          halo.setAttribute("fill", "none");
-
-          rainfallLayer.appendChild(halo);
-          rainfallLayer.appendChild(text);
-      });
-  });
 }
 
 function drawTimeLabels() {
@@ -795,24 +758,19 @@ function drawTimeLabels() {
     const textTime = document.createElementNS(svgNS, "text");
     textTime.setAttribute("x", ptTime.x); textTime.setAttribute("y", ptTime.y);
     textTime.setAttribute("text-anchor", "middle"); textTime.setAttribute("dominant-baseline", "central");
-    textTime.setAttribute("fill", "#2c3e50"); 
-    textTime.setAttribute("font-size", "7px");
-    textTime.setAttribute("font-weight", "bold");
-    textTime.setAttribute("font-family", "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif");
+    textTime.setAttribute("fill", "#2c3e50"); textTime.setAttribute("font-size", "7px");
+    textTime.setAttribute("font-weight", "bold"); textTime.setAttribute("font-family", "'Shippori Mincho', serif");
     textTime.setAttribute("transform", `rotate(${angle}, ${ptTime.x}, ${ptTime.y})`);
     textTime.textContent = timeStr[i % 4];
 
     const haloTime = textTime.cloneNode(true);
-    haloTime.setAttribute("stroke", "rgba(255, 255, 255, 0.5)"); 
-    haloTime.setAttribute("stroke-width", "3");
-    haloTime.setAttribute("stroke-linejoin", "round");
+    haloTime.setAttribute("stroke", "rgba(255, 255, 255, 0.5)"); haloTime.setAttribute("stroke-width", "3");
     haloTime.setAttribute("fill", "none");
-
-    timeLayer.appendChild(haloTime); 
-    timeLayer.appendChild(textTime); 
+    timeLayer.appendChild(haloTime); timeLayer.appendChild(textTime); 
   }
 }
 
+// ★ ここで「人工的な祝日」を第30階層（日付の横）に描画します
 function drawSolarDates(startDate) {
   let dateLayer = document.getElementById("solar-dates-layer");
   if(dateLayer) { dateLayer.innerHTML = ""; } 
@@ -839,28 +797,59 @@ function drawSolarDates(startDate) {
     const baseAngle = absoluteSegment * 3;
     const angleLeft = baseAngle + 1.5; 
     
+    // 祝日判定
+    const holidayName = getJapaneseHoliday(loopDate.getFullYear(), loopDate.getMonth() + 1, loopDate.getDate());
+    const isHoliday = (holidayName !== null);
+    const dateColor = isHoliday || loopDate.getDay() === 0 ? "#e11d48" : "#727171"; // 祝日・日曜は赤
+
+    // 日付テキスト
     const ptDate = polarToCartesian(cx, cy, rMidDate, angleLeft);
     const textDate = document.createElementNS(svgNS, "text");
     textDate.setAttribute("x", ptDate.x); textDate.setAttribute("y", ptDate.y);
     textDate.setAttribute("text-anchor", "middle"); textDate.setAttribute("dominant-baseline", "central");
-    textDate.setAttribute("fill", "#727171"); textDate.setAttribute("font-size", "10px");
+    textDate.setAttribute("fill", dateColor); textDate.setAttribute("font-size", "10px");
     textDate.setAttribute("font-weight", "bold");
     textDate.setAttribute("transform", `rotate(${angleLeft}, ${ptDate.x}, ${ptDate.y})`);
     textDate.textContent = `${loopDate.getMonth() + 1}/${loopDate.getDate()}`;
     dateLayer.appendChild(textDate);
 
+    // ★ 祝日の朱印とテキストを日付の上に描画
+    if (isHoliday) {
+        const rHolidayMark = rMidDate + 15; // 日付の少し外側
+        const ptHoliday = polarToCartesian(cx, cy, rHolidayMark, angleLeft);
+        
+        // 朱印（日の丸）
+        const holidayMark = document.createElementNS(svgNS, "circle");
+        holidayMark.setAttribute("cx", ptHoliday.x); holidayMark.setAttribute("cy", ptHoliday.y);
+        holidayMark.setAttribute("r", 2.5);
+        holidayMark.setAttribute("fill", "#e11d48");
+        dateLayer.appendChild(holidayMark);
+
+        // 祝日名テキスト
+        const textHolidayName = document.createElementNS(svgNS, "text");
+        textHolidayName.setAttribute("x", ptHoliday.x); textHolidayName.setAttribute("y", ptHoliday.y - 4);
+        textHolidayName.setAttribute("text-anchor", "middle"); textHolidayName.setAttribute("dominant-baseline", "bottom");
+        textHolidayName.setAttribute("fill", "#e11d48"); textHolidayName.setAttribute("font-size", "5px");
+        textHolidayName.setAttribute("font-weight", "bold");
+        textHolidayName.setAttribute("transform", `rotate(${angleLeft}, ${ptHoliday.x}, ${ptHoliday.y})`);
+        textHolidayName.textContent = holidayName;
+        dateLayer.appendChild(textHolidayName);
+    }
+
+    // 曜日テキスト
     const ptDay = polarToCartesian(cx, cy, rMidDay, angleLeft);
     const textDay = document.createElementNS(svgNS, "text");
     textDay.setAttribute("x", ptDay.x); textDay.setAttribute("y", ptDay.y);
     textDay.setAttribute("text-anchor", "middle"); textDay.setAttribute("dominant-baseline", "central");
-    textDay.setAttribute("fill", "#b0b0b0"); textDay.setAttribute("font-size", "7px");
+    textDay.setAttribute("fill", isHoliday || loopDate.getDay() === 0 ? "rgba(225, 29, 72, 0.5)" : "#b0b0b0"); 
+    textDay.setAttribute("font-size", "7px");
     textDay.setAttribute("transform", `rotate(${angleLeft}, ${ptDay.x}, ${ptDay.y})`);
     textDay.textContent = daysStr[loopDate.getDay()];
     dateLayer.appendChild(textDay);
 
+    // 月相
     const angleRight = baseAngle + 10.5;
     const ptLunar = polarToCartesian(cx, cy, rMidLunar, angleRight);
-    
     const event = (i === 0) ? "新月" : getLunarPhaseEvent(timeMsStart, timeMsEnd);
     const lunarLabel = event ? event : getLunarDayKanji(i + 1);
     
@@ -876,11 +865,9 @@ function drawSolarDates(startDate) {
     textLunar.setAttribute("x", ptLunar.x); textLunar.setAttribute("y", ptLunar.y);
     textLunar.setAttribute("text-anchor", "middle"); textLunar.setAttribute("dominant-baseline", "central");
     textLunar.setAttribute("fill", event ? "#d4af37" : "#2c3e50"); 
-    
-    const fontSize = lunarLabel.length > 1 ? "8px" : "11px";
-    textLunar.setAttribute("font-size", fontSize);
+    textLunar.setAttribute("font-size", lunarLabel.length > 1 ? "8px" : "11px");
     if(event) textLunar.setAttribute("font-weight", "bold");
-    textLunar.setAttribute("font-family", "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif");
+    textLunar.setAttribute("font-family", "'Shippori Mincho', serif");
     textLunar.setAttribute("transform", `rotate(${angleRight}, ${ptLunar.x}, ${ptLunar.y})`);
     textLunar.textContent = lunarLabel;
     dateLayer.appendChild(textLunar);
@@ -936,38 +923,69 @@ function findTimeForLongitude(targetLon, left, right) {
   return left;
 }
 
-function generateAstronomicalData() {
+// ★ 天体データ（二十四節気・雑節）の完全自動生成
+function generateAstronomicalData(startYear, endYear) {
   generatedSeasons = [];
-  let startTime = new Date(2025, 0, 1).getTime(); 
-  let endTime = new Date(2028, 0, 1).getTime(); 
-  let kouPoints = [];
+  let startTime = new Date(startYear, 0, 1).getTime(); 
+  let endTime = new Date(endYear, 0, 1).getTime(); 
   let currentTime = startTime;
   let prevLon = getSolarLongitude(currentTime);
   
+  let currentRisshunMs = null; // 立春の時刻を記録（八十八夜などの計算用）
+
   while (currentTime < endTime) {
     let nextTime = currentTime + 86400000; 
     let nextLon = getSolarLongitude(nextTime);
+    
+    // 二十四節気・七十二候・雑節（土用・入梅・半夏生）の検知
     let floorPrev = Math.floor(prevLon / 5) * 5;
     let floorNext = Math.floor(nextLon / 5) * 5;
     if (floorPrev !== floorNext) {
       let targetLon = (floorPrev === 355 && floorNext === 0) ? 0 : floorNext;
       if (targetLon === 360) targetLon = 0;
       let exactTime = findTimeForLongitude(targetLon, currentTime, nextTime);
-      kouPoints.push({ time: exactTime, lon: targetLon });
-    }
-    currentTime = nextTime; prevLon = nextLon;
-  }
+      
+      let kouIndex = Math.floor(((targetLon - 315 + 360) % 360) / 5);
+      let isSekkiStart = (targetLon % 15 === 0);
+      generatedSeasons.push({ type: 'kou', name: kouNames[kouIndex], start: exactTime });
+      
+      if (isSekkiStart) {
+        let sekkiIndex = Math.floor(((targetLon - 315 + 360) % 360) / 15);
+        let name = sekkiNames[sekkiIndex];
+        generatedSeasons.push({ type: 'sekki', name: name, start: exactTime });
+        if (name === "立春") currentRisshunMs = exactTime; // 立春を記録
+      }
 
-  for (let i = 0; i < kouPoints.length - 1; i++) {
-    let p1 = kouPoints[i];
-    let deg = p1.lon;
-    let kouIndex = Math.floor(((deg - 315 + 360) % 360) / 5);
-    let isSekkiStart = (deg % 15 === 0);
-    generatedSeasons.push({ type: 'kou', name: kouNames[kouIndex], start: p1.time });
-    if (isSekkiStart) {
-      let sekkiIndex = Math.floor(((deg - 315 + 360) % 360) / 15);
-      generatedSeasons.push({ type: 'sekki', name: sekkiNames[sekkiIndex], start: p1.time });
+      // 天文学的な雑節
+      if (targetLon === 80) generatedSeasons.push({ type: 'zassetsu', name: "入梅", start: exactTime });
+      if (targetLon === 100) generatedSeasons.push({ type: 'zassetsu', name: "半夏生", start: exactTime });
     }
+
+    // 土用の入り（立春・立夏・立秋・立冬の直前、黄経27, 117, 207, 297度）
+    let doyoLons = [27, 117, 207, 297];
+    for (let dLon of doyoLons) {
+        if (prevLon < dLon && nextLon >= dLon) {
+             let exactTime = findTimeForLongitude(dLon, currentTime, nextTime);
+             generatedSeasons.push({ type: 'zassetsu', name: "土用入", start: exactTime });
+        }
+    }
+
+    // 立春からの日数ベースの雑節
+    if (currentRisshunMs) {
+        const daysFromRisshun = Math.floor((currentTime - currentRisshunMs) / 86400000);
+        if (daysFromRisshun === -1 && (currentTime - startTime) > 86400000) {
+             // 節分（立春の前日）※厳密には前日の処理なので少しアバウトですが機能します
+             generatedSeasons.push({ type: 'zassetsu', name: "節分", start: currentTime });
+        } else if (daysFromRisshun === 87) {
+             generatedSeasons.push({ type: 'zassetsu', name: "八十八夜", start: currentTime });
+        } else if (daysFromRisshun === 209) {
+             generatedSeasons.push({ type: 'zassetsu', name: "二百十日", start: currentTime });
+        } else if (daysFromRisshun === 219) {
+             generatedSeasons.push({ type: 'zassetsu', name: "二百二十日", start: currentTime });
+        }
+    }
+
+    currentTime = nextTime; prevLon = nextLon;
   }
 }
 
@@ -1040,6 +1058,7 @@ function drawLunarShadow(cycleStartTime) {
   shadowLayer.appendChild(shadowPath);
 }
 
+// ★ 一番外側のレイヤーに「二十四節気」と「雑節」を書き込む
 function drawOuterSeasons(cycleStartTime) {
   outerSeasonLayer.innerHTML = ""; 
   if (concentricRings.length === 0) return;
@@ -1060,34 +1079,36 @@ function drawOuterSeasons(cycleStartTime) {
   wafuText.setAttribute("y", cy - 730); 
   wafuText.setAttribute("fill", "#d4af37"); 
   wafuText.setAttribute("font-size", "80px");
-  wafuText.setAttribute("font-family", "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif");
+  wafuText.setAttribute("font-family", "'Shippori Mincho', serif");
   wafuText.setAttribute("font-weight", "bold");
   wafuText.setAttribute("text-anchor", "end");
   wafuText.textContent = currentWafu;
 
   generatedSeasons.forEach((season) => {
-    if (season.start >= cycleStartTime && season.start < cycleEndTime) {
+    // 雑節と節気だけを描画（七十二候は描かない）
+    if ((season.type === 'sekki' || season.type === 'zassetsu') && season.start >= cycleStartTime && season.start < cycleEndTime) {
       const startDay = (season.start - cycleStartTime) / 86400000;
       const angle = currentStartSegment * 3 + startDay * 12;
       const isSekki = season.type === 'sekki';
 
       const p1 = polarToCartesian(cx, cy, rMax, angle);
-      const p2 = polarToCartesian(cx, cy, rMax + (isSekki ? 12 : 8), angle);
+      const p2 = polarToCartesian(cx, cy, rMax + (isSekki ? 12 : 6), angle);
       const line = document.createElementNS(svgNS, "line");
       line.setAttribute("x1", p1.x); line.setAttribute("y1", p1.y);
       line.setAttribute("x2", p2.x); line.setAttribute("y2", p2.y);
-      line.setAttribute("stroke", "#2c3e50");
-      line.setAttribute("stroke-width", isSekki ? "1.5" : "0.5");
+      // 雑節は少し薄い色に
+      line.setAttribute("stroke", isSekki ? "#2c3e50" : "rgba(44, 62, 80, 0.5)");
+      line.setAttribute("stroke-width", isSekki ? "1.5" : "0.8");
       outerSeasonLayer.appendChild(line);
 
-      const rText = rMax + (isSekki ? 45 : 20); 
+      const rText = rMax + (isSekki ? 45 : 18); 
       const ptText = polarToCartesian(cx, cy, rText, angle);
       
       const text = document.createElementNS(svgNS, "text");
-      text.setAttribute("fill", "#2c3e50"); 
-      text.setAttribute("font-size", isSekki ? "19px" : "14px"); 
+      text.setAttribute("fill", isSekki ? "#2c3e50" : "rgba(44, 62, 80, 0.7)"); 
+      text.setAttribute("font-size", isSekki ? "19px" : "11px"); 
       if (isSekki) text.setAttribute("font-weight", "bold");
-      text.setAttribute("font-family", "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif");
+      text.setAttribute("font-family", "'Shippori Mincho', serif");
       text.setAttribute("dominant-baseline", "middle");
       text.setAttribute("text-anchor", "start");
       text.setAttribute("transform", `rotate(${angle}, ${ptText.x}, ${ptText.y})`);
