@@ -1,5 +1,25 @@
 // draw.js (SVG描画モジュール)
 
+// ▼▼ 消滅していた基礎ツールを復活 ▼▼
+function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
+  const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+  return {
+    x: centerX + (radius * Math.cos(angleInRadians)),
+    y: centerY + (radius * Math.sin(angleInRadians))
+  };
+}
+
+function getRingInfo(distance) {
+  if (!concentricRings || concentricRings.length === 0) return null;
+  for (let i = 0; i < concentricRings.length - 1; i++) {
+    if (distance >= concentricRings[i] && distance < concentricRings[i + 1]) {
+      return { layerId: i, rIn: concentricRings[i], rOut: concentricRings[i + 1], name: `階層 ${i}` };
+    }
+  }
+  return null;
+}
+// ▲▲ ここまで ▲▲
+
 function drawLunarShadow(cycleStartTimeMs) {
   shadowLayer.innerHTML = "";
   const R = concentricRings;
@@ -219,7 +239,6 @@ function drawLunarMansions(cycleStartTimeMs) {
   let dObjStr = formatDateStr(startDay);
   const dbRow = koyomiDatabase[dObjStr];
   
-  // ▼ エラー防止：漢数字を数値に変換する安全な関数を内蔵 ▼
   const kToNum = (k) => {
       const dict = {"一":1,"二":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9,"十":10,
                     "十一":11,"十二":12,"十三":13,"十四":14,"十五":15,"十六":16,"十七":17,"十八":18,"十九":19,"二十":20,
@@ -239,8 +258,6 @@ function drawLunarMansions(cycleStartTimeMs) {
       const dTime = cycleStartTimeMs + i * 86400000;
       const currentLunarLon = (baseLunarLon + (i / 29.53)*360) % 360;
       const mansionIdx = Math.floor(currentLunarLon / (360 / 27));
-      
-      // ▼ globals.js の変数名に合わせて mansions に修正 ▼
       const mData = mansions[mansionIdx]; 
       
       if (!mData) continue;
@@ -294,13 +311,10 @@ function drawLunarMansions(cycleStartTimeMs) {
 
 function renderSavedData() {
   dataLayer.innerHTML = "";
-  // ▼ エラー回避：cellData ではなく globals.js の calendarData を直接読み込む ▼
   for (let key in calendarData) {
-      // 現在のサイクル（月）のデータだけを描画
       if (!key.startsWith(`c${currentCycle}_`)) continue;
       
       const colorInfo = calendarData[key];
-      // 最新の保存形式（rIn, rOut がオブジェクト内にある）に対応
       if (colorInfo.absSegment !== undefined && colorInfo.rIn !== undefined && colorInfo.rOut !== undefined) {
           const seg = colorInfo.absSegment;
           const rIn = colorInfo.rIn;
