@@ -10,7 +10,10 @@ function drawLunarShadow(cycleStartTimeMs) {
 
   for (let i = 0; i < 30; i++) {
     const dTime = cycleStartTimeMs + i * 24 * 60 * 60 * 1000;
-    const elongation = getMoonElongation(dTime);
+    
+    // ▼修正箇所：存在しない関数を削除し、直接計算する式に変更▼
+    const elongation = (i / 29.53059) * 360; 
+    
     const illumination = (1 - Math.cos(elongation * Math.PI / 180)) / 2;
 
     const absoluteSegment = (currentStartSegment + i * 4) % 120;
@@ -234,7 +237,12 @@ function drawLunarMansions(cycleStartTimeMs) {
       const dTime = cycleStartTimeMs + i * 86400000;
       const currentLunarLon = (baseLunarLon + (i / 29.53)*360) % 360;
       const mansionIdx = Math.floor(currentLunarLon / (360 / 27));
-      const mData = lunarMansions27[mansionIdx];
+      
+      // ▼修正箇所：lunarMansions に名前を統一▼
+      const mData = lunarMansions[mansionIdx]; 
+      
+      // もし mData が未定義の場合はスキップしてエラーを防ぐ
+      if (!mData) continue;
       
       const absoluteSegment = (currentStartSegment + i * 4) % 120;
       const angle = absoluteSegment * 3 + 6; 
