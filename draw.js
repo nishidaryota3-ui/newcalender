@@ -1,4 +1,4 @@
-// draw.js (SVG描画モジュール)
+// draw.js (SVG描画モジュール) - 軽量・最適化版
 
 function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
   const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
@@ -11,7 +11,7 @@ function drawLunarMansions(cycleStartTimeMs) {
     
     const rBase = concentricRings[concentricRings.length - 1] + 60; 
     const rMax = rBase + 30; 
-    const resolution = 20; 
+    const resolution = 2; // ★重さを解消するため 20 から 2 に削減（見た目は変わりません）
     const totalHours = 720;
     const startAngle = currentStartSegment * 3;
     
@@ -175,35 +175,55 @@ function drawTideGraph(cycleStartTimeMs) {
   if (concentricRings.length < 23) return; 
   const rMin = concentricRings[16]; const rMax = concentricRings[22]; 
 
-  let pathD = "";
-  const resolution = 20; 
-  const totalHours = 720;
-  const startAngle = currentStartSegment * 3;
+  const cycleEndMs = cycleStartTimeMs + 30 * 24 * 60 * 60 * 1000;
+  // ★CSVから該当する月のピーク点（満潮・干潮）だけを抽出
+  const cyclePoints = highLowTidePoints.filter(p => p.time >= cycleStartTimeMs && p.time <= cycleEndMs);
 
-  for (let i = 0; i <= totalHours * resolution; i++) {
-    const t = i / resolution; 
-    const timeMs = cycleStartTimeMs + t * 3600000;
-    
-    let tide = getInterpolatedTide(timeMs);
-    const r = getTideRadius(tide, rMin, rMax);
-    
-    const angle = startAngle + (t * 0.5);
-    const pt = polarToCartesian(cx, cy, r, angle);
-    if (i === 0) pathD += `M ${pt.x},${pt.y} `; 
-    else pathD += `L ${pt.x},${pt.y} `;
+  // ★データが存在する場合のみ、イラレと同じ「ベジェ曲線」で波を描画
+  if (cyclePoints.length > 1) {
+    let pathD = "";
+    for (let i = 0; i < cyclePoints.length; i++) {
+      const pt = cyclePoints[i];
+      const diffHours = (pt.time - cycleStartTimeMs) / 3600000;
+      const segmentIndex = (currentStartSegment + diffHours * (4/24)) % 120;
+      let angle = segmentIndex * 3;
+      const r = getTideRadius(pt.tide, rMin, rMax);
+      const coords = polarToCartesian(cx, cy, r, angle);
+      
+      if(i === 0) {
+        pathD += `M ${coords.x},${coords.y} `;
+      } else {
+        const prev = cyclePoints[i-1];
+        const diffHPrev = (prev.time - cycleStartTimeMs) / 3600000;
+        const segPrev = (currentStartSegment + diffHPrev * (4/24)) % 120;
+        let anglePrev = segPrev * 3;
+        
+        if(angle < anglePrev) angle += 360; 
+        
+        // ★イラレのベジェ曲線（ハンドル）を計算し、14400回の重い計算をゼロにする
+        const cp1Angle = anglePrev + (angle - anglePrev) * 0.4;
+        const cp2Angle = anglePrev + (angle - anglePrev) * 0.6;
+        const rPrev = getTideRadius(prev.tide, rMin, rMax);
+        
+        const cp1 = polarToCartesian(cx, cy, rPrev, cp1Angle);
+        const cp2 = polarToCartesian(cx, cy, r, cp2Angle);
+        
+        pathD += `C ${cp1.x},${cp1.y} ${cp2.x},${cp2.y} ${coords.x},${coords.y} `;
+      }
+    }
+
+    const wavePath = document.createElementNS(svgNS, "path");
+    wavePath.setAttribute("d", pathD); 
+    wavePath.setAttribute("fill", "none"); 
+    wavePath.setAttribute("stroke", "#3b82f6"); 
+    wavePath.setAttribute("stroke-width", "1.5");
+    tideLayer.appendChild(wavePath);
   }
 
-  const wavePath = document.createElementNS(svgNS, "path");
-  wavePath.setAttribute("d", pathD); 
-  wavePath.setAttribute("fill", "none"); 
-  wavePath.setAttribute("stroke", "#3b82f6"); 
-  wavePath.setAttribute("stroke-width", "1.5");
-  tideLayer.appendChild(wavePath);
-
+  // ★波が無くてもガイド線（点線と数値）だけは表示しておく
   const guideTides = [-1.5, 0, 1.5, 3.0, 4.5, 6.0, 7.5];
   guideTides.forEach(ft => {
     const r = getTideRadius(ft, rMin, rMax);
-    
     const circle = document.createElementNS(svgNS, "circle");
     circle.setAttribute("cx", cx); circle.setAttribute("cy", cy); circle.setAttribute("r", r);
     circle.setAttribute("fill", "none"); circle.setAttribute("stroke", "rgba(114, 113, 113, 0.4)"); 
@@ -253,27 +273,22 @@ function drawRainfallGraph(cycleStartTimeMs) {
   const startAngle = currentStartSegment * 3;
   for (let h = 0; h < 720; h++) {
     let rain = apiRainData[h];
-    if(rain === null || isNaN(rain)) {
-        let currentTide = getSimulatedTideValue(cycleStartTimeMs + h * 3600000);
-        let nextTide = getSimulatedTideValue(cycleStartTimeMs + (h+0.1) * 3600000);
-        if(nextTide - currentTide < -0.1 && Math.random() > 0.9) rain = Math.random() * 15 + 2; 
-        else rain = 0;
-    }
+    
+    // ★天気のデータがない場合は重いフェイク計算をせず、潔くスキップする
+    if(rain === null || isNaN(rain) || rain <= 0) continue;
 
-    if (rain > 0) {
-      const displayRain = rain; 
-      const r = rMax - (rMax - rMin) * (displayRain / maxRain);
-      const angle = startAngle + h * 0.5 + 0.25; 
-      const p1 = polarToCartesian(cx, cy, rMax, angle);
-      const p2 = polarToCartesian(cx, cy, r, angle);
-      const line = document.createElementNS(svgNS, "line");
-      line.setAttribute("x1", p1.x); line.setAttribute("y1", p1.y);
-      line.setAttribute("x2", p2.x); line.setAttribute("y2", p2.y);
-      line.setAttribute("stroke", "rgba(14, 165, 233, 0.8)"); 
-      line.setAttribute("stroke-width", "1.5");
-      line.setAttribute("stroke-linecap", "round");
-      rainfallLayer.appendChild(line);
-    }
+    const displayRain = rain; 
+    const r = rMax - (rMax - rMin) * (displayRain / maxRain);
+    const angle = startAngle + h * 0.5 + 0.25; 
+    const p1 = polarToCartesian(cx, cy, rMax, angle);
+    const p2 = polarToCartesian(cx, cy, r, angle);
+    const line = document.createElementNS(svgNS, "line");
+    line.setAttribute("x1", p1.x); line.setAttribute("y1", p1.y);
+    line.setAttribute("x2", p2.x); line.setAttribute("y2", p2.y);
+    line.setAttribute("stroke", "rgba(14, 165, 233, 0.8)"); 
+    line.setAttribute("stroke-width", "1.5");
+    line.setAttribute("stroke-linecap", "round");
+    rainfallLayer.appendChild(line);
   }
 
   const labelsToDraw = [
@@ -365,7 +380,7 @@ function drawLunarShadow(cycleStartTime) {
   const rMin = concentricRings[0];
   const rMax = concentricRings[concentricRings.length - 2]; 
   const maxArea = rMax * rMax - rMin * rMin; 
-  const resolution = 10;
+  const resolution = 2; // ★重さを解消するためここも 2 に変更
   const totalHours = 720; 
   const startAngle = currentStartSegment * 3;
 
@@ -453,7 +468,6 @@ function getRingInfo(distance) {
   return null;
 }
 
-// ▼ 新しい暦描画関数（二十四節気・七十二候・行事統合）
 function drawKoyomiEvents(startDate) {
   let dateLayer = document.getElementById("solar-dates-layer");
   if(dateLayer) { dateLayer.innerHTML = ""; } 
@@ -463,7 +477,7 @@ function drawKoyomiEvents(startDate) {
     masterGroup.appendChild(dateLayer); 
   }
 
-  outerSeasonLayer.innerHTML = ""; // 外周の節気・候の描画エリアもクリア
+  outerSeasonLayer.innerHTML = ""; 
   textPathDefs.innerHTML = "";
 
   const R = concentricRings;
@@ -495,7 +509,6 @@ function drawKoyomiEvents(startDate) {
     const absoluteSegment = (currentStartSegment + i * 4) % 120;
     const baseAngle = absoluteSegment * 3;
     
-    // カーブレール（Path）の生成
     const createArc = (id, r, angStart, angEnd) => {
         const p1 = polarToCartesian(cx, cy, r, angStart);
         const p2 = polarToCartesian(cx, cy, r, angEnd);
@@ -518,7 +531,6 @@ function drawKoyomiEvents(startDate) {
     createArc(`${arcIdBase}_30L`, r30Lower, angStart, angEnd);
     createArc(`${arcIdBase}_30U`, r30Upper, angStart, angEnd);
 
-    // カーブに沿って文字を配置する（長すぎる場合は自動で圧縮する安全装置付き）
     const drawCurvedText = (pathId, textContent, color, fontSize, isBold = false, rVal) => {
         if (!textContent) return;
         const textObj = document.createElementNS(svgNS, "text");
@@ -533,7 +545,6 @@ function drawKoyomiEvents(startDate) {
         textPath.setAttribute("text-anchor", "middle");
         textPath.textContent = textContent;
 
-        // 文字のはみ出し防止：11度分の弧の長さを計算して圧縮
         const maxLen = 2 * Math.PI * rVal * (11 / 360); 
         const estimatedTextLen = textContent.length * parseFloat(fontSize);
         if (estimatedTextLen > maxLen * 0.9) {
@@ -545,13 +556,11 @@ function drawKoyomiEvents(startDate) {
         dateLayer.appendChild(textObj);
     };
 
-    // 【階層24〜29】宗教別イベントの描画
     drawCurvedText(`${arcIdBase}_24`, dbRow[14], "#727171", "6.5px", false, r24); 
     drawCurvedText(`${arcIdBase}_25`, dbRow[13], "#2c3e50", "6.5px", false, r25); 
     drawCurvedText(`${arcIdBase}_26`, dbRow[12], "#2c3e50", "6.5px", false, r26); 
     drawCurvedText(`${arcIdBase}_27`, dbRow[11], "#2c3e50", "6.5px", false, r27); 
 
-    // 神事を分割して28と29へジグザグ配置
     if (dbRow[10]) {
         const shintoEvents = dbRow[10].split('・');
         const shinto28 = shintoEvents.filter((_, idx) => idx % 2 === 0).join(' ｜ ');
@@ -560,11 +569,9 @@ function drawKoyomiEvents(startDate) {
         drawCurvedText(`${arcIdBase}_29`, shinto29, "#2c3e50", "6.5px", false, r29);
     }
 
-    // 【階層30】祝日（上段）と雑節（下段）の描画
     drawCurvedText(`${arcIdBase}_30U`, dbRow[5], "#d25b4e", "8px", true, r30Upper); 
     drawCurvedText(`${arcIdBase}_30L`, dbRow[4], "#555555", "7px", false, r30Lower);
 
-    // 【階層30 既存領域】新暦(0-6時) と 旧暦(18-24時) 
     const ptDate = polarToCartesian(cx, cy, r30Upper, baseAngle + 1.5);
     const ptDay = polarToCartesian(cx, cy, r30Lower, baseAngle + 1.5);
     
@@ -618,7 +625,6 @@ function drawKoyomiEvents(startDate) {
         }
     }
 
-    // 【外周】二十四節気・七十二候の描画 (C列=dbRow[2], D列=dbRow[3])
     if (dbRow[2] || dbRow[3]) {
         const isSekki = !!dbRow[2];
         const eventName = dbRow[2] || dbRow[3];
@@ -651,8 +657,6 @@ function drawKoyomiEvents(startDate) {
     }
   }
 
- // ▼▼ draw.js の drawKoyomiEvents 関数の末尾を修正 ▼▼
-  // 右上の和風月名描画
   let wafuTextLayer = document.getElementById("wafu-text-layer");
   if(wafuTextLayer) { wafuTextLayer.innerHTML = ""; }
   else {
@@ -661,14 +665,13 @@ function drawKoyomiEvents(startDate) {
     svg.appendChild(wafuTextLayer);
   }
   
-  // 位置をさらに右上へ避難させる（x:780→860, y:-740→-850）
   wafuTextLayer.setAttribute("x", cx + 860); 
   wafuTextLayer.setAttribute("y", cy - 850); 
   wafuTextLayer.setAttribute("text-anchor", "end");
   wafuTextLayer.setAttribute("font-family", "'Shippori Mincho', serif");
 
   const tspanOld = document.createElementNS(svgNS, "tspan");
-  tspanOld.setAttribute("x", cx + 860); // ここも合わせる
+  tspanOld.setAttribute("x", cx + 860); 
   tspanOld.setAttribute("dy", "0");
   tspanOld.setAttribute("fill", "#d4af37");
   tspanOld.setAttribute("font-size", "70px");
@@ -679,12 +682,11 @@ function drawKoyomiEvents(startDate) {
   const tspanNew = document.createElementNS(svgNS, "tspan");
   const wafuList = ['睦月','如月','弥生','卯月','皐月','水無月','文月','葉月','長月','神無月','霜月','師走'];
   
-  // 「ー」を「／」に変更
   const newWafuStr = startGregorianMonth === endGregorianMonth 
       ? wafuList[startGregorianMonth - 1] 
       : `${wafuList[startGregorianMonth - 1]} ／ ${wafuList[endGregorianMonth - 1]}`;
   
-  tspanNew.setAttribute("x", cx + 860); // ここも合わせる
+  tspanNew.setAttribute("x", cx + 860); 
   tspanNew.setAttribute("dy", "60"); 
   tspanNew.setAttribute("fill", "#b0b0b0");
   tspanNew.setAttribute("font-size", "40px");
