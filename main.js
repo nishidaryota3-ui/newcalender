@@ -110,9 +110,30 @@ async function loadLocalCSV() {
 
 async function updateCalendarCycle() {
   const totalElapsedDays = currentCycle * synodicMonth;
-  const cycleStartTimeMs = baseDate.getTime() + totalElapsedDays * 24 * 60 * 60 * 1000;
-  const startDate = new Date(cycleStartTimeMs);
-  currentStartSegment = Math.round((totalElapsedDays % 30) / 0.25);
+  const estimatedStartTimeMs = baseDate.getTime() + totalElapsedDays * 24 * 60 * 60 * 1000;
+  let startDate = new Date(estimatedStartTimeMs);
+
+  // ▼暦データベースから「真の新月日（旧暦の一日）」を探して補正する▼
+  for (let offset = -3; offset <= 3; offset++) {
+      const checkDate = new Date(estimatedStartTimeMs + offset * 86400000);
+      const dateStr = formatDateStr(checkDate);
+      const dbRow = koyomiDatabase[dateStr];
+      if (dbRow && dbRow[1]) {
+          const lunarMatch = dbRow[1].match(/旧暦.*?月(.+?)日/);
+          if (lunarMatch && lunarMatch[1] === "一") {
+              // 深夜0:00:00に揃えた正確な新月日
+              startDate = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate());
+              break;
+          }
+      }
+  }
+
+  const cycleStartTimeMs = startDate.getTime();
+  const diffDaysExact = (cycleStartTimeMs - baseDate.getTime()) / 86400000;
+  
+  // ズレを補正した正確な日数から角度を再計算
+  currentStartSegment = Math.round((diffDaysExact % 30) / 0.25) % 120;
+  if (currentStartSegment < 0) currentStartSegment += 120;
   
   const y = startDate.getFullYear();
   const m = startDate.getMonth() + 1;
