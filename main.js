@@ -1,5 +1,9 @@
-
 // main.js (司令塔・初期化モジュール)
+
+// ▼ 暦データベースを格納するオブジェクト
+let koyomiDatabase = {};
+// ▼ スプレッドシート「暦データベース」のCSV公開URL
+const KOYOMI_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRqoX31YV0YAO3Mq4WatmLhjP7uUSF6dPMy3D2H3ktEFDFg1X1gJmoIXkul9JpS4aLgK9Ze3SSbV9BZ/pub?gid=0&single=true&output=csv';
 
 function formatDateStr(dateObj) {
     const y = dateObj.getFullYear();
@@ -34,6 +38,28 @@ async function fetchMeteoData(startDateMs) {
 }
 
 async function loadLocalCSV() {
+    // 暦データベース (Google Sheets CSV) の読み込み
+    try {
+        const res = await fetch(KOYOMI_CSV_URL);
+        if (res.ok) {
+            const text = await res.text();
+            const lines = text.split('\n');
+            for (let i = 1; i < lines.length; i++) {
+                // セル内にカンマがある場合も考慮した安全なCSV分割
+                const row = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').trim());
+                if (row[0]) {
+                    // 日付キーを 'YYYY-MM-DD' 形式に統一して保存
+                    let dateKey = row[0].replace(/\//g, '-');
+                    const parts = dateKey.split('-');
+                    if(parts.length === 3) {
+                        dateKey = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                    }
+                    koyomiDatabase[dateKey] = row;
+                }
+            }
+        }
+    } catch(e) { console.error("暦データベースの読み込みに失敗:", e); }
+
     try {
         const res = await fetch('palau_rain.csv');
         if (res.ok) {
@@ -102,9 +128,10 @@ async function updateCalendarCycle() {
   drawDailyRainStats(startDate);
   drawLunarMansions(cycleStartTimeMs);
   renderSavedData();
-  drawOuterSeasons(cycleStartTimeMs); 
   drawTimeLabels(); 
-  drawSolarDates(startDate); 
+  
+  // 新しい暦データベース描画処理（二十四節気・イベント統合）
+  drawKoyomiEvents(startDate); 
 
   globalRotation = -currentStartSegment * 3;
   masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
@@ -152,6 +179,7 @@ loadLocalCSV().then(() => {
         lunarMansionLayer = document.createElementNS(svgNS, "g");
         lunarMansionLayer.setAttribute("id", "lunar-mansion-layer");
         outerSeasonLayer = document.createElementNS(svgNS, "g");
+        outerSeasonLayer.setAttribute("id", "outer-season-layer");
 
         masterGroup.appendChild(textPathDefs);
         masterGroup.appendChild(dataLayer);
@@ -162,7 +190,6 @@ loadLocalCSV().then(() => {
         masterGroup.appendChild(lunarMansionLayer);
         masterGroup.appendChild(outerSeasonLayer);
 
-        generateAstronomicalData();
         updateCalendarCycle();
         initInteractions();
       })
