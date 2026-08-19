@@ -140,22 +140,23 @@ async function updateCalendarCycle() {
   const d = startDate.getDate();
   document.getElementById('cycleDisplay').innerHTML = `${y}年 ${m}月 <span style="font-size:10px;">▼</span><br><span style="font-size:11px; color:#8b949e;">新月: ${m}月${d}日〜</span>`;
 
-  await fetchMeteoData(cycleStartTimeMs);
-
+  // --- ★修正箇所：天気を「待たずに」カレンダーを先に一瞬で描画する ---
   drawLunarShadow(cycleStartTimeMs);  
   drawDynamicLines(); 
   drawTideGraph(cycleStartTimeMs);    
-  drawRainfallGraph(cycleStartTimeMs); 
   drawDailyRainStats(startDate);
   drawLunarMansions(cycleStartTimeMs);
   renderSavedData();
   drawTimeLabels(); 
-  
-  // 新しい暦データベース描画処理（二十四節気・イベント統合）
   drawKoyomiEvents(startDate); 
 
   globalRotation = -currentStartSegment * 3;
   masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
+
+  // 天気は裏側でこっそり取得し、エラーになっても無視する。取得できたら雨グラフを描く。
+  fetchMeteoData(cycleStartTimeMs).then(() => {
+      drawRainfallGraph(cycleStartTimeMs);
+  });
 }
 
 // アプリの起動処理
