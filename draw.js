@@ -525,6 +525,7 @@ function drawKoyomiEvents(startDate) {
         textObj.setAttribute("fill", color);
         textObj.setAttribute("font-size", fontSize);
         textObj.setAttribute("font-family", "'Shippori Mincho', serif");
+        textObj.setAttribute("dominant-baseline", "central");
         if (isBold) textObj.setAttribute("font-weight", "bold");
         
         const textPath = document.createElementNS(svgNS, "textPath");
