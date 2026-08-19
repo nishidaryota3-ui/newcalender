@@ -651,6 +651,7 @@ function drawKoyomiEvents(startDate) {
     }
   }
 
+ // ▼▼ draw.js の drawKoyomiEvents 関数の末尾を修正 ▼▼
   // 右上の和風月名描画
   let wafuTextLayer = document.getElementById("wafu-text-layer");
   if(wafuTextLayer) { wafuTextLayer.innerHTML = ""; }
@@ -660,13 +661,14 @@ function drawKoyomiEvents(startDate) {
     svg.appendChild(wafuTextLayer);
   }
   
-  wafuTextLayer.setAttribute("x", cx + 780); 
-  wafuTextLayer.setAttribute("y", cy - 740); 
+  // 位置をさらに右上へ避難させる（x:780→860, y:-740→-850）
+  wafuTextLayer.setAttribute("x", cx + 860); 
+  wafuTextLayer.setAttribute("y", cy - 850); 
   wafuTextLayer.setAttribute("text-anchor", "end");
   wafuTextLayer.setAttribute("font-family", "'Shippori Mincho', serif");
 
   const tspanOld = document.createElementNS(svgNS, "tspan");
-  tspanOld.setAttribute("x", cx + 780);
+  tspanOld.setAttribute("x", cx + 860); // ここも合わせる
   tspanOld.setAttribute("dy", "0");
   tspanOld.setAttribute("fill", "#d4af37");
   tspanOld.setAttribute("font-size", "70px");
@@ -676,11 +678,13 @@ function drawKoyomiEvents(startDate) {
 
   const tspanNew = document.createElementNS(svgNS, "tspan");
   const wafuList = ['睦月','如月','弥生','卯月','皐月','水無月','文月','葉月','長月','神無月','霜月','師走'];
+  
+  // 「ー」を「／」に変更
   const newWafuStr = startGregorianMonth === endGregorianMonth 
       ? wafuList[startGregorianMonth - 1] 
-      : `${wafuList[startGregorianMonth - 1]} ー ${wafuList[endGregorianMonth - 1]}`;
+      : `${wafuList[startGregorianMonth - 1]} ／ ${wafuList[endGregorianMonth - 1]}`;
   
-  tspanNew.setAttribute("x", cx + 780);
+  tspanNew.setAttribute("x", cx + 860); // ここも合わせる
   tspanNew.setAttribute("dy", "60"); 
   tspanNew.setAttribute("fill", "#b0b0b0");
   tspanNew.setAttribute("font-size", "40px");
