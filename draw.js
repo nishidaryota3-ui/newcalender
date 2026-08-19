@@ -1,6 +1,6 @@
-// draw.js (SVG描画モジュール)
+// draw.js (SVG描画モジュール) - 安定版ロールバック
 
-// ▼▼ 消滅していた基礎ツールを復活 ▼▼
+// ▼ 私が勝手に消し飛ばしていたカレンダーの心臓部（基礎ツール） ▼
 function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
   const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
   return {
@@ -18,8 +18,8 @@ function getRingInfo(distance) {
   }
   return null;
 }
-// ▲▲ ここまで ▲▲
 
+// ▼ ここから下は、安定して動いていた本来の描画プログラム ▼
 function drawLunarShadow(cycleStartTimeMs) {
   shadowLayer.innerHTML = "";
   const R = concentricRings;
@@ -29,9 +29,7 @@ function drawLunarShadow(cycleStartTimeMs) {
   const rMax = R[29];
 
   for (let i = 0; i < 30; i++) {
-    const dTime = cycleStartTimeMs + i * 24 * 60 * 60 * 1000;
-    const elongation = (i / 29.53059) * 360; 
-    
+    const elongation = (i / 29.530589) * 360; 
     const illumination = (1 - Math.cos(elongation * Math.PI / 180)) / 2;
 
     const absoluteSegment = (currentStartSegment + i * 4) % 120;
@@ -56,8 +54,6 @@ function drawLunarShadow(cycleStartTimeMs) {
 
 function drawDynamicLines() {
   linesLayer.innerHTML = "";
-  linesLayer.setAttribute("opacity", userSettings.linesOpacity);
-
   const rMin = concentricRings[0];
   const rMax = concentricRings[concentricRings.length - 1];
 
@@ -154,8 +150,8 @@ function drawTideGraph(cycleStartTimeMs) {
   const wavePath = document.createElementNS(svgNS, "path");
   wavePath.setAttribute("d", pathD);
   wavePath.setAttribute("fill", "none");
-  wavePath.setAttribute("stroke", userSettings.tideColor);
-  wavePath.setAttribute("stroke-width", userSettings.tideWidth);
+  wavePath.setAttribute("stroke", "#3b82f6");
+  wavePath.setAttribute("stroke-width", "1.5");
   tideLayer.appendChild(wavePath);
 }
 
@@ -255,11 +251,9 @@ function drawLunarMansions(cycleStartTimeMs) {
   }
 
   for(let i = 0; i < 30; i++) {
-      const dTime = cycleStartTimeMs + i * 86400000;
       const currentLunarLon = (baseLunarLon + (i / 29.53)*360) % 360;
       const mansionIdx = Math.floor(currentLunarLon / (360 / 27));
       const mData = mansions[mansionIdx]; 
-      
       if (!mData) continue;
       
       const absoluteSegment = (currentStartSegment + i * 4) % 120;
@@ -333,7 +327,7 @@ function renderSavedData() {
           
           path.setAttribute("d", d);
           path.setAttribute("fill", colorInfo.color);
-          path.setAttribute("opacity", colorInfo.opacity || "0.6");
+          path.setAttribute("opacity", "0.6");
           path.setAttribute("stroke", "rgba(255,255,255,0.2)");
           path.setAttribute("stroke-width", "0.5");
           path.style.pointerEvents = "none";
@@ -374,28 +368,6 @@ function drawKoyomiEvents(startDate) {
     dateLayer.setAttribute("id", "solar-dates-layer");
     masterGroup.appendChild(dateLayer); 
   }
-
-  const getOrCreateLayer = (id) => {
-    let layer = document.getElementById(id);
-    if (!layer) {
-      layer = document.createElementNS(svgNS, "g");
-      layer.setAttribute("id", id);
-      dateLayer.appendChild(layer);
-    } else {
-      layer.innerHTML = "";
-    }
-    layer.style.display = userSettings.layers[id] === false ? "none" : "inline";
-    return layer;
-  };
-
-  const layerShinji = getOrCreateLayer("layerShinji");
-  const layerButsuji = getOrCreateLayer("layerButsuji");
-  const layerKyoukai = getOrCreateLayer("layerKyoukai");
-  const layerIslam = getOrCreateLayer("layerIslam");
-  const layerSonota = getOrCreateLayer("layerSonota");
-  const layerHoliday = getOrCreateLayer("layerHoliday");
-  const layerZassetsu = getOrCreateLayer("layerZassetsu");
-  const layerLunar = getOrCreateLayer("layerLunar"); 
 
   outerSeasonLayer.innerHTML = ""; 
   textPathDefs.innerHTML = "";
@@ -449,7 +421,7 @@ function drawKoyomiEvents(startDate) {
     createArc(`${arcIdBase}_30L`, r30Lower, angStart, angEnd);
     createArc(`${arcIdBase}_30U`, r30Upper, angStart, angEnd);
 
-    const drawCurvedText = (pathId, textContent, color, fontSize, isBold = false, rVal, parentLayer) => {
+    const drawCurvedText = (pathId, textContent, color, fontSize, isBold = false, rVal) => {
         if (!textContent) return;
         const textObj = document.createElementNS(svgNS, "text");
         textObj.setAttribute("fill", color);
@@ -472,24 +444,24 @@ function drawKoyomiEvents(startDate) {
         }
         
         textObj.appendChild(textPath);
-        parentLayer.appendChild(textObj);
+        dateLayer.appendChild(textObj);
     };
 
-    drawCurvedText(`${arcIdBase}_24`, dbRow[14], "#727171", "6.5px", false, r24, layerSonota); 
-    drawCurvedText(`${arcIdBase}_25`, dbRow[13], "#2c3e50", "6.5px", false, r25, layerIslam); 
-    drawCurvedText(`${arcIdBase}_26`, dbRow[12], "#2c3e50", "6.5px", false, r26, layerKyoukai); 
-    drawCurvedText(`${arcIdBase}_27`, dbRow[11], "#2c3e50", "6.5px", false, r27, layerButsuji); 
+    drawCurvedText(`${arcIdBase}_24`, dbRow[14], "#727171", "6.5px", false, r24); 
+    drawCurvedText(`${arcIdBase}_25`, dbRow[13], "#2c3e50", "6.5px", false, r25); 
+    drawCurvedText(`${arcIdBase}_26`, dbRow[12], "#2c3e50", "6.5px", false, r26); 
+    drawCurvedText(`${arcIdBase}_27`, dbRow[11], "#2c3e50", "6.5px", false, r27); 
 
     if (dbRow[10]) {
         const shintoEvents = dbRow[10].split('・');
         const shinto28 = shintoEvents.filter((_, idx) => idx % 2 === 0).join(' ｜ ');
         const shinto29 = shintoEvents.filter((_, idx) => idx % 2 !== 0).join(' ｜ ');
-        drawCurvedText(`${arcIdBase}_28`, shinto28, "#2c3e50", "6.5px", false, r28, layerShinji);
-        drawCurvedText(`${arcIdBase}_29`, shinto29, "#2c3e50", "6.5px", false, r29, layerShinji);
+        drawCurvedText(`${arcIdBase}_28`, shinto28, "#2c3e50", "6.5px", false, r28);
+        drawCurvedText(`${arcIdBase}_29`, shinto29, "#2c3e50", "6.5px", false, r29);
     }
 
-    drawCurvedText(`${arcIdBase}_30U`, dbRow[5], "#d25b4e", "8px", true, r30Upper, layerHoliday); 
-    drawCurvedText(`${arcIdBase}_30L`, dbRow[4], "#555555", "7px", false, r30Lower, layerZassetsu);
+    drawCurvedText(`${arcIdBase}_30U`, dbRow[5], "#d25b4e", "8px", true, r30Upper); 
+    drawCurvedText(`${arcIdBase}_30L`, dbRow[4], "#555555", "7px", false, r30Lower);
 
     const ptDate = polarToCartesian(cx, cy, r30Upper, baseAngle + 1.5);
     const ptDay = polarToCartesian(cx, cy, r30Lower, baseAngle + 1.5);
@@ -501,7 +473,7 @@ function drawKoyomiEvents(startDate) {
     textDate.setAttribute("font-weight", "bold");
     textDate.setAttribute("transform", `rotate(${baseAngle + 1.5}, ${ptDate.x}, ${ptDate.y})`);
     textDate.textContent = `${loopDate.getMonth() + 1}/${loopDate.getDate()}`;
-    layerLunar.appendChild(textDate);
+    dateLayer.appendChild(textDate);
 
     const textDay = document.createElementNS(svgNS, "text");
     textDay.setAttribute("x", ptDay.x); textDay.setAttribute("y", ptDay.y);
@@ -509,7 +481,7 @@ function drawKoyomiEvents(startDate) {
     textDay.setAttribute("fill", "#b0b0b0"); textDay.setAttribute("font-size", "6px");
     textDay.setAttribute("transform", `rotate(${baseAngle + 1.5}, ${ptDay.x}, ${ptDay.y})`);
     textDay.textContent = daysStr[loopDate.getDay()];
-    layerLunar.appendChild(textDay);
+    dateLayer.appendChild(textDay);
 
     if (dbRow[1]) {
         const lunarMatch = dbRow[1].match(/旧暦.*?月(.+?)日/);
@@ -525,7 +497,7 @@ function drawKoyomiEvents(startDate) {
         circle.setAttribute("fill", "none");
         circle.setAttribute("stroke", isNewMoon ? "#d4af37" : "#555555");
         circle.setAttribute("stroke-width", isNewMoon ? "1.2" : "0.8");
-        layerLunar.appendChild(circle); 
+        dateLayer.appendChild(circle); 
 
         const textLunar = document.createElementNS(svgNS, "text");
         textLunar.setAttribute("x", ptLunar.x); textLunar.setAttribute("y", ptLunar.y);
@@ -536,7 +508,7 @@ function drawKoyomiEvents(startDate) {
         if(isNewMoon) textLunar.setAttribute("font-weight", "bold");
         textLunar.setAttribute("transform", `rotate(${baseAngle + 10.5}, ${ptLunar.x}, ${ptLunar.y})`);
         textLunar.textContent = isNewMoon ? "新月" : lunarDay;
-        layerLunar.appendChild(textLunar); 
+        dateLayer.appendChild(textLunar); 
 
         if (i === 0) {
             const wafuMatch = dbRow[1].match(/（(.+?)）/);
