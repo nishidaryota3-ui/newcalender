@@ -1,6 +1,6 @@
-// draw.js (SVG描画モジュール) - 安定版ロールバック
+// draw.js (SVG描画モジュール) - 完全修復版（ロールバック）
 
-// ▼ 私が勝手に消し飛ばしていたカレンダーの心臓部（基礎ツール） ▼
+// 1. 消失していた基礎計算ツールを復活
 function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
   const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
   return {
@@ -19,7 +19,14 @@ function getRingInfo(distance) {
   return null;
 }
 
-// ▼ ここから下は、安定して動いていた本来の描画プログラム ▼
+// 2. 漢数字を数値に変換する関数（これも消えていたので復活）
+function kanjiToNum(kanji) {
+    const dict = {"一":1,"二":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9,"十":10,
+                  "十一":11,"十二":12,"十三":13,"十四":14,"十五":15,"十六":16,"十七":17,"十八":18,"十九":19,"二十":20,
+                  "廿":20,"廿一":21,"廿二":22,"廿三":23,"廿四":24,"廿五":25,"廿六":26,"廿七":27,"廿八":28,"廿九":29,"三十":30,"丗":30};
+    return dict[kanji] || 1;
+}
+
 function drawLunarShadow(cycleStartTimeMs) {
   shadowLayer.innerHTML = "";
   const R = concentricRings;
@@ -150,7 +157,7 @@ function drawTideGraph(cycleStartTimeMs) {
   const wavePath = document.createElementNS(svgNS, "path");
   wavePath.setAttribute("d", pathD);
   wavePath.setAttribute("fill", "none");
-  wavePath.setAttribute("stroke", "#3b82f6");
+  wavePath.setAttribute("stroke", "#3b82f6"); 
   wavePath.setAttribute("stroke-width", "1.5");
   tideLayer.appendChild(wavePath);
 }
@@ -235,17 +242,10 @@ function drawLunarMansions(cycleStartTimeMs) {
   let dObjStr = formatDateStr(startDay);
   const dbRow = koyomiDatabase[dObjStr];
   
-  const kToNum = (k) => {
-      const dict = {"一":1,"二":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9,"十":10,
-                    "十一":11,"十二":12,"十三":13,"十四":14,"十五":15,"十六":16,"十七":17,"十八":18,"十九":19,"二十":20,
-                    "廿":20,"廿一":21,"廿二":22,"廿三":23,"廿四":24,"廿五":25,"廿六":26,"廿七":27,"廿八":28,"廿九":29,"三十":30,"丗":30};
-      return dict[k] || 1;
-  };
-
   if(dbRow && dbRow[1]) {
       const match = dbRow[1].match(/旧暦.*?月(.+?)日/);
       if(match) {
-          const lunarDay = kToNum(match[1]);
+          const lunarDay = kanjiToNum(match[1]); 
           baseLunarLon = ((lunarDay - 1) / 29.53) * 360; 
       }
   }
@@ -305,7 +305,7 @@ function drawLunarMansions(cycleStartTimeMs) {
 
 function renderSavedData() {
   dataLayer.innerHTML = "";
-  for (let key in calendarData) {
+  for (let key in calendarData) { 
       if (!key.startsWith(`c${currentCycle}_`)) continue;
       
       const colorInfo = calendarData[key];
@@ -427,7 +427,7 @@ function drawKoyomiEvents(startDate) {
         textObj.setAttribute("fill", color);
         textObj.setAttribute("font-size", fontSize);
         textObj.setAttribute("font-family", "'Shippori Mincho', serif");
-        textObj.setAttribute("dominant-baseline", "central");
+        textObj.setAttribute("dominant-baseline", "central"); 
         if (isBold) textObj.setAttribute("font-weight", "bold");
         
         const textPath = document.createElementNS(svgNS, "textPath");
@@ -538,7 +538,7 @@ function drawKoyomiEvents(startDate) {
         outText.setAttribute("font-family", "'Shippori Mincho', serif");
         if(is24) outText.setAttribute("font-weight", "bold");
         outText.setAttribute("text-anchor", "start");
-        outText.setAttribute("dominant-baseline", "central");
+        outText.setAttribute("dominant-baseline", "central"); 
         
         let rot = baseAngle;
         if (rot > 90 && rot < 270) {
@@ -578,7 +578,7 @@ function drawKoyomiEvents(startDate) {
   
   const newWafuStr = startGregorianMonth === endGregorianMonth 
       ? wafuList[startGregorianMonth - 1] 
-      : `${wafuList[startGregorianMonth - 1]} ／ ${wafuList[endGregorianMonth - 1]}`;
+      : `${wafuList[startGregorianMonth - 1]} ／ ${wafuList[endGregorianMonth - 1]}`; 
   
   tspanNew.setAttribute("x", cx + 860);
   tspanNew.setAttribute("dy", "60"); 
