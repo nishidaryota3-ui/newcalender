@@ -10,8 +10,6 @@ function drawLunarShadow(cycleStartTimeMs) {
 
   for (let i = 0; i < 30; i++) {
     const dTime = cycleStartTimeMs + i * 24 * 60 * 60 * 1000;
-    
-    // ▼修正箇所：存在しない関数を削除し、直接計算する式に変更▼
     const elongation = (i / 29.53059) * 360; 
     
     const illumination = (1 - Math.cos(elongation * Math.PI / 180)) / 2;
@@ -38,8 +36,6 @@ function drawLunarShadow(cycleStartTimeMs) {
 
 function drawDynamicLines() {
   linesLayer.innerHTML = "";
-  
-  // ▼ ユーザー設定から区切り線の透明度を読み込む ▼
   linesLayer.setAttribute("opacity", userSettings.linesOpacity);
 
   const rMin = concentricRings[0];
@@ -63,7 +59,6 @@ function drawDynamicLines() {
     line.setAttribute("stroke", "#555");
     line.setAttribute("stroke-width", (i % 4 === 0) ? "0.8" : "0.3");
     
-    // 0:00 の線だけは少し色を変えて強調する
     if (i % 4 === 0) {
       line.setAttribute("stroke", "#888");
       line.setAttribute("stroke-dasharray", "2,2");
@@ -139,8 +134,6 @@ function drawTideGraph(cycleStartTimeMs) {
   const wavePath = document.createElementNS(svgNS, "path");
   wavePath.setAttribute("d", pathD);
   wavePath.setAttribute("fill", "none");
-  
-  // ▼ ユーザー設定から色と太さを読み込む ▼
   wavePath.setAttribute("stroke", userSettings.tideColor);
   wavePath.setAttribute("stroke-width", userSettings.tideWidth);
   tideLayer.appendChild(wavePath);
@@ -225,10 +218,19 @@ function drawLunarMansions(cycleStartTimeMs) {
   let baseLunarLon = 0;
   let dObjStr = formatDateStr(startDay);
   const dbRow = koyomiDatabase[dObjStr];
+  
+  // ▼ エラー防止：漢数字を数値に変換する安全な関数を内蔵 ▼
+  const kToNum = (k) => {
+      const dict = {"一":1,"二":2,"三":3,"四":4,"五":5,"六":6,"七":7,"八":8,"九":9,"十":10,
+                    "十一":11,"十二":12,"十三":13,"十四":14,"十五":15,"十六":16,"十七":17,"十八":18,"十九":19,"二十":20,
+                    "廿":20,"廿一":21,"廿二":22,"廿三":23,"廿四":24,"廿五":25,"廿六":26,"廿七":27,"廿八":28,"廿九":29,"三十":30,"丗":30};
+      return dict[k] || 1;
+  };
+
   if(dbRow && dbRow[1]) {
       const match = dbRow[1].match(/旧暦.*?月(.+?)日/);
       if(match) {
-          const lunarDay = kanjiToNum(match[1]);
+          const lunarDay = kToNum(match[1]);
           baseLunarLon = ((lunarDay - 1) / 29.53) * 360; 
       }
   }
@@ -238,10 +240,9 @@ function drawLunarMansions(cycleStartTimeMs) {
       const currentLunarLon = (baseLunarLon + (i / 29.53)*360) % 360;
       const mansionIdx = Math.floor(currentLunarLon / (360 / 27));
       
-      // ▼修正箇所：lunarMansions に名前を統一▼
-      const mData = lunarMansions[mansionIdx]; 
+      // ▼ globals.js の変数名に合わせて mansions に修正 ▼
+      const mData = mansions[mansionIdx]; 
       
-      // もし mData が未定義の場合はスキップしてエラーを防ぐ
       if (!mData) continue;
       
       const absoluteSegment = (currentStartSegment + i * 4) % 120;
@@ -293,35 +294,36 @@ function drawLunarMansions(cycleStartTimeMs) {
 
 function renderSavedData() {
   dataLayer.innerHTML = "";
-  for (let key in cellData) {
-      const parts = key.split('_');
-      if (parts.length === 2) {
-          const seg = parseInt(parts[0]);
-          const ring = parseInt(parts[1]);
-          const colorInfo = cellData[key];
+  // ▼ エラー回避：cellData ではなく globals.js の calendarData を直接読み込む ▼
+  for (let key in calendarData) {
+      // 現在のサイクル（月）のデータだけを描画
+      if (!key.startsWith(`c${currentCycle}_`)) continue;
+      
+      const colorInfo = calendarData[key];
+      // 最新の保存形式（rIn, rOut がオブジェクト内にある）に対応
+      if (colorInfo.absSegment !== undefined && colorInfo.rIn !== undefined && colorInfo.rOut !== undefined) {
+          const seg = colorInfo.absSegment;
+          const rIn = colorInfo.rIn;
+          const rOut = colorInfo.rOut;
+
+          const angStart = seg * 3;
+          const angEnd = (seg + 1) * 3;
+
+          const p1 = polarToCartesian(cx, cy, rIn, angStart);
+          const p2 = polarToCartesian(cx, cy, rOut, angStart);
+          const p3 = polarToCartesian(cx, cy, rOut, angEnd);
+          const p4 = polarToCartesian(cx, cy, rIn, angEnd);
+
+          const path = document.createElementNS(svgNS, "path");
+          const d = `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y} A ${rOut} ${rOut} 0 0 1 ${p3.x} ${p3.y} L ${p4.x} ${p4.y} A ${rIn} ${rIn} 0 0 0 ${p1.x} ${p1.y} Z`;
           
-          if (seg >= 0 && seg < 120 && ring >= 0 && ring < concentricRings.length - 1) {
-              const rIn = concentricRings[ring];
-              const rOut = concentricRings[ring + 1];
-              const angStart = seg * 3;
-              const angEnd = (seg + 1) * 3;
-
-              const p1 = polarToCartesian(cx, cy, rIn, angStart);
-              const p2 = polarToCartesian(cx, cy, rOut, angStart);
-              const p3 = polarToCartesian(cx, cy, rOut, angEnd);
-              const p4 = polarToCartesian(cx, cy, rIn, angEnd);
-
-              const path = document.createElementNS(svgNS, "path");
-              const d = `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y} A ${rOut} ${rOut} 0 0 1 ${p3.x} ${p3.y} L ${p4.x} ${p4.y} A ${rIn} ${rIn} 0 0 0 ${p1.x} ${p1.y} Z`;
-              
-              path.setAttribute("d", d);
-              path.setAttribute("fill", colorInfo.color);
-              path.setAttribute("opacity", colorInfo.opacity);
-              path.setAttribute("stroke", "rgba(255,255,255,0.2)");
-              path.setAttribute("stroke-width", "0.5");
-              path.style.pointerEvents = "none";
-              dataLayer.appendChild(path);
-          }
+          path.setAttribute("d", d);
+          path.setAttribute("fill", colorInfo.color);
+          path.setAttribute("opacity", colorInfo.opacity || "0.6");
+          path.setAttribute("stroke", "rgba(255,255,255,0.2)");
+          path.setAttribute("stroke-width", "0.5");
+          path.style.pointerEvents = "none";
+          dataLayer.appendChild(path);
       }
   }
 }
@@ -359,7 +361,6 @@ function drawKoyomiEvents(startDate) {
     masterGroup.appendChild(dateLayer); 
   }
 
-  // ▼ カテゴリごとに透明な専用フォルダを作成し、表示・非表示を制御する機能 ▼
   const getOrCreateLayer = (id) => {
     let layer = document.getElementById(id);
     if (!layer) {
@@ -369,12 +370,10 @@ function drawKoyomiEvents(startDate) {
     } else {
       layer.innerHTML = "";
     }
-    // globals.jsのsettingsを見て、非表示なら display = "none" にする
     layer.style.display = userSettings.layers[id] === false ? "none" : "inline";
     return layer;
   };
 
-  // 各種レイヤーフォルダの準備
   const layerShinji = getOrCreateLayer("layerShinji");
   const layerButsuji = getOrCreateLayer("layerButsuji");
   const layerKyoukai = getOrCreateLayer("layerKyoukai");
@@ -436,17 +435,13 @@ function drawKoyomiEvents(startDate) {
     createArc(`${arcIdBase}_30L`, r30Lower, angStart, angEnd);
     createArc(`${arcIdBase}_30U`, r30Upper, angStart, angEnd);
 
-    // テキストを指定されたフォルダ（parentLayer）に描画する
     const drawCurvedText = (pathId, textContent, color, fontSize, isBold = false, rVal, parentLayer) => {
         if (!textContent) return;
         const textObj = document.createElementNS(svgNS, "text");
         textObj.setAttribute("fill", color);
         textObj.setAttribute("font-size", fontSize);
         textObj.setAttribute("font-family", "'Shippori Mincho', serif");
-        
-        // ▼ 文字の上下の中心をパスに合わせる ▼
         textObj.setAttribute("dominant-baseline", "central");
-        
         if (isBold) textObj.setAttribute("font-weight", "bold");
         
         const textPath = document.createElementNS(svgNS, "textPath");
@@ -466,7 +461,6 @@ function drawKoyomiEvents(startDate) {
         parentLayer.appendChild(textObj);
     };
 
-    // それぞれのテキストを専用フォルダに振り分ける
     drawCurvedText(`${arcIdBase}_24`, dbRow[14], "#727171", "6.5px", false, r24, layerSonota); 
     drawCurvedText(`${arcIdBase}_25`, dbRow[13], "#2c3e50", "6.5px", false, r25, layerIslam); 
     drawCurvedText(`${arcIdBase}_26`, dbRow[12], "#2c3e50", "6.5px", false, r26, layerKyoukai); 
@@ -483,7 +477,6 @@ function drawKoyomiEvents(startDate) {
     drawCurvedText(`${arcIdBase}_30U`, dbRow[5], "#d25b4e", "8px", true, r30Upper, layerHoliday); 
     drawCurvedText(`${arcIdBase}_30L`, dbRow[4], "#555555", "7px", false, r30Lower, layerZassetsu);
 
-    // 日付と曜日の描画（layerLunarフォルダへ）
     const ptDate = polarToCartesian(cx, cy, r30Upper, baseAngle + 1.5);
     const ptDay = polarToCartesian(cx, cy, r30Lower, baseAngle + 1.5);
     
@@ -504,7 +497,6 @@ function drawKoyomiEvents(startDate) {
     textDay.textContent = daysStr[loopDate.getDay()];
     layerLunar.appendChild(textDay);
 
-    // 旧暦（月齢）の丸とテキストの描画（layerLunarフォルダへ）
     if (dbRow[1]) {
         const lunarMatch = dbRow[1].match(/旧暦.*?月(.+?)日/);
         const lunarDay = lunarMatch ? lunarMatch[1] : "";
@@ -538,7 +530,6 @@ function drawKoyomiEvents(startDate) {
         }
     }
 
-    // 外周（二十四節気など）の描画
     if (dbRow[2] || dbRow[3]) {
         const is24 = !!dbRow[2];
         const textStr = dbRow[2] || dbRow[3];
@@ -574,7 +565,6 @@ function drawKoyomiEvents(startDate) {
     }
   }
 
-  // 右上の和風月名描画
   let wafuTextLayer = document.getElementById("wafu-text-layer");
   if(wafuTextLayer) { wafuTextLayer.innerHTML = ""; }
   else {
@@ -583,7 +573,6 @@ function drawKoyomiEvents(startDate) {
     svg.appendChild(wafuTextLayer);
   }
   
-  // ▼ 位置を右上へ避難させる ▼
   wafuTextLayer.setAttribute("x", cx + 860); 
   wafuTextLayer.setAttribute("y", cy - 850); 
   wafuTextLayer.setAttribute("text-anchor", "end");
@@ -601,7 +590,6 @@ function drawKoyomiEvents(startDate) {
   const tspanNew = document.createElementNS(svgNS, "tspan");
   const wafuList = ['睦月','如月','弥生','卯月','皐月','水無月','文月','葉月','長月','神無月','霜月','師走'];
   
-  // ▼ 新暦の区切りを「／」に変更 ▼
   const newWafuStr = startGregorianMonth === endGregorianMonth 
       ? wafuList[startGregorianMonth - 1] 
       : `${wafuList[startGregorianMonth - 1]} ／ ${wafuList[endGregorianMonth - 1]}`;
