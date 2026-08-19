@@ -19,6 +19,25 @@ let interactionMode = 'pan';
 let activeBrush = "#38bdf8"; 
 let globalRotation = 0; 
 let calendarData = JSON.parse(localStorage.getItem('polarCalendarDataV27')) || {};
+// ▼▼ globals.js の変数宣言エリアに追加 ▼▼
+// ユーザーのカスタマイズ設定（ローカルストレージに保存）
+let userSettings = JSON.parse(localStorage.getItem('polarCalendarSettings')) || {
+    bgOpacity: 0.8,       // 背景の透明度
+    linesOpacity: 1.0,    // 日付区切り線の透明度
+    tideColor: "#3b82f6", // 潮汐グラフの色
+    tideWidth: 1.5,       // 潮汐グラフの太さ
+    layers: {             // 各レイヤーの表示状態（true=表示, false=非表示）
+        layerShinji: true,
+        layerButsuji: true,
+        layerKyoukai: true,
+        layerIslam: true,
+        layerSonota: true,
+        layerHoliday: true,
+        layerZassetsu: true,
+        layerLunar: true
+    }
+};
+
 let concentricRings = []; 
 
 const PALAU_LAT = 7.34;
