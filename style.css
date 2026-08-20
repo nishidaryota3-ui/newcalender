@@ -1,75 +1,84 @@
 /* style.css (デザインと装飾) */
 body {
-  background-color: #f5f3eb;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  margin: 0;
-  font-family: "Shippori Mincho", serif, sans-serif;
-  overflow: hidden;
+    background-color: #f5f3eb;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    margin: 0;
+    font-family: "Shippori Mincho", serif, sans-serif;
+    overflow: hidden;
 }
 
 /* カレンダー枠とカーソル */
 .calendar-container {
-  width: 100vw;
-  height: 100vh;
-  position: relative;
-  /* ▼ ここを手のひらから、精密な十字カーソルに変更 ▼ */
-  cursor: crosshair; 
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    /* ▼ ここを手のひらから、精密な十字カーソルに変更 ▼ */
+    cursor: crosshair;
 }
+
 .calendar-container.is-dragging {
-  /* ドラッグして移動している最中だけ、握った手に変わる */
-  cursor: grabbing !important; 
+    /* ドラッグして移動している最中だけ、握った手に変わる */
+    cursor: grabbing !important;
 }
 
 .calendar-container svg {
-  width: 100%;
-  height: 100%;
-  display: block;
+    width: 100%;
+    height: 100%;
+    display: block;
 }
 
 /* ツールパレット */
 #palette {
-  position: fixed;
-  top: 30px;
-  left: 30px;
-  background: rgba(25, 30, 40, 0.85);
-  backdrop-filter: blur(10px);
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-  border: 1px solid rgba(212, 175, 55, 0.3);
-  color: #e6edf3;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+    position: fixed;
+    top: 30px;
+    left: 30px;
+    background: rgba(25, 30, 40, 0.85);
+    backdrop-filter: blur(10px);
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    color: #e6edf3;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
 }
 
 .palette-title {
-  font-size: 14px;
-  color: #d4af37;
-  border-bottom: 1px solid rgba(212, 175, 55, 0.3);
-  padding-bottom: 5px;
-  margin-bottom: 5px;
+    font-size: 14px;
+    color: #d4af37;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+    padding-bottom: 5px;
+    margin-bottom: 5px;
 }
 
 .color-tag {
-  width: 120px;
-  height: 40px;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: bold;
-  border: 2px solid transparent;
-  transition: all 0.2s;
+    width: 120px;
+    height: 40px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    border: 2px solid transparent;
+    transition: all 0.2s;
 }
-.color-tag:hover { transform: translateX(5px); }
-.color-tag.selected { border-color: #fff; box-shadow: 0 0 15px rgba(255,255,255,0.4); transform: translateX(10px); }
+
+.color-tag:hover {
+    transform: translateX(5px);
+}
+
+.color-tag.selected {
+    border-color: #fff;
+    box-shadow: 0 0 15px rgba(255,255,255,0.4);
+    transform: translateX(10px);
+}
 
 .tag-rain { background: rgba(56, 189, 248, 0.5); color: #e0f2fe; }
 .tag-fruit { background: rgba(245, 158, 11, 0.5); color: #fef3c7; }
@@ -78,18 +87,66 @@ body {
 
 /* ステータスバー */
 #status-bar {
-  position: fixed;
-  bottom: 30px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(25, 30, 40, 0.85);
-  backdrop-filter: blur(10px);
-  padding: 10px 25px;
-  border-radius: 30px;
-  color: #d4af37;
-  font-size: 16px;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-  pointer-events: none;
-  z-index: 100;
-  letter-spacing: 1px;
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(25, 30, 40, 0.85);
+    backdrop-filter: blur(10px);
+    padding: 10px 25px;
+    border-radius: 30px;
+    color: #d4af37;
+    font-size: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    pointer-events: none;
+    z-index: 100;
+    letter-spacing: 1px;
 }
+
+/* ▼▼ 追加：レイヤーパネルの装飾 ▼▼ */
+#layer-panel {
+    position: fixed;
+    bottom: 30px; /* 右下に配置してPhotoshop風に */
+    right: 30px;
+    background: rgba(25, 30, 40, 0.85);
+    backdrop-filter: blur(10px);
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    border: 1px solid rgba(212, 175, 55, 0.3);
+    color: #e6edf3;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    width: 150px;
+}
+
+.layer-panel-title {
+    font-size: 14px;
+    color: #d4af37;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+    padding-bottom: 5px;
+    margin-bottom: 5px;
+}
+
+.layer-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.layer-item input[type="checkbox"] {
+    cursor: pointer;
+    accent-color: #d4af37; /* チェックボックスの色をゴールドに */
+    width: 16px;
+    height: 16px;
+}
+
+.layer-item label {
+    cursor: pointer;
+    user-select: none; /* テキスト選択を防いでクリックしやすく */
+}
+/* ▲▲ 追加ここまで ▲▲ */
