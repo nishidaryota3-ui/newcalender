@@ -1,37 +1,44 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Polar Calendar - 分割・精密ペイント版</title>
-  <!-- ▼ デザインのファイル（CSS）を読み込む ▼ -->
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polar Calendar - 分割・精密ペイント版</title>
+    <!-- ▼ デザインのファイル（CSS）を読み込む ▼ -->
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- カレンダー本体 -->
+    <div class="calendar-container" id="container"></div>
 
-  <!-- カレンダー本体 -->
-  <div class="calendar-container" id="container"></div>
+    <!-- 絵の具パレット -->
+    <div id="palette">
+        <div class="palette-title">気配の筆（ペイント）</div>
+        <div class="color-tag tag-rain selected" data-color="#38bdf8">雨・湿気</div>
+        <div class="color-tag tag-fruit" data-color="#f59e0b">実り</div>
+        <div class="color-tag tag-wind" data-color="#c084fc">風・気配</div>
+        <div class="color-tag tag-eraser" data-color="erase">消しゴム</div>
+    </div>
 
-  <!-- 絵の具パレット -->
-  <div id="palette">
-    <div class="palette-title">気配の筆（ペイント）</div>
-    <div class="color-tag tag-rain selected" data-color="#38bdf8">雨・湿気</div>
-    <div class="color-tag tag-fruit" data-color="#f59e0b">実り</div>
-    <div class="color-tag tag-wind" data-color="#c084fc">風・気配</div>
-    <div class="color-tag tag-eraser" data-color="erase">消しゴム</div>
-  </div>
+    <!-- ▼▼ 追加：レイヤーパネル ▼▼ -->
+    <div id="layer-panel">
+        <div class="layer-panel-title">レイヤー</div>
+        <div class="layer-item">
+            <input type="checkbox" id="toggle-layer-lunar" checked>
+            <label for="toggle-layer-lunar">二十七宿（月）</label>
+        </div>
+    </div>
+    <!-- ▲▲ 追加ここまで ▲▲ -->
 
-  <!-- ステータスバー -->
-  <div id="status-bar">空間を認識中...</div>
+    <!-- ステータスバー -->
+    <div id="status-bar">空間を認識中...</div>
 
-  <!-- ▼ 脳みそのファイル（JavaScript）を読み込む ▼ -->
- <!-- ▼ 分割されたモジュール群を順番に読み込む ▼ -->
-  <script src="globals.js"></script>
-  <script src="astronomy.js"></script>
-  <script src="draw.js"></script>
-  <script src="ui.js"></script>
-  <script src="main.js"></script>
-</body>
-</html>
+    <!-- ▼ 脳みそのファイル（JavaScript）を読み込む ▼ -->
+    <!-- ▼ 分割されたモジュール群を順番に読み込む ▼ -->
+    <script src="globals.js"></script>
+    <script src="astronomy.js"></script>
+    <script src="draw.js"></script>
+    <script src="ui.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
