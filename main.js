@@ -4,7 +4,11 @@ window.defaultLayerSettings = {
     canvasBg: { fill: "#f5f5f0" },
     baseSvg: { stroke: "", opacity: 0.8 }, 
     lunarShadow: { fill: "#000000", opacity: 0.03 },
-    luminescenceRay: { stroke: "#d4af37", strokeWidth: 0.8, opacity: 0.5 },
+    
+    // ★ 新規追加：天文学的幾何学パターンの初期設定
+    terminatorEnvelope: { stroke: "#ffffff", strokeWidth: 0.4, opacity: 0.7, fill: "none" },
+    syzygyApex: { stroke: "#d4af37", strokeWidth: 1.5, opacity: 0.9, fill: "none" },
+    
     dateLines: { stroke: "#555555", strokeWidth: 1.5, opacity: 1 },
     lunarMansion: { 
         strokeWidth: 0.5, opacity: 0.5, fontFamily: "'Shippori Mincho', 'YuMincho', serif", fontSize: 9,
@@ -187,7 +191,10 @@ async function updateCalendarCycle() {
     document.getElementById('cycleDisplay').innerHTML = `${y}年 ${m}月 <span style="font-size:10px;">▼</span><br><span style="font-size:11px; color:#8b949e;">新月: ${m}月${d}日〜</span>`;
 
     drawLunarShadow(cycleStartTimeMs);
-    if (typeof drawLuminescenceRay === 'function') drawLuminescenceRay(cycleStartTimeMs);
+    
+    // ★ 描画関数の呼び出しをBとCに変更
+    if (typeof drawTerminatorEnvelope === 'function') drawTerminatorEnvelope(cycleStartTimeMs);
+    if (typeof drawSyzygyApex === 'function') drawSyzygyApex(cycleStartTimeMs);
 
     drawDynamicLines();
     drawTideGraph(cycleStartTimeMs);
@@ -258,9 +265,11 @@ loadLocalCSV().then(() => {
             masterGroup.appendChild(bgGroup);
             svg.appendChild(masterGroup);
 
+            // ★ レイヤーIDを更新
             const layerIds = [
                 "layer-shadow",               
-                "layer-luminescence-ray", 
+                "layer-terminator-envelope", // アイデアB: 境界線の軌跡
+                "layer-syzygy-apex",         // アイデアC: 望の頂点曲線
                 "layer-lines",                
                 "layer-data",                 
                 "layer-tide-wave",            
