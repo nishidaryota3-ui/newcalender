@@ -1,6 +1,5 @@
 // draw.js (SVG描画モジュール) - 軽量・最適化版
 
-// ★ 緊急復旧：astronomy.jsの上書きで消えてしまったデータ・関数を安全網として復元
 if (typeof window.mansions === 'undefined') {
     window.mansions = [
         { name: "角" }, { name: "亢" }, { name: "氐" }, { name: "房" }, { name: "心" }, { name: "尾" }, { name: "箕" },
@@ -27,10 +26,9 @@ function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
     };
 }
 
-// この月が29日か30日かを判定する関数
 function computeMonthDays(startDate) {
-    window.currentMonthDays = 30; // デフォルトは大の月（30日）
-    for (let i = 15; i < 30; i++) { // 月の後半だけをチェック
+    window.currentMonthDays = 30; 
+    for (let i = 15; i < 30; i++) { 
         const loopDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
         const dateStr = formatDateStr(loopDate);
         const dbRow = koyomiDatabase[dateStr];
@@ -43,7 +41,6 @@ function computeMonthDays(startDate) {
     }
 }
 
-// 天文学的ピン (朔望)
 function drawAstronomicalPins(cycleStartTime) {
     const layer = document.getElementById("layer-astronomical-pins");
     if(!layer) return;
@@ -131,7 +128,7 @@ function drawAstronomicalPins(cycleStartTime) {
     }
 }
 
-// 二十七宿 
+// 二十七宿の描画
 function drawLunarMansions(cycleStartTimeMs) {
     const layer = document.getElementById("layer-lunar-mansion");
     if(layer) layer.innerHTML = "";
@@ -144,12 +141,14 @@ function drawLunarMansions(cycleStartTimeMs) {
     const totalHours = 720; 
     const startAngle = currentStartSegment * 3;
 
+    // ★ 背景リングの色と透明度を適用
     const trackBg = document.createElementNS(svgNS, "circle");
     trackBg.setAttribute("cx", cx);
     trackBg.setAttribute("cy", cy);
     trackBg.setAttribute("r", rBase + 15);
     trackBg.setAttribute("fill", "none");
-    trackBg.setAttribute("stroke", "rgba(255, 255, 255, 0.05)");
+    trackBg.setAttribute("stroke", st.bgRingColor !== undefined ? st.bgRingColor : "#ffffff");
+    trackBg.setAttribute("opacity", st.bgRingOpacity !== undefined ? st.bgRingOpacity : 0.05);
     trackBg.setAttribute("stroke-width", "30");
     if(layer) layer.appendChild(trackBg);
 
@@ -219,6 +218,9 @@ function drawConstellationMark(startAng, endAng, index, rCenter, st, color) {
     const starCount = Math.floor(rand() * 3) + 3;
     const stars = [];
 
+    // ★ 星の大きさを適用
+    const starBaseSize = st.starSize !== undefined ? st.starSize : 1.5;
+
     for(let i=0; i<starCount; i++) {
         const sAngle = midAngle + (rand() - 0.5) * 8;
         const sR = rCenter + (rand() - 0.5) * 15;
@@ -227,12 +229,13 @@ function drawConstellationMark(startAng, endAng, index, rCenter, st, color) {
         const circle = document.createElementNS(svgNS, "circle");
         circle.setAttribute("cx", pt.x);
         circle.setAttribute("cy", pt.y);
-        circle.setAttribute("r", rand() > 0.8 ? "1.5" : "0.8");
+        circle.setAttribute("r", rand() > 0.8 ? starBaseSize : starBaseSize * 0.6);
         circle.setAttribute("fill", color);
         circle.setAttribute("opacity", st.opacity);
         g.appendChild(circle);
     }
 
+    // ★ 星座線の太さを適用
     for(let i=0; i<stars.length - 1; i++) {
         const line = document.createElementNS(svgNS, "line");
         line.setAttribute("x1", stars[i].x);
@@ -240,7 +243,7 @@ function drawConstellationMark(startAng, endAng, index, rCenter, st, color) {
         line.setAttribute("x2", stars[i+1].x);
         line.setAttribute("y2", stars[i+1].y);
         line.setAttribute("stroke", color);
-        line.setAttribute("stroke-width", "0.3");
+        line.setAttribute("stroke-width", st.strokeWidth !== undefined ? st.strokeWidth * 0.6 : 0.3);
         line.setAttribute("opacity", st.opacity);
         g.appendChild(line);
     }
@@ -319,7 +322,7 @@ function drawDailyRainStats(startDate) {
     }
 }
 
-// 潮汐波形 
+// 潮汐波形
 function drawTideGraph(cycleStartTimeMs) {
     const waveLayer = document.getElementById("layer-tide-wave");
     const guideLayer = document.getElementById("layer-guide-tide");
@@ -329,7 +332,7 @@ function drawTideGraph(cycleStartTimeMs) {
     if (concentricRings.length < 23) return;
 
     const stGraph = window.layerSettings.tideGraph;
-    // ★ 潮位の線と文字を分離して読み込み
+    // ★ 潮位の線と文字を分離
     const stLine = window.layerSettings.guideTideLine || window.layerSettings.guideTide;
     const stText = window.layerSettings.guideTideText || window.layerSettings.guideTide;
 
@@ -387,7 +390,6 @@ function drawTideGraph(cycleStartTimeMs) {
         circle.setAttribute("cy", cy);
         circle.setAttribute("r", r);
         circle.setAttribute("fill", "none");
-        // ★ 分離された線の設定を適用
         circle.setAttribute("stroke", stLine.stroke);
         circle.setAttribute("stroke-width", stLine.strokeWidth);
         circle.setAttribute("stroke-dasharray", "4,4");
@@ -404,7 +406,6 @@ function drawTideGraph(cycleStartTimeMs) {
             text.setAttribute("text-anchor", "middle");
             text.setAttribute("dominant-baseline", "central");
             
-            // ★ 分離された文字の設定を適用
             text.setAttribute("fill", stText.fill);
             text.setAttribute("font-size", stText.fontSize + "px");
             text.setAttribute("font-family", stText.fontFamily);
@@ -436,7 +437,7 @@ function drawRainfallGraph(cycleStartTimeMs) {
     if (concentricRings.length < 23) return;
 
     const stGraph = window.layerSettings.rainGraph;
-    // ★ 降水量の線と文字を分離して読み込み
+    // ★ 降水量の線と文字を分離
     const stLine = window.layerSettings.guideRainLine || window.layerSettings.guideRain;
     const stText = window.layerSettings.guideRainText || window.layerSettings.guideRain;
 
@@ -452,7 +453,6 @@ function drawRainfallGraph(cycleStartTimeMs) {
     circle.setAttribute("cy", cy);
     circle.setAttribute("r", rMax);
     circle.setAttribute("fill", "none");
-    // ★ 分離された線の設定を適用
     circle.setAttribute("stroke", stLine.stroke);
     circle.setAttribute("stroke-width", stLine.strokeWidth);
     circle.setAttribute("opacity", stLine.opacity);
@@ -511,7 +511,6 @@ function drawRainfallGraph(cycleStartTimeMs) {
             text.setAttribute("text-anchor", "middle");
             text.setAttribute("dominant-baseline", "central");
             
-            // ★ 分離された文字の設定を適用
             text.setAttribute("fill", stText.fill);
             text.setAttribute("font-size", stText.fontSize + "px");
             text.setAttribute("font-family", stText.fontFamily);
@@ -525,7 +524,7 @@ function drawRainfallGraph(cycleStartTimeMs) {
                 text.setAttribute("paint-order", "stroke fill");
             }
             
-            // ★ 左右どちらも外側から読めるように +180度 に統一
+            // ★ 外側から読めるように常に180度反転
             let textRot = labelAngle + 180;
             text.setAttribute("transform", `rotate(${textRot}, ${ptLabel.x}, ${ptLabel.y})`);
             text.textContent = val + "mm";
@@ -973,6 +972,7 @@ function drawKoyomiEvents(startDate) {
             const lunarMatch = dbRow[1].match(/旧暦.*?月(.+?)日/);
             const rawLunarDay = lunarMatch ? lunarMatch[1] : "";
             
+            // ★【先日対応分】「三十」を「丗」に、「二十」を「廿」に変換
             const lunarDay = rawLunarDay.replace("三十", "丗").replace("二十", "廿");
             
             let phaseKey = "normal";
