@@ -172,8 +172,6 @@ function initUI() {
     setTool('pointer', 'pan');
 
     // ▼▼ 追加：レイヤーパネルの動的CSSスタイル制御 ▼▼
-    // JavaScriptで消すのではなく、CSSの「display: none !important」をリアルタイムで生成して適用します。
-    // これにより、カレンダーが再描画されても非表示設定が維持されます。
     let styleBlock = document.getElementById("layer-style-block");
     if (!styleBlock) {
         styleBlock = document.createElement("style");
@@ -205,7 +203,14 @@ function initUI() {
         if(!document.getElementById("toggle-date-gregorian")?.checked) addHiddenRule(".layer-date-gregorian");
         if(!document.getElementById("toggle-date-lunar")?.checked) addHiddenRule(".layer-date-lunar");
         if(!document.getElementById("toggle-date-weekday")?.checked) addHiddenRule(".layer-date-weekday");
-        if(!document.getElementById("toggle-koyomi-events")?.checked) addHiddenRule(".layer-koyomi-events");
+        if(!document.getElementById("toggle-sekki-kou")?.checked) addHiddenRule(".layer-sekki-kou");
+
+        // 年中行事
+        if(!document.getElementById("toggle-event-shinto")?.checked) addHiddenRule(".layer-event-shinto");
+        if(!document.getElementById("toggle-event-buddhism")?.checked) addHiddenRule(".layer-event-buddhism");
+        if(!document.getElementById("toggle-event-church")?.checked) addHiddenRule(".layer-event-church");
+        if(!document.getElementById("toggle-event-islam")?.checked) addHiddenRule(".layer-event-islam");
+        if(!document.getElementById("toggle-event-sonota")?.checked) addHiddenRule(".layer-event-sonota");
 
         styleBlock.innerHTML = css;
     };
