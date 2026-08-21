@@ -4,10 +4,7 @@ window.defaultLayerSettings = {
     canvasBg: { fill: "#f5f5f0" },
     baseSvg: { stroke: "", opacity: 0.8 }, 
     lunarShadow: { fill: "#000000", opacity: 0.03 },
-    
-    // ★ 天文学的ピンの初期設定 (radiusOffsetを追加)
     astroPins: { fill: "#d4af37", stroke: "#d4af37", strokeWidth: 1.2, opacity: 1, scale: 1, radiusOffset: 0 },
-    
     dateLines: { stroke: "#555555", strokeWidth: 1.5, opacity: 1 },
     lunarMansion: { 
         strokeWidth: 0.5, opacity: 0.5, fontFamily: "'Shippori Mincho', 'YuMincho', serif", fontSize: 9,
@@ -184,15 +181,19 @@ async function updateCalendarCycle() {
     currentStartSegment = Math.round((diffDaysExact % 30) / 0.25) % 120;
     if (currentStartSegment < 0) currentStartSegment += 120;
 
+    // ★ バグ修正：テキストを逆回転させるために、描画関数を呼ぶ【前】に角度を計算する！
+    globalRotation = -currentStartSegment * 3;
+
     const y = startDate.getFullYear();
     const m = startDate.getMonth() + 1;
     const d = startDate.getDate();
     document.getElementById('cycleDisplay').innerHTML = `${y}年 ${m}月 <span style="font-size:10px;">▼</span><br><span style="font-size:11px; color:#8b949e;">新月: ${m}月${d}日〜</span>`;
 
+    // ★ 今月が29日か30日かを判定
+    if (typeof computeMonthDays === 'function') computeMonthDays(startDate);
+
     drawLunarShadow(cycleStartTimeMs);
-    
     if (typeof drawAstronomicalPins === 'function') drawAstronomicalPins(cycleStartTimeMs);
-    
     drawDynamicLines();
     drawTideGraph(cycleStartTimeMs);
     drawDailyRainStats(startDate);
@@ -201,7 +202,6 @@ async function updateCalendarCycle() {
     drawTimeLabels();
     drawKoyomiEvents(startDate);
 
-    globalRotation = -currentStartSegment * 3;
     masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
 
     const stBase = window.layerSettings.baseSvg;
