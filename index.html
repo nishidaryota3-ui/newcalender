@@ -27,7 +27,6 @@
             <span>レイヤーパネル</span>
             <button id="btn-minimize-panel" style="background:none; border:none; color:#fff; cursor:pointer; font-size:16px; padding:0 5px; line-height:1;" title="折りたたむ">−</button>
         </div>
-        
         <div id="layer-panel-content">
             <div style="background:rgba(0,0,0,0.3); padding:10px; border-radius:6px; margin-bottom:15px; border:1px solid rgba(212,175,55,0.3);">
                 <div style="font-size:12px; color:#d4af37; margin-bottom:5px; font-weight:bold;">テーマ (プリセット) 管理</div>
@@ -50,10 +49,9 @@
             <!-- ベース・図形 -->
             <div class="layer-item"><input type="checkbox" id="toggle-base-svg" checked><label for="toggle-base-svg">ベース図形</label><button class="layer-settings-btn" data-target="baseSvg" title="デザイン設定">⚙️</button></div>
             <div class="layer-item"><input type="checkbox" id="toggle-lunar-shadow" checked><label for="toggle-lunar-shadow">月相シャドウ (ハート型)</label><button class="layer-settings-btn" data-target="lunarShadow" title="デザイン設定">⚙️</button></div>
-            
+
             <!-- 天文学的ピン -->
             <div class="layer-item"><input type="checkbox" id="toggle-astro-pins" checked><label for="toggle-astro-pins">天文学的ピン (朔望)</label><button class="layer-settings-btn" data-target="astroPins" title="デザイン設定">⚙️</button></div>
-            
             <div class="layer-item"><input type="checkbox" id="toggle-layer-lunar" checked><label for="toggle-layer-lunar">二十七宿 (一番外周)</label><button class="layer-settings-btn" data-target="lunarMansion" title="デザイン設定">⚙️</button></div>
 
             <!-- グラフデータ -->
@@ -67,10 +65,12 @@
             <div class="layer-group-title">▼ 目盛り・ガイド</div>
             <div class="layer-item layer-indent"><input type="checkbox" id="toggle-date-lines" checked><label for="toggle-date-lines">日付区切り線 (30分割)</label><button class="layer-settings-btn" data-target="dateLines" title="デザイン設定">⚙️</button></div>
             <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-time" checked><label for="toggle-guide-time">時間 (0/6/12/18)</label><button class="layer-settings-btn" data-target="guideTime" title="デザイン設定">⚙️</button></div>
+            
+            <!-- ★ 分離された潮位・降水量の目盛りパネル（不要な幽霊パネルは削除済み） -->
             <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-tide-line" checked><label for="toggle-guide-tide-line">潮位 (ft) 目盛り線</label><button class="layer-settings-btn" data-target="guideTideLine" title="デザイン設定">⚙️</button></div>
             <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-tide-text" checked><label for="toggle-guide-tide-text">潮位 (ft) 文字</label><button class="layer-settings-btn" data-target="guideTideText" title="デザイン設定">⚙️</button></div>
             <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-rain-line" checked><label for="toggle-guide-rain-line">降水量 (mm) 目盛り線</label><button class="layer-settings-btn" data-target="guideRainLine" title="デザイン設定">⚙️</button></div>
-            <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-rain-text" checked><label for="toggle-guide-rain-text">降水量 (mm) 文字</label><button class="layer-settings-btn" data-target="guideRainText" title="デザイン設定">⚙️</button></div>            <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-rain" checked><label for="toggle-guide-rain">降水量 (mm)</label><button class="layer-settings-btn" data-target="guideRain" title="デザイン設定">⚙️</button></div>
+            <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-rain-text" checked><label for="toggle-guide-rain-text">降水量 (mm) 文字</label><button class="layer-settings-btn" data-target="guideRainText" title="デザイン設定">⚙️</button></div>
 
             <!-- 日付・暦 -->
             <div class="layer-group-title">▼ 日付・暦</div>
