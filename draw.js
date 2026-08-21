@@ -510,8 +510,8 @@ function drawRainfallGraph(cycleStartTimeMs) {
                 text.setAttribute("paint-order", "stroke fill");
             }
             
+          // ★ 左右どちらも外周から読めるように +180度 で統一
             let textRot = labelAngle + 180;
-            if (target.isRightSide) { textRot = labelAngle; }
             text.setAttribute("transform", `rotate(${textRot}, ${ptLabel.x}, ${ptLabel.y})`);
             text.textContent = val + "mm";
             if(guideLayer) guideLayer.appendChild(text);
