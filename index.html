@@ -23,21 +23,21 @@
         <!-- ベース・図形 -->
         <div class="layer-item"><input type="checkbox" id="toggle-base-svg" checked><label for="toggle-base-svg">ベース図 (calendar.svg)</label><button class="layer-settings-btn" data-target="baseSvg" title="デザイン設定">⚙️</button></div>
         <div class="layer-item"><input type="checkbox" id="toggle-lunar-shadow" checked><label for="toggle-lunar-shadow">月相シャドウ (ハート型)</label><button class="layer-settings-btn" data-target="lunarShadow" title="デザイン設定">⚙️</button></div>
-        <div class="layer-item"><input type="checkbox" id="toggle-layer-lunar" checked><label for="toggle-layer-lunar">二十七宿 (一番外周)</label></div>
+        <div class="layer-item"><input type="checkbox" id="toggle-layer-lunar" checked><label for="toggle-layer-lunar">二十七宿 (一番外周)</label><button class="layer-settings-btn" data-target="lunarMansion" title="デザイン設定">⚙️</button></div>
 
         <!-- グラフデータ -->
         <div class="layer-group-title">▼ グラフ・データ</div>
-        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-tide-graph" checked><label for="toggle-tide-graph">潮汐波形</label></div>
-        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-rain-graph" checked><label for="toggle-rain-graph">毎時降水量 (棒線)</label></div>
-        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-daily-rain-bg" checked><label for="toggle-daily-rain-bg">日別総降水量 (背景色)</label></div>
-        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-daily-rain-text" checked><label for="toggle-daily-rain-text">日別総降水量 (数値)</label></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-tide-graph" checked><label for="toggle-tide-graph">潮汐波形</label><button class="layer-settings-btn" data-target="tideGraph" title="デザイン設定">⚙️</button></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-rain-graph" checked><label for="toggle-rain-graph">毎時降水量 (棒線)</label><button class="layer-settings-btn" data-target="rainGraph" title="デザイン設定">⚙️</button></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-daily-rain-bg" checked><label for="toggle-daily-rain-bg">日別総降水量 (背景色)</label><button class="layer-settings-btn" data-target="dailyRainBg" title="デザイン設定">⚙️</button></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-daily-rain-text" checked><label for="toggle-daily-rain-text">日別総降水量 (数値)</label><button class="layer-settings-btn" data-target="dailyRainText" title="デザイン設定">⚙️</button></div>
 
         <!-- 目盛り・ガイド -->
         <div class="layer-group-title">▼ 目盛り・ガイド</div>
         <div class="layer-item layer-indent"><input type="checkbox" id="toggle-date-lines" checked><label for="toggle-date-lines">日付区切り線 (30分割)</label><button class="layer-settings-btn" data-target="dateLines" title="デザイン設定">⚙️</button></div>
-        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-time" checked><label for="toggle-guide-time">時間 (0/6/12/18)</label></div>
-        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-tide" checked><label for="toggle-guide-tide">潮位 (ft)</label></div>
-        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-rain" checked><label for="toggle-guide-rain">降水量 (mm)</label></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-time" checked><label for="toggle-guide-time">時間 (0/6/12/18)</label><button class="layer-settings-btn" data-target="guideTime" title="デザイン設定">⚙️</button></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-tide" checked><label for="toggle-guide-tide">潮位 (ft)</label><button class="layer-settings-btn" data-target="guideTide" title="デザイン設定">⚙️</button></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-rain" checked><label for="toggle-guide-rain">降水量 (mm)</label><button class="layer-settings-btn" data-target="guideRain" title="デザイン設定">⚙️</button></div>
 
         <!-- 日付・暦 -->
         <div class="layer-group-title">▼ 日付・暦</div>
@@ -46,6 +46,8 @@
         <div class="layer-item layer-indent"><input type="checkbox" id="toggle-date-weekday" checked><label for="toggle-date-weekday">曜日 (Sun-Sat)</label><button class="layer-settings-btn" data-target="weekday" title="デザイン設定">⚙️</button></div>
         <div class="layer-item layer-indent"><input type="checkbox" id="toggle-sekki" checked><label for="toggle-sekki">24節気 (円外)</label><button class="layer-settings-btn" data-target="sekki" title="デザイン設定">⚙️</button></div>
         <div class="layer-item layer-indent"><input type="checkbox" id="toggle-kou" checked><label for="toggle-kou">72候 (円外)</label><button class="layer-settings-btn" data-target="kou" title="デザイン設定">⚙️</button></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-wafu-text" checked><label for="toggle-wafu-text">右上 月名 (旧暦)</label><button class="layer-settings-btn" data-target="wafuText" title="デザイン設定">⚙️</button></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-gregorian-text" checked><label for="toggle-gregorian-text">右上 月名 (新暦)</label><button class="layer-settings-btn" data-target="gregorianText" title="デザイン設定">⚙️</button></div>
 
         <!-- 階層30 -->
         <div class="layer-group-title">▼ 特等席 (階層30)</div>
@@ -55,10 +57,15 @@
 
         <!-- 年中行事 -->
         <div class="layer-group-title">▼ 年中行事 (階層24-29)</div>
-        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-event-shinto" checked><label for="toggle-event-shinto">神事</label></div>
-        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-event-buddhism" checked><label for="toggle-event-buddhism">仏事</label></div>
-        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-event-church" checked><label for="toggle-event-church">教会行事</label></div>
-        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-event-sonota" checked><label for="toggle-event-sonota">その他</label></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-event-shinto" checked><label for="toggle-event-shinto">神事</label><button class="layer-settings-btn" data-target="eventShinto" title="デザイン設定">⚙️</button></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-event-buddhism" checked><label for="toggle-event-buddhism">仏事</label><button class="layer-settings-btn" data-target="eventBuddhism" title="デザイン設定">⚙️</button></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-event-church" checked><label for="toggle-event-church">教会行事</label><button class="layer-settings-btn" data-target="eventChurch" title="デザイン設定">⚙️</button></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-event-sonota" checked><label for="toggle-event-sonota">その他</label><button class="layer-settings-btn" data-target="eventSonota" title="デザイン設定">⚙️</button></div>
+
+        <!-- マスターリセット -->
+        <div style="margin-top:20px; text-align:center;">
+            <button id="reset-all-settings" style="background:rgba(255,100,100,0.1); border:1px solid rgba(255,100,100,0.5); color:#ff8888; border-radius:4px; padding:6px 12px; font-size:12px; cursor:pointer; width:100%; transition:0.2s;">全デザイン設定を初期化</button>
+        </div>
     </div>
 
     <div id="status-bar">空間を認識中...</div>
