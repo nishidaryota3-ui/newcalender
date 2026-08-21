@@ -210,13 +210,14 @@ function initUI() {
         if(!document.getElementById("toggle-holiday")?.checked) addHiddenRule(".layer-holiday");
         if(!document.getElementById("toggle-event-important")?.checked) addHiddenRule(".layer-event-important");
 
-        // 年中行事 (tspanを用いた魔法のレイヤー制御)
-        if(!document.getElementById("toggle-event-shinto")?.checked) addHiddenRule("tspan.layer-event-shinto");
-        if(!document.getElementById("toggle-event-buddhism")?.checked) addHiddenRule("tspan.layer-event-buddhism");
-        if(!document.getElementById("toggle-event-church")?.checked) addHiddenRule("tspan.layer-event-church");
-        if(!document.getElementById("toggle-event-sonota")?.checked) addHiddenRule("tspan.layer-event-sonota");
+        // ★ 年中行事 (tspan) のCSS制御は削除しました（再描画で対応するため）
 
         styleBlock.innerHTML = css;
+
+        // ★ 代わりに、CSS更新後に「暦レイヤー」だけを一瞬で再描画します
+        if (typeof drawKoyomiEvents === 'function' && window.lastKoyomiStartDate) {
+            drawKoyomiEvents(window.lastKoyomiStartDate);
+        }
     };
 
     // パネル内のすべてのチェックボックスにイベントリスナーを一括登録
