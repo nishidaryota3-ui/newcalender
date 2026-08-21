@@ -144,14 +144,14 @@ function drawDailyRainStats(startDate) {
             const path = document.createElementNS(svgNS, "path");
             path.setAttribute("d", d);
             path.setAttribute("fill", "rgba(14, 165, 233, " + opacity + ")");
-            path.setAttribute("class", "layer-daily-rain-bg"); // ★ レイヤー分け用クラス
+            path.setAttribute("class", "layer-daily-rain-bg");
             dailyRainLayer.appendChild(path);
 
             const angleMid = startAngle + 6;
             const ptText = polarToCartesian(cx, cy, layer23CenterR, angleMid);
             
             const textGroup = document.createElementNS(svgNS, "g");
-            textGroup.setAttribute("class", "layer-daily-rain-text"); // ★ レイヤー分け用クラス
+            textGroup.setAttribute("class", "layer-daily-rain-text");
             textGroup.setAttribute("transform", `rotate(${angleMid + 180}, ${ptText.x}, ${ptText.y})`);
 
             const iconColor = "rgba(14, 165, 233, 1)";
@@ -185,7 +185,6 @@ function drawTideGraph(cycleStartTimeMs) {
     const rMax = concentricRings[22];
     const cycleEndMs = cycleStartTimeMs + 30 * 24 * 60 * 60 * 1000;
     
-    // ★ グループ化
     const waveGroup = document.createElementNS(svgNS, "g");
     waveGroup.setAttribute("class", "layer-tide-graph");
     const guideGroup = document.createElementNS(svgNS, "g");
@@ -280,7 +279,6 @@ function drawRainfallGraph(cycleStartTimeMs) {
     const rMax = concentricRings[22];
     const maxRain = 30;
 
-    // ★ グループ化
     const rainGroup = document.createElementNS(svgNS, "g");
     rainGroup.setAttribute("class", "layer-rain-graph");
     const guideGroup = document.createElementNS(svgNS, "g");
@@ -379,7 +377,7 @@ function drawTimeLabels() {
         timeLayer.setAttribute("id", "time-labels-layer");
         masterGroup.appendChild(timeLayer);
     }
-    timeLayer.setAttribute("class", "layer-guide-time"); // ★ クラス付与
+    timeLayer.setAttribute("class", "layer-guide-time");
 
     if (concentricRings.length < 20) return;
     const rMidTime = (concentricRings[19] + concentricRings[20]) / 2;
@@ -414,7 +412,7 @@ function drawTimeLabels() {
 
 function drawLunarShadow(cycleStartTime) {
     shadowLayer.innerHTML = "";
-    shadowLayer.setAttribute("class", "layer-lunar-shadow"); // ★ クラス付与
+    shadowLayer.setAttribute("class", "layer-lunar-shadow");
 
     if (concentricRings.length < 30) return;
 
@@ -546,22 +544,45 @@ function drawKoyomiEvents(startDate) {
     outerSeasonLayer.innerHTML = "";
     textPathDefs.innerHTML = "";
 
-    // ★ 細かいグループ分け（クラス付与）
-    const eventGroup = document.createElementNS(svgNS, "g");
-    eventGroup.setAttribute("class", "layer-koyomi-events");
+    // ★ さらに細分化されたグループ分け（クラス付与）
+    const sekkiKouGroup = document.createElementNS(svgNS, "g");
+    sekkiKouGroup.setAttribute("class", "layer-sekki-kou");
+
+    const eventShintoGroup = document.createElementNS(svgNS, "g");
+    eventShintoGroup.setAttribute("class", "layer-event-shinto");
+
+    const eventBuddhismGroup = document.createElementNS(svgNS, "g");
+    eventBuddhismGroup.setAttribute("class", "layer-event-buddhism");
+
+    const eventChurchGroup = document.createElementNS(svgNS, "g");
+    eventChurchGroup.setAttribute("class", "layer-event-church");
+
+    const eventIslamGroup = document.createElementNS(svgNS, "g");
+    eventIslamGroup.setAttribute("class", "layer-event-islam");
+
+    const eventSonotaGroup = document.createElementNS(svgNS, "g");
+    eventSonotaGroup.setAttribute("class", "layer-event-sonota");
+
     const gregorianGroup = document.createElementNS(svgNS, "g");
     gregorianGroup.setAttribute("class", "layer-date-gregorian");
+
     const weekdayGroup = document.createElementNS(svgNS, "g");
     weekdayGroup.setAttribute("class", "layer-date-weekday");
+
     const lunarGroup = document.createElementNS(svgNS, "g");
     lunarGroup.setAttribute("class", "layer-date-lunar");
 
-    dateLayer.appendChild(eventGroup);
+    dateLayer.appendChild(sekkiKouGroup);
+    dateLayer.appendChild(eventShintoGroup);
+    dateLayer.appendChild(eventBuddhismGroup);
+    dateLayer.appendChild(eventChurchGroup);
+    dateLayer.appendChild(eventIslamGroup);
+    dateLayer.appendChild(eventSonotaGroup);
     dateLayer.appendChild(gregorianGroup);
     dateLayer.appendChild(weekdayGroup);
     dateLayer.appendChild(lunarGroup);
 
-    outerSeasonLayer.setAttribute("class", "layer-koyomi-events");
+    outerSeasonLayer.setAttribute("class", "layer-sekki-kou"); // 外周の24節気用
 
     const R = concentricRings;
     if(R.length < 30) return;
@@ -615,7 +636,7 @@ function drawKoyomiEvents(startDate) {
         createArc(`${arcIdBase}_30L`, r30Lower, angStart, angEnd);
         createArc(`${arcIdBase}_30U`, r30Upper, angStart, angEnd);
 
-        const drawCurvedText = (pathId, textContent, color, fontSize, isBold = false, rVal) => {
+        const drawCurvedText = (pathId, textContent, color, fontSize, isBold = false, rVal, targetGroup) => {
             if (!textContent) return;
             const textObj = document.createElementNS(svgNS, "text");
             textObj.setAttribute("fill", color);
@@ -637,24 +658,26 @@ function drawKoyomiEvents(startDate) {
             }
 
             textObj.appendChild(textPath);
-            eventGroup.appendChild(textObj); // ★ 行事グループへ
+            targetGroup.appendChild(textObj); // ★ 指定された独立グループに挿入
         };
 
-        drawCurvedText(`${arcIdBase}_24`, dbRow[14], "#727171", "6.5px", false, r24);
-        drawCurvedText(`${arcIdBase}_25`, dbRow[13], "#2c3e50", "6.5px", false, r25);
-        drawCurvedText(`${arcIdBase}_26`, dbRow[12], "#2c3e50", "6.5px", false, r26);
-        drawCurvedText(`${arcIdBase}_27`, dbRow[11], "#2c3e50", "6.5px", false, r27);
+        // 年中行事をそれぞれのグループへ振り分け
+        drawCurvedText(`${arcIdBase}_24`, dbRow[14], "#727171", "6.5px", false, r24, eventSonotaGroup);
+        drawCurvedText(`${arcIdBase}_25`, dbRow[13], "#2c3e50", "6.5px", false, r25, eventIslamGroup);
+        drawCurvedText(`${arcIdBase}_26`, dbRow[12], "#2c3e50", "6.5px", false, r26, eventChurchGroup);
+        drawCurvedText(`${arcIdBase}_27`, dbRow[11], "#2c3e50", "6.5px", false, r27, eventBuddhismGroup);
 
         if (dbRow[10]) {
             const shintoEvents = dbRow[10].split('・');
             const shinto28 = shintoEvents.filter((_, idx) => idx % 2 === 0).join(' ｜ ');
             const shinto29 = shintoEvents.filter((_, idx) => idx % 2 !== 0).join(' ｜ ');
-            drawCurvedText(`${arcIdBase}_28`, shinto28, "#2c3e50", "6.5px", false, r28);
-            drawCurvedText(`${arcIdBase}_29`, shinto29, "#2c3e50", "6.5px", false, r29);
+            drawCurvedText(`${arcIdBase}_28`, shinto28, "#2c3e50", "6.5px", false, r28, eventShintoGroup);
+            drawCurvedText(`${arcIdBase}_29`, shinto29, "#2c3e50", "6.5px", false, r29, eventShintoGroup);
         }
 
-        drawCurvedText(`${arcIdBase}_30U`, dbRow[5], "#d25b4e", "8px", true, r30Upper);
-        drawCurvedText(`${arcIdBase}_30L`, dbRow[4], "#555555", "7px", false, r30Lower);
+        // 24節気・72候・祝日などは sekkiKouGroup へ
+        drawCurvedText(`${arcIdBase}_30U`, dbRow[5], "#d25b4e", "8px", true, r30Upper, sekkiKouGroup);
+        drawCurvedText(`${arcIdBase}_30L`, dbRow[4], "#555555", "7px", false, r30Lower, sekkiKouGroup);
 
         const ptDate = polarToCartesian(cx, cy, r30Upper, baseAngle + 1.5);
         const ptDay = polarToCartesian(cx, cy, r30Lower, baseAngle + 1.5);
@@ -669,7 +692,7 @@ function drawKoyomiEvents(startDate) {
         textDate.setAttribute("font-weight", "bold");
         textDate.setAttribute("transform", `rotate(${baseAngle + 1.5}, ${ptDate.x}, ${ptDate.y})`);
         textDate.textContent = `${loopDate.getMonth() + 1}/${loopDate.getDate()}`;
-        gregorianGroup.appendChild(textDate); // ★ 新暦グループへ
+        gregorianGroup.appendChild(textDate); 
 
         const textDay = document.createElementNS(svgNS, "text");
         textDay.setAttribute("x", ptDay.x);
@@ -680,7 +703,7 @@ function drawKoyomiEvents(startDate) {
         textDay.setAttribute("font-size", "6px");
         textDay.setAttribute("transform", `rotate(${baseAngle + 1.5}, ${ptDay.x}, ${ptDay.y})`);
         textDay.textContent = daysStr[loopDate.getDay()];
-        weekdayGroup.appendChild(textDay); // ★ 曜日グループへ
+        weekdayGroup.appendChild(textDay); 
 
         if (dbRow[1]) {
             const lunarMatch = dbRow[1].match(/旧暦.*?月(.+?)日/);
@@ -697,7 +720,7 @@ function drawKoyomiEvents(startDate) {
             circle.setAttribute("fill", "none");
             circle.setAttribute("stroke", isNewMoon ? "#d4af37" : "#555555");
             circle.setAttribute("stroke-width", isNewMoon ? "1.2" : "0.8");
-            lunarGroup.appendChild(circle); // ★ 旧暦グループへ
+            lunarGroup.appendChild(circle);
 
             const textLunar = document.createElementNS(svgNS, "text");
             textLunar.setAttribute("x", ptLunar.x);
@@ -710,7 +733,7 @@ function drawKoyomiEvents(startDate) {
             if(isNewMoon) textLunar.setAttribute("font-weight", "bold");
             textLunar.setAttribute("transform", `rotate(${baseAngle + 10.5}, ${ptLunar.x}, ${ptLunar.y})`);
             textLunar.textContent = isNewMoon ? "新月" : lunarDay;
-            lunarGroup.appendChild(textLunar); // ★ 旧暦グループへ
+            lunarGroup.appendChild(textLunar);
 
             if (i === 0) {
                 const wafuMatch = dbRow[1].match(/（(.+?)）/);
