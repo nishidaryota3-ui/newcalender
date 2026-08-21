@@ -1,19 +1,42 @@
 // main.js (司令塔・初期化モジュール)
 
-// ▼▼ 進化したデザイン設定データの定義 ▼▼
-const defaultLayerSettings = {
-    baseSvg: { stroke: "", opacity: 0.8 }, // stroke空文字ならオリジナルの色を維持
+// ▼▼ 全要素を網羅したデザイン設定データの定義 ▼▼
+window.defaultLayerSettings = {
+    // グラフ・図形系
+    baseSvg: { stroke: "", opacity: 0.8 },
     lunarShadow: { fill: "#000000", opacity: 0.03 },
     dateLines: { stroke: "#555555", strokeWidth: 1.5, opacity: 1 },
+    lunarMansion: { strokeWidth: 0.5, opacity: 0.5, fontFamily: "'Shippori Mincho', 'YuMincho', serif", fontSize: 9 },
+    tideGraph: { stroke: "#3b82f6", strokeWidth: 1.5, opacity: 1 },
+    rainGraph: { stroke: "rgba(14, 165, 233, 0.8)", strokeWidth: 1.5, opacity: 1 },
+    dailyRainBg: { fill: "rgba(14, 165, 233, 1)", opacity: 1 },
+    
+    // ガイド・ラベル系
+    dailyRainText: { fontFamily: "'Arial', sans-serif", fontSize: 8, fill: "rgba(14, 165, 233, 1)", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
+    guideTime: { fontFamily: "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif", fontSize: 7, fill: "#2c3e50", fontWeight: "bold", stroke: "rgba(255, 255, 255, 0.5)", strokeWidth: 3, opacity: 1, offsetRadius: 0 },
+    guideTide: { fontFamily: "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif", fontSize: 7, fill: "#3b82f6", fontWeight: "bold", stroke: "rgba(255, 255, 255, 0.5)", strokeWidth: 3, opacity: 1, offsetRadius: 0, shapeStroke: "rgba(114, 113, 113, 0.4)", shapeStrokeWidth: 0.5 },
+    guideRain: { fontFamily: "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif", fontSize: 7, fill: "rgba(14, 165, 233, 1)", fontWeight: "bold", stroke: "rgba(255, 255, 255, 0.5)", strokeWidth: 2.5, opacity: 1, offsetRadius: 0, shapeStroke: "rgba(14, 165, 233, 0.3)", shapeStrokeWidth: 1 },
+    
+    // 暦・日付系
     gregorian: { fontFamily: "'Shippori Mincho', serif", fontSize: 9, fill: "#727171", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     weekday: { fontFamily: "'Shippori Mincho', serif", fontSize: 6, fill: "#b0b0b0", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     sekki: { fontFamily: "'Shippori Mincho', serif", fontSize: 19, fill: "#2c3e50", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     kou: { fontFamily: "'Shippori Mincho', serif", fontSize: 14, fill: "#2c3e50", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
+    wafuText: { fontFamily: "'Shippori Mincho', serif", fontSize: 70, fill: "#d4af37", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
+    gregorianText: { fontFamily: "'Shippori Mincho', serif", fontSize: 40, fill: "#b0b0b0", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
+    
+    // 階層30特等席
     zassetsu: { fontFamily: "'Shippori Mincho', serif", fontSize: 6, fill: "#727171", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     holiday: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#d25b4e", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     important: { fontFamily: "'Shippori Mincho', serif", fontSize: 6, fill: "#2c3e50", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
-    
-    // ▼ 旧暦（月相ごとに図形や色を細かく設定）
+
+    // 年中行事
+    eventShinto: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#1e3a8a", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
+    eventBuddhism: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#3f3d56", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
+    eventChurch: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#6b5b4e", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
+    eventSonota: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#555555", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
+
+    // 旧暦（月相対応）
     lunar: {
         fontFamily: "'Shippori Mincho', serif", fontSize: 11, fontWeight: "normal", opacity: 1, offsetRadius: 0,
         phases: {
@@ -26,18 +49,18 @@ const defaultLayerSettings = {
     }
 };
 
-// 過去の設定データと競合しないよう保存キーをV2に更新
-window.layerSettings = JSON.parse(localStorage.getItem('polarCalendarSettingsV2')) || JSON.parse(JSON.stringify(defaultLayerSettings));
+// V3にバージョンアップしてデータの競合を防止
+window.layerSettings = JSON.parse(localStorage.getItem('polarCalendarSettingsV3')) || JSON.parse(JSON.stringify(window.defaultLayerSettings));
 
-// 補完処理
-for (let key in defaultLayerSettings) {
+// 未設定項目の補完
+for (let key in window.defaultLayerSettings) {
     if (!window.layerSettings[key]) {
-        window.layerSettings[key] = JSON.parse(JSON.stringify(defaultLayerSettings[key]));
+        window.layerSettings[key] = JSON.parse(JSON.stringify(window.defaultLayerSettings[key]));
     }
 }
 
 window.saveLayerSettings = () => {
-    localStorage.setItem('polarCalendarSettingsV2', JSON.stringify(window.layerSettings));
+    localStorage.setItem('polarCalendarSettingsV3', JSON.stringify(window.layerSettings));
 };
 // ▲▲ 追加ここまで ▲▲
 
@@ -183,7 +206,6 @@ async function updateCalendarCycle() {
     globalRotation = -currentStartSegment * 3;
     masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
 
-    // ベースSVGの上書き（ここでも適用）
     const stBase = window.layerSettings.baseSvg;
     if (bgGroup) {
         bgGroup.style.opacity = stBase.opacity;
@@ -242,7 +264,7 @@ loadLocalCSV().then(() => {
             masterGroup.appendChild(textPathDefs);
             masterGroup.appendChild(dataLayer);
             masterGroup.appendChild(shadowLayer);
-            masterGroup.appendChild(linesLayer); // 30分割線のレイヤー
+            masterGroup.appendChild(linesLayer);
             masterGroup.appendChild(tideLayer);
             masterGroup.appendChild(rainfallLayer);
             masterGroup.appendChild(lunarMansionLayer);
