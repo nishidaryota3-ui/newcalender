@@ -49,6 +49,7 @@ function initUI() {
     paletteDiv.style = "position:fixed; top:134px; left:74px; background:rgba(25,30,40,0.9); padding:10px; border-radius:8px; z-index:99; border: 1px solid rgba(255,255,255,0.1); display:none; grid-template-columns:repeat(4, 1fr); gap:6px; width:120px; box-sizing:border-box;";
     document.body.appendChild(paletteDiv);
 
+    // ▼ レイヤーパネルの折りたたみ機能
     const btnMinimize = document.getElementById('btn-minimize-panel');
     const panelContent = document.getElementById('layer-panel-content');
     if (btnMinimize && panelContent) {
@@ -63,6 +64,7 @@ function initUI() {
         };
     }
 
+    // ▼ デザイン設定パネル
     const designPanel = document.createElement('div');
     designPanel.id = 'design-panel';
     designPanel.className = 'panel-ui';
@@ -181,6 +183,7 @@ function initUI() {
     `;
     document.body.appendChild(designPanel);
 
+    // ▼ ドラッグ移動ロジック
     let isDraggingPanel = false;
     let dpStartX = 0, dpStartY = 0;
     const dpHeader = document.getElementById('dp-header');
@@ -209,6 +212,7 @@ function initUI() {
         if(dpHeader) dpHeader.style.cursor = 'grab';
     });
 
+    // ▼ テーマ管理ロジック
     const updateThemeSelect = () => {
         const select = document.getElementById('theme-select');
         if(!select) return;
@@ -319,6 +323,7 @@ function initUI() {
             document.getElementById('dp-group-shape').style.display = 'flex';
             document.getElementById('dp-row-shape-fill').style.display = 'flex';
 
+            // キャンバスと日別降水量の背景は、線の設定と透明チェックボックスを隠す
             if (currentDesignTarget === 'canvasBg' || currentDesignTarget === 'dailyRainBg') {
                 document.getElementById('dp-row-shape-stroke').style.display = 'none';
                 document.getElementById('dp-row-shape-stroke-width').style.display = 'none';
@@ -344,12 +349,13 @@ function initUI() {
                 document.getElementById('dp-shape-stroke-width-val').innerText = document.getElementById('dp-shape-stroke-width').value;
             }
 
+            // ベースSVGの特殊処理
             if (currentDesignTarget === 'baseSvg') {
                 document.getElementById('dp-row-shape-fill').style.display = 'none';
                 document.getElementById('dp-shape-stroke-orig').style.display = 'inline-block';
                 document.getElementById('dp-shape-stroke-orig-text').style.display = 'inline-block';
                 const isOrig = (st.stroke === "");
-                document.getElementById('dp-shape-stroke-orig').checked = !isOrig; // ★「上書きする」チェックボックスなので真逆にする
+                document.getElementById('dp-shape-stroke-orig').checked = !isOrig; // ★「上書きする」チェックボックスなので真逆に
                 document.getElementById('dp-shape-stroke').value = isOrig ? "#000000" : st.stroke;
             } else {
                 document.getElementById('dp-shape-stroke-orig').style.display = 'none';
@@ -458,7 +464,6 @@ function initUI() {
         if(isShapeTarget) {
             if(st.fill !== undefined) st.fill = document.getElementById('dp-shape-fill').value;
             if(currentDesignTarget === 'baseSvg') {
-                // ★「単色で上書きする」チェックがONなら指定色、OFFなら空文字（オリジナル維持）
                 st.stroke = document.getElementById('dp-shape-stroke-orig').checked ? document.getElementById('dp-shape-stroke').value : "";
             } else if (currentDesignTarget !== 'canvasBg' && currentDesignTarget !== 'dailyRainBg') {
                 if(st.stroke !== undefined) st.stroke = document.getElementById('dp-shape-stroke').value;
