@@ -6,7 +6,6 @@
     <title>Polar Calendar - 分割・精密ペイント版</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* UI全体のフォントをゴシック体に統一 */
         .panel-ui, #layer-panel, #palette, #status-bar, button, input, select {
             font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif !important;
         }
@@ -53,6 +52,9 @@
             <!-- ベース・図形 -->
             <div class="layer-item"><input type="checkbox" id="toggle-base-svg" checked><label for="toggle-base-svg">ベース図形</label><button class="layer-settings-btn" data-target="baseSvg" title="デザイン設定">⚙️</button></div>
             <div class="layer-item"><input type="checkbox" id="toggle-lunar-shadow" checked><label for="toggle-lunar-shadow">月相シャドウ (ハート型)</label><button class="layer-settings-btn" data-target="lunarShadow" title="デザイン設定">⚙️</button></div>
+            <!-- ★ 新規追加：輝度放射線 -->
+            <div class="layer-item"><input type="checkbox" id="toggle-luminescence-ray" checked><label for="toggle-luminescence-ray">輝度放射線 (光芒)</label><button class="layer-settings-btn" data-target="luminescenceRay" title="デザイン設定">⚙️</button></div>
+            
             <div class="layer-item"><input type="checkbox" id="toggle-layer-lunar" checked><label for="toggle-layer-lunar">二十七宿 (一番外周)</label><button class="layer-settings-btn" data-target="lunarMansion" title="デザイン設定">⚙️</button></div>
 
             <!-- グラフデータ -->
