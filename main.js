@@ -1,15 +1,21 @@
 // main.js (司令塔・初期化モジュール)
 
-// ▼▼ 全要素を網羅したデザイン設定データの定義 ▼▼
+// ▼▼ 究極のテーマ管理用：全要素を網羅したデザイン設定データの定義 ▼▼
 window.defaultLayerSettings = {
+    // キャンバス全体
+    canvasBg: { fill: "#f5f5f0" }, // デフォルトの生成りっぽい背景色
+    
     // グラフ・図形系
-    baseSvg: { stroke: "", opacity: 0.8 },
+    baseSvg: { stroke: "", opacity: 0.8 }, // stroke空ならオリジナル
     lunarShadow: { fill: "#000000", opacity: 0.03 },
     dateLines: { stroke: "#555555", strokeWidth: 1.5, opacity: 1 },
-    lunarMansion: { strokeWidth: 0.5, opacity: 0.5, fontFamily: "'Shippori Mincho', 'YuMincho', serif", fontSize: 9 },
+    lunarMansion: { 
+        strokeWidth: 0.5, opacity: 0.5, fontFamily: "'Shippori Mincho', 'YuMincho', serif", fontSize: 9,
+        colorEast: "#888888", colorSouth: "#888888", colorWest: "#888888", colorNorth: "#888888" // ニュートラル初期値
+    },
     tideGraph: { stroke: "#3b82f6", strokeWidth: 1.5, opacity: 1 },
     rainGraph: { stroke: "rgba(14, 165, 233, 0.8)", strokeWidth: 1.5, opacity: 1 },
-    dailyRainBg: { fill: "rgba(14, 165, 233, 1)", opacity: 1 },
+    dailyRainBg: { fill: "rgba(14, 165, 233, 1)", opacity: 1, density: 0.35 }, // density追加（デフォルト0.35）
     
     // ガイド・ラベル系
     dailyRainText: { fontFamily: "'Arial', sans-serif", fontSize: 8, fill: "rgba(14, 165, 233, 1)", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
@@ -19,7 +25,7 @@ window.defaultLayerSettings = {
     
     // 暦・日付系
     gregorian: { fontFamily: "'Shippori Mincho', serif", fontSize: 9, fill: "#727171", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
-    weekday: { fontFamily: "'Shippori Mincho', serif", fontSize: 6, fill: "#b0b0b0", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
+    weekday: { fontFamily: "'Shippori Mincho', serif", fontSize: 6, fill: "#b0b0b0", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0, lang: "en" }, // 日英切替追加
     sekki: { fontFamily: "'Shippori Mincho', serif", fontSize: 19, fill: "#2c3e50", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     kou: { fontFamily: "'Shippori Mincho', serif", fontSize: 14, fill: "#2c3e50", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     wafuText: { fontFamily: "'Shippori Mincho', serif", fontSize: 70, fill: "#d4af37", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
@@ -36,21 +42,24 @@ window.defaultLayerSettings = {
     eventChurch: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#6b5b4e", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     eventSonota: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#555555", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
 
-    // 旧暦（月相対応）
+    // 旧暦（月相対応）- スケール(scale)追加
     lunar: {
         fontFamily: "'Shippori Mincho', serif", fontSize: 11, fontWeight: "normal", opacity: 1, offsetRadius: 0,
         phases: {
-            normal:       { shape: "none", fill: "#2c3e50", bgFill: "transparent", shapeStroke: "#555555", shapeStrokeWidth: 0 },
-            newMoon:      { shape: "circle", fill: "#d4af37", bgFill: "transparent", shapeStroke: "#d4af37", shapeStrokeWidth: 1.2 }, // 一日
-            firstQuarter: { shape: "none", fill: "#2c3e50", bgFill: "transparent", shapeStroke: "#555555", shapeStrokeWidth: 0 }, // 八日
-            fullMoon:     { shape: "none", fill: "#2c3e50", bgFill: "transparent", shapeStroke: "#555555", shapeStrokeWidth: 0 }, // 十五日
-            lastQuarter:  { shape: "none", fill: "#2c3e50", bgFill: "transparent", shapeStroke: "#555555", shapeStrokeWidth: 0 }  // 二十三日
+            normal:       { shape: "none", fill: "#2c3e50", bgFill: "transparent", shapeStroke: "#555555", shapeStrokeWidth: 0, scale: 1 },
+            newMoon:      { shape: "circle", fill: "#d4af37", bgFill: "transparent", shapeStroke: "#d4af37", shapeStrokeWidth: 1.2, scale: 1 },
+            firstQuarter: { shape: "none", fill: "#2c3e50", bgFill: "transparent", shapeStroke: "#555555", shapeStrokeWidth: 0, scale: 1 },
+            fullMoon:     { shape: "none", fill: "#2c3e50", bgFill: "transparent", shapeStroke: "#555555", shapeStrokeWidth: 0, scale: 1 },
+            lastQuarter:  { shape: "none", fill: "#2c3e50", bgFill: "transparent", shapeStroke: "#555555", shapeStrokeWidth: 0, scale: 1 }
         }
     }
 };
 
-// V3にバージョンアップしてデータの競合を防止
-window.layerSettings = JSON.parse(localStorage.getItem('polarCalendarSettingsV3')) || JSON.parse(JSON.stringify(window.defaultLayerSettings));
+// V4にバージョンアップしてデータの競合を防止
+window.layerSettings = JSON.parse(localStorage.getItem('polarCalendarSettingsV4')) || JSON.parse(JSON.stringify(window.defaultLayerSettings));
+
+// ユーザーが保存したカスタムテーマのリスト
+window.savedThemes = JSON.parse(localStorage.getItem('polarCalendarThemesV1')) || {};
 
 // 未設定項目の補完
 for (let key in window.defaultLayerSettings) {
@@ -60,10 +69,9 @@ for (let key in window.defaultLayerSettings) {
 }
 
 window.saveLayerSettings = () => {
-    localStorage.setItem('polarCalendarSettingsV3', JSON.stringify(window.layerSettings));
+    localStorage.setItem('polarCalendarSettingsV4', JSON.stringify(window.layerSettings));
 };
 // ▲▲ 追加ここまで ▲▲
-
 
 let koyomiDatabase = {};
 const KOYOMI_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRqoX31YV0YAO3Mq4WatmLhjP7uUSF6dPMy3D2H3ktEFDFg1X1gJmoIXkul9JpS4aLgK9Ze3SSbV9BZ/pub?gid=0&single=true&output=csv';
@@ -167,6 +175,9 @@ async function loadLocalCSV() {
 }
 
 async function updateCalendarCycle() {
+    // ★ キャンバス背景色の適用
+    document.body.style.backgroundColor = window.layerSettings.canvasBg.fill;
+
     const totalElapsedDays = currentCycle * synodicMonth;
     const estimatedStartTimeMs = baseDate.getTime() + totalElapsedDays * 24 * 60 * 60 * 1000;
     let startDate = new Date(estimatedStartTimeMs);
