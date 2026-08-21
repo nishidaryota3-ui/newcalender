@@ -252,7 +252,8 @@ function initUI() {
 
     let currentDesignTarget = null;
     const targetNames = {
-        canvasBg: "キャンバス背景", baseSvg: "ベース図形", lunarShadow: "月相シャドウ", luminescenceRay: "輝度放射線 (光芒)",
+        canvasBg: "キャンバス背景", baseSvg: "ベース図形", lunarShadow: "月相シャドウ", 
+        terminatorEnvelope: "境界線の軌跡 (ワイヤー)", syzygyApex: "望の頂点曲線 (水滴線)", // ★ 追加
         dateLines: "日付区切り線 (30等分)", lunarMansion: "二十七宿",
         tideGraph: "潮汐波形", rainGraph: "毎時降水量 (棒線)", dailyRainBg: "日別総降水量 (背景)", dailyRainText: "日別総降水量 (数値)",
         guideTime: "時間ガイド (0/6/12/18)", guideTide: "潮位ガイド (ft)", guideRain: "降水量ガイド (mm)",
@@ -281,7 +282,7 @@ function initUI() {
         }
 
         const isTextTarget = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'wafuText', 'gregorianText', 'dailyRainText', 'guideTime', 'guideTide', 'guideRain', 'lunarMansion', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar'].includes(currentDesignTarget);
-        const isShapeTarget = ['baseSvg', 'lunarShadow', 'luminescenceRay', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTide', 'guideRain', 'canvasBg'].includes(currentDesignTarget);
+        const isShapeTarget = ['baseSvg', 'lunarShadow', 'terminatorEnvelope', 'syzygyApex', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTide', 'guideRain', 'canvasBg'].includes(currentDesignTarget);
 
         if (isTextTarget) {
             document.getElementById('dp-group-text').style.display = 'flex';
@@ -319,10 +320,10 @@ function initUI() {
         if (isShapeTarget) {
             document.getElementById('dp-group-shape').style.display = 'flex';
 
-            if (currentDesignTarget === 'canvasBg' || currentDesignTarget === 'dailyRainBg' || currentDesignTarget === 'luminescenceRay') {
-                document.getElementById('dp-row-shape-fill').style.display = currentDesignTarget === 'luminescenceRay' ? 'none' : 'flex';
-                document.getElementById('dp-row-shape-stroke').style.display = currentDesignTarget === 'luminescenceRay' ? 'flex' : 'none';
-                document.getElementById('dp-row-shape-stroke-width').style.display = currentDesignTarget === 'luminescenceRay' ? 'flex' : 'none';
+            if (currentDesignTarget === 'canvasBg' || currentDesignTarget === 'dailyRainBg') {
+                document.getElementById('dp-row-shape-fill').style.display = 'flex';
+                document.getElementById('dp-row-shape-stroke').style.display = 'none';
+                document.getElementById('dp-row-shape-stroke-width').style.display = 'none';
                 document.getElementById('dp-shape-fill-trans').style.display = 'none';
                 document.getElementById('dp-shape-fill-trans-text').style.display = 'none';
             } else {
@@ -336,8 +337,9 @@ function initUI() {
             }
 
             if(st.fill !== undefined) {
-                document.getElementById('dp-shape-fill-trans').checked = false; 
-                document.getElementById('dp-shape-fill').value = st.fill;
+                const isTrans = (st.fill === "none" || st.fill === "transparent");
+                document.getElementById('dp-shape-fill-trans').checked = isTrans; 
+                document.getElementById('dp-shape-fill').value = isTrans ? "#000000" : st.fill;
             }
 
             if(st.stroke !== undefined || st.shapeStroke !== undefined) {
@@ -458,9 +460,9 @@ function initUI() {
             document.body.style.backgroundColor = st.fill;
         }
 
-        const isShapeTarget = ['baseSvg', 'lunarShadow', 'luminescenceRay', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTide', 'guideRain'].includes(currentDesignTarget);
+        const isShapeTarget = ['baseSvg', 'lunarShadow', 'terminatorEnvelope', 'syzygyApex', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTide', 'guideRain'].includes(currentDesignTarget);
         if(isShapeTarget) {
-            if(st.fill !== undefined) st.fill = document.getElementById('dp-shape-fill').value;
+            if(st.fill !== undefined) st.fill = document.getElementById('dp-shape-fill-trans').checked ? "none" : document.getElementById('dp-shape-fill').value;
             if(currentDesignTarget === 'baseSvg') {
                 st.stroke = document.getElementById('dp-shape-stroke-orig').checked ? document.getElementById('dp-shape-stroke').value : "";
             } else if (currentDesignTarget !== 'canvasBg' && currentDesignTarget !== 'dailyRainBg') {
@@ -510,7 +512,8 @@ function initUI() {
         else if (currentDesignTarget === 'tideGraph' || currentDesignTarget === 'guideTide') { if (window.lastCycleStartTimeMs) drawTideGraph(window.lastCycleStartTimeMs); }
         else if (currentDesignTarget === 'rainGraph' || currentDesignTarget === 'guideRain') { if (window.lastCycleStartTimeMs) drawRainfallGraph(window.lastCycleStartTimeMs); }
         else if (currentDesignTarget === 'lunarShadow') { if (window.lastCycleStartTimeMs) drawLunarShadow(window.lastCycleStartTimeMs); }
-        else if (currentDesignTarget === 'luminescenceRay') { if (typeof drawLuminescenceRay === 'function' && window.lastCycleStartTimeMs) drawLuminescenceRay(window.lastCycleStartTimeMs); }
+        else if (currentDesignTarget === 'terminatorEnvelope') { if (typeof drawTerminatorEnvelope === 'function' && window.lastCycleStartTimeMs) drawTerminatorEnvelope(window.lastCycleStartTimeMs); }
+        else if (currentDesignTarget === 'syzygyApex') { if (typeof drawSyzygyApex === 'function' && window.lastCycleStartTimeMs) drawSyzygyApex(window.lastCycleStartTimeMs); }
         else if (currentDesignTarget === 'lunarMansion') { if (window.lastCycleStartTimeMs) drawLunarMansions(window.lastCycleStartTimeMs); }
         else if (currentDesignTarget === 'guideTime') { drawTimeLabels(); }
         else if (currentDesignTarget === 'dailyRainBg' || currentDesignTarget === 'dailyRainText') { if (window.lastKoyomiStartDate) drawDailyRainStats(window.lastKoyomiStartDate); }
@@ -662,7 +665,8 @@ function initUI() {
 
         if(!document.getElementById("toggle-base-svg")?.checked) addHiddenRule("#bg-group");
         if(!document.getElementById("toggle-lunar-shadow")?.checked) addHiddenRule("#layer-shadow");
-        if(!document.getElementById("toggle-luminescence-ray")?.checked) addHiddenRule("#layer-luminescence-ray");
+        if(!document.getElementById("toggle-terminator-envelope")?.checked) addHiddenRule("#layer-terminator-envelope"); // ★ 追加
+        if(!document.getElementById("toggle-syzygy-apex")?.checked) addHiddenRule("#layer-syzygy-apex");                 // ★ 追加
         if(!document.getElementById("toggle-layer-lunar")?.checked) addHiddenRule("#layer-lunar-mansion");
         if(!document.getElementById("toggle-tide-graph")?.checked) addHiddenRule("#layer-tide-wave");
         if(!document.getElementById("toggle-rain-graph")?.checked) addHiddenRule("#layer-rain-graph");
