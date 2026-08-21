@@ -1,5 +1,24 @@
 // draw.js (SVG描画モジュール) - 軽量・最適化版
 
+// ★ 緊急復旧：astronomy.jsの上書きで消えてしまったデータ・関数を安全網として復元
+if (typeof window.mansions === 'undefined') {
+    window.mansions = [
+        { name: "角" }, { name: "亢" }, { name: "氐" }, { name: "房" }, { name: "心" }, { name: "尾" }, { name: "箕" },
+        { name: "斗" }, { name: "女" }, { name: "虚" }, { name: "危" }, { name: "室" }, { name: "壁" },
+        { name: "奎" }, { name: "婁" }, { name: "胃" }, { name: "昴" }, { name: "畢" }, { name: "觜" }, { name: "参" },
+        { name: "井" }, { name: "鬼" }, { name: "柳" }, { name: "星" }, { name: "張" }, { name: "翼" }, { name: "軫" }
+    ];
+}
+
+if (typeof window.getTideRadius === 'undefined') {
+    window.getTideRadius = function(tide, rMin, rMax) {
+        const minTide = -1.5;
+        const maxTide = 7.5;
+        let ratio = (tide - minTide) / (maxTide - minTide);
+        return rMin + ratio * (rMax - rMin);
+    };
+}
+
 function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
     const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
     return {
@@ -123,7 +142,7 @@ function drawLunarMansions(cycleStartTimeMs) {
     const rBase = concentricRings[concentricRings.length - 1] + 60;
     const rMax = rBase + 30;
     const resolution = 2;
-    const totalHours = 720; // ★ 常に30日分描く
+    const totalHours = 720; 
     const startAngle = currentStartSegment * 3;
 
     const trackBg = document.createElementNS(svgNS, "circle");
@@ -179,7 +198,7 @@ function drawLunarMansions(cycleStartTimeMs) {
 function drawConstellationMark(startAng, endAng, index, rCenter, st, color) {
     if(endAng < startAng) endAng += 360;
     const midAngle = startAng + (endAng - startAng) / 2;
-    const mansion = mansions[index];
+    const mansion = window.mansions[index]; // ★ 安全網から取得
     const g = document.createElementNS(svgNS, "g");
     
     const ptText = polarToCartesian(cx, cy, rCenter + 22, midAngle);
@@ -328,7 +347,7 @@ function drawTideGraph(cycleStartTimeMs) {
             const diffHours = (pt.time - cycleStartTimeMs) / 3600000;
             const segmentIndex = (currentStartSegment + diffHours * (4/24)) % 120;
             let angle = segmentIndex * 3;
-            const r = getTideRadius(pt.tide, rMin, rMax);
+            const r = window.getTideRadius(pt.tide, rMin, rMax); // ★ 安全網から取得
             const coords = polarToCartesian(cx, cy, r, angle);
 
             if(i === 0) {
@@ -342,7 +361,7 @@ function drawTideGraph(cycleStartTimeMs) {
 
                 const cp1Angle = anglePrev + (angle - anglePrev) * 0.4;
                 const cp2Angle = anglePrev + (angle - anglePrev) * 0.6;
-                const rPrev = getTideRadius(prev.tide, rMin, rMax);
+                const rPrev = window.getTideRadius(prev.tide, rMin, rMax); // ★ 安全網から取得
                 const cp1 = polarToCartesian(cx, cy, rPrev, cp1Angle);
                 const cp2 = polarToCartesian(cx, cy, r, cp2Angle);
                 
@@ -360,7 +379,7 @@ function drawTideGraph(cycleStartTimeMs) {
 
     const guideTides = [-1.5, 0, 1.5, 3.0, 4.5, 6.0, 7.5];
     guideTides.forEach(ft => {
-        const r = getTideRadius(ft, rMin, rMax);
+        const r = window.getTideRadius(ft, rMin, rMax); // ★ 安全網から取得
         const circle = document.createElementNS(svgNS, "circle");
         circle.setAttribute("cx", cx);
         circle.setAttribute("cy", cy);
@@ -551,7 +570,7 @@ function drawLunarShadow(cycleStartTime) {
     const rMax = concentricRings[concentricRings.length - 2];
     const maxArea = rMax * rMax - rMin * rMin;
     const resolution = 2;
-    const totalHours = 720; // ★ 常に30日分描く
+    const totalHours = 720; 
     const startAngle = currentStartSegment * 3;
 
     let pathD = "";
