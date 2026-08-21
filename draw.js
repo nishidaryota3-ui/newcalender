@@ -533,7 +533,6 @@ function getRingInfo(distance) {
 }
 
 function drawKoyomiEvents(startDate) {
-    // ★ 再描画のために現在の日付をグローバルに保存しておく
     window.lastKoyomiStartDate = startDate;
 
     let dateLayer = document.getElementById("solar-dates-layer");
@@ -579,6 +578,14 @@ function drawKoyomiEvents(startDate) {
     const R = concentricRings;
     if(R.length < 30) return;
 
+    // ▼▼ 追加：各レイヤーのデザイン設定を取得 ▼▼
+    const stG = window.layerSettings.gregorian;
+    const stW = window.layerSettings.weekday;
+    const stL = window.layerSettings.lunar;
+    const stZ = window.layerSettings.zassetsu;
+    const stH = window.layerSettings.holiday;
+    const stI = window.layerSettings.important;
+
     const r24 = (R[23] + R[24]) / 2;
     const r25 = (R[24] + R[25]) / 2;
     const r26 = (R[25] + R[26]) / 2;
@@ -600,7 +607,6 @@ function drawKoyomiEvents(startDate) {
     let startGregorianMonth = startDate.getMonth() + 1;
     let endGregorianMonth = new Date(startDate.getTime() + 29 * 86400000).getMonth() + 1;
 
-    // ★ ループの「外」で、レイヤーパネルのチェック状態を一度だけ取得（UIがまだ無い場合はtrueとする）
     const cbShinto = document.getElementById("toggle-event-shinto");
     const cbBuddhism = document.getElementById("toggle-event-buddhism");
     const cbChurch = document.getElementById("toggle-event-church");
@@ -639,19 +645,30 @@ function drawKoyomiEvents(startDate) {
         createArc(`${arcIdBase}_27`, r27, angStart, angEnd);
         createArc(`${arcIdBase}_28`, r28, angStart, angEnd);
         createArc(`${arcIdBase}_29`, r29, angStart, angEnd);
-        createArc(`${arcIdBase}_30L_text`, r30L_text, angStart, angEnd);
-        createArc(`${arcIdBase}_30M_text`, r30M_text, angStart, angEnd);
-        createArc(`${arcIdBase}_30U_text`, r30U_text, angStart, angEnd);
+        
+        // ★半径オフセットを反映したパスを生成
+        createArc(`${arcIdBase}_30L_text`, r30L_text + stI.offsetRadius, angStart, angEnd);
+        createArc(`${arcIdBase}_30M_text`, r30M_text + stH.offsetRadius, angStart, angEnd);
+        createArc(`${arcIdBase}_30U_text`, r30U_text + stZ.offsetRadius, angStart, angEnd);
 
-        // --- ▼ 階層30（特等席）の3段配置 ---
-        const drawSingleText = (pathId, textContent, color, fontSize, isBold, rVal, targetGroup) => {
+        // --- ▼ 階層30（特等席）の3段配置（動的スタイル適用） ---
+        const drawSingleText = (pathId, textContent, styleConfig, rVal, targetGroup) => {
             if (!textContent) return;
             const textObj = document.createElementNS(svgNS, "text");
-            textObj.setAttribute("fill", color);
-            textObj.setAttribute("font-size", fontSize);
-            textObj.setAttribute("font-family", "'Shippori Mincho', serif");
-            if (isBold) textObj.setAttribute("font-weight", "bold");
+            textObj.setAttribute("fill", styleConfig.fill);
+            textObj.setAttribute("font-size", styleConfig.fontSize + "px");
+            textObj.setAttribute("font-family", styleConfig.fontFamily);
+            if (styleConfig.fontWeight === "bold") textObj.setAttribute("font-weight", "bold");
+            textObj.setAttribute("opacity", styleConfig.opacity);
             
+            // ★縁取り（paint-orderマジック）
+            if (styleConfig.strokeWidth > 0) {
+                textObj.setAttribute("stroke", styleConfig.stroke);
+                textObj.setAttribute("stroke-width", styleConfig.strokeWidth);
+                textObj.setAttribute("stroke-linejoin", "round");
+                textObj.setAttribute("paint-order", "stroke fill");
+            }
+
             const textPath = document.createElementNS(svgNS, "textPath");
             textPath.setAttribute("href", `#${pathId}`);
             textPath.setAttribute("startOffset", "50%");
@@ -659,7 +676,7 @@ function drawKoyomiEvents(startDate) {
             textPath.textContent = textContent;
 
             const maxLen = 2 * Math.PI * rVal * (11 / 360);
-            if (textContent.length * parseFloat(fontSize) > maxLen * 0.9) {
+            if (textContent.length * parseFloat(styleConfig.fontSize) > maxLen * 0.9) {
                 textPath.setAttribute("textLength", maxLen * 0.9);
                 textPath.setAttribute("lengthAdjust", "spacingAndGlyphs");
             }
@@ -667,10 +684,10 @@ function drawKoyomiEvents(startDate) {
             targetGroup.appendChild(textObj);
         };
 
-        drawSingleText(`${arcIdBase}_30U_text`, dbRow[7], "#727171", "6px", false, r30U_text, zassetsuGroup);
+        drawSingleText(`${arcIdBase}_30U_text`, dbRow[7], stZ, r30U_text + stZ.offsetRadius, zassetsuGroup);
         const holidayText = [dbRow[8], dbRow[14]].filter(Boolean).join(' ／ ');
-        drawSingleText(`${arcIdBase}_30M_text`, holidayText, "#d25b4e", "6.5px", true, r30M_text, holidayGroup);
-        drawSingleText(`${arcIdBase}_30L_text`, dbRow[9], "#2c3e50", "6px", true, r30L_text, importantGroup);
+        drawSingleText(`${arcIdBase}_30M_text`, holidayText, stH, r30M_text + stH.offsetRadius, holidayGroup);
+        drawSingleText(`${arcIdBase}_30L_text`, dbRow[9], stI, r30L_text + stI.offsetRadius, importantGroup);
 
         // --- ▼ 階層24〜29（年中行事）のデータ駆動（再描画）配置 ---
         let dailyEvents = [];
@@ -682,7 +699,6 @@ function drawKoyomiEvents(startDate) {
             });
         };
 
-        // ★ チェックボックスがONのもの「だけ」を配列に加える（OFFのものは完全に除外）
         if (showShinto) pushEvents(dbRow[10], "#1e3a8a");
         if (showBuddhism) pushEvents(dbRow[11], "#3f3d56");
         if (showChurch) pushEvents(dbRow[12], "#6b5b4e");
@@ -726,7 +742,6 @@ function drawKoyomiEvents(startDate) {
             trackEvents.forEach((ev, eIdx) => {
                 const tspan = document.createElementNS(svgNS, "tspan");
                 tspan.setAttribute("fill", ev.col);
-                // 配列に生き残っているデータだけで計算するので、絶対に先頭に「・」は付きません
                 let txt = (eIdx > 0 ? " \u00A0・\u00A0 " : "") + ev.text;
                 tspan.textContent = txt;
                 textPath.appendChild(tspan);
@@ -742,29 +757,45 @@ function drawKoyomiEvents(startDate) {
             eventMixGroup.appendChild(textObj);
         });
 
-        // --- ▼ 日付・曜日・旧暦の描画 ---
-        const ptDate = polarToCartesian(cx, cy, r30Upper, baseAngle + 1.5);
-        const ptDay = polarToCartesian(cx, cy, r30Lower, baseAngle + 1.5);
-
+        // --- ▼ 新暦・曜日・旧暦の描画（動的スタイル適用） ---
+        const ptDate = polarToCartesian(cx, cy, r30Upper + stG.offsetRadius, baseAngle + 1.5);
         const textDate = document.createElementNS(svgNS, "text");
         textDate.setAttribute("x", ptDate.x);
         textDate.setAttribute("y", ptDate.y);
         textDate.setAttribute("text-anchor", "middle");
         textDate.setAttribute("dominant-baseline", "central");
-        textDate.setAttribute("fill", "#727171");
-        textDate.setAttribute("font-size", "9px");
-        textDate.setAttribute("font-weight", "bold");
+        textDate.setAttribute("fill", stG.fill);
+        textDate.setAttribute("font-size", stG.fontSize + "px");
+        textDate.setAttribute("font-family", stG.fontFamily);
+        if (stG.fontWeight === "bold") textDate.setAttribute("font-weight", "bold");
+        textDate.setAttribute("opacity", stG.opacity);
+        if (stG.strokeWidth > 0) {
+            textDate.setAttribute("stroke", stG.stroke);
+            textDate.setAttribute("stroke-width", stG.strokeWidth);
+            textDate.setAttribute("stroke-linejoin", "round");
+            textDate.setAttribute("paint-order", "stroke fill");
+        }
         textDate.setAttribute("transform", `rotate(${baseAngle + 1.5}, ${ptDate.x}, ${ptDate.y})`);
         textDate.textContent = `${loopDate.getMonth() + 1}/${loopDate.getDate()}`;
         gregorianGroup.appendChild(textDate); 
 
+        const ptDay = polarToCartesian(cx, cy, r30Lower + stW.offsetRadius, baseAngle + 1.5);
         const textDay = document.createElementNS(svgNS, "text");
         textDay.setAttribute("x", ptDay.x);
         textDay.setAttribute("y", ptDay.y);
         textDay.setAttribute("text-anchor", "middle");
         textDay.setAttribute("dominant-baseline", "central");
-        textDay.setAttribute("fill", "#b0b0b0");
-        textDay.setAttribute("font-size", "6px");
+        textDay.setAttribute("fill", stW.fill);
+        textDay.setAttribute("font-size", stW.fontSize + "px");
+        textDay.setAttribute("font-family", stW.fontFamily);
+        if (stW.fontWeight === "bold") textDay.setAttribute("font-weight", "bold");
+        textDay.setAttribute("opacity", stW.opacity);
+        if (stW.strokeWidth > 0) {
+            textDay.setAttribute("stroke", stW.stroke);
+            textDay.setAttribute("stroke-width", stW.strokeWidth);
+            textDay.setAttribute("stroke-linejoin", "round");
+            textDay.setAttribute("paint-order", "stroke fill");
+        }
         textDay.setAttribute("transform", `rotate(${baseAngle + 1.5}, ${ptDay.x}, ${ptDay.y})`);
         textDay.textContent = daysStr[loopDate.getDay()];
         weekdayGroup.appendChild(textDay); 
@@ -774,7 +805,8 @@ function drawKoyomiEvents(startDate) {
             const lunarDay = lunarMatch ? lunarMatch[1] : "";
             const isNewMoon = lunarDay === "一";
 
-            const ptLunar = polarToCartesian(cx, cy, (r30In + r30Out)/2, baseAngle + 10.5);
+            const rLun = (r30In + r30Out)/2 + stL.offsetRadius;
+            const ptLunar = polarToCartesian(cx, cy, rLun, baseAngle + 10.5);
             const lunarRadius = (r30Out - r30In) * 0.4;
 
             const circle = document.createElementNS(svgNS, "circle");
@@ -791,10 +823,19 @@ function drawKoyomiEvents(startDate) {
             textLunar.setAttribute("y", ptLunar.y);
             textLunar.setAttribute("text-anchor", "middle");
             textLunar.setAttribute("dominant-baseline", "central");
-            textLunar.setAttribute("fill", isNewMoon ? "#d4af37" : "#2c3e50");
-            textLunar.setAttribute("font-size", lunarDay.length > 1 ? "8px" : "11px");
-            textLunar.setAttribute("font-family", "'Shippori Mincho', serif");
-            if(isNewMoon) textLunar.setAttribute("font-weight", "bold");
+            
+            // 新月のゴールド色は維持するか、パネルの色に従うか（新月の特別感を残すためゴールド優先）
+            textLunar.setAttribute("fill", isNewMoon ? "#d4af37" : stL.fill);
+            textLunar.setAttribute("font-size", lunarDay.length > 1 ? (stL.fontSize * 0.7) + "px" : stL.fontSize + "px");
+            textLunar.setAttribute("font-family", stL.fontFamily);
+            if (stL.fontWeight === "bold" || isNewMoon) textLunar.setAttribute("font-weight", "bold");
+            textLunar.setAttribute("opacity", stL.opacity);
+            if (stL.strokeWidth > 0) {
+                textLunar.setAttribute("stroke", stL.stroke);
+                textLunar.setAttribute("stroke-width", stL.strokeWidth);
+                textLunar.setAttribute("stroke-linejoin", "round");
+                textLunar.setAttribute("paint-order", "stroke fill");
+            }
             textLunar.setAttribute("transform", `rotate(${baseAngle + 10.5}, ${ptLunar.x}, ${ptLunar.y})`);
             textLunar.textContent = isNewMoon ? "新月" : lunarDay;
             lunarGroup.appendChild(textLunar);
@@ -805,10 +846,11 @@ function drawKoyomiEvents(startDate) {
             }
         }
 
-        // --- ▼ 24節気・72候 (円外の引き出し線) ---
+        // --- ▼ 24節気・72候 (動的スタイル適用) ---
         if (dbRow[2] || dbRow[3]) {
             const isSekki = !!dbRow[2];
             const eventName = dbRow[2] || dbRow[3];
+            const stOut = isSekki ? window.layerSettings.sekki : window.layerSettings.kou;
             
             const p1 = polarToCartesian(cx, cy, r30Out, baseAngle);
             const p2 = polarToCartesian(cx, cy, r30Out + (isSekki ? 12 : 8), baseAngle);
@@ -821,13 +863,20 @@ function drawKoyomiEvents(startDate) {
             outLine.setAttribute("stroke-width", isSekki ? "1.5" : "0.5");
             outerSeasonLayer.appendChild(outLine);
 
-            const rText = r30Out + (isSekki ? 45 : 20);
+            const rText = r30Out + (isSekki ? 45 : 20) + stOut.offsetRadius;
             const ptTextOut = polarToCartesian(cx, cy, rText, baseAngle);
             const outText = document.createElementNS(svgNS, "text");
-            outText.setAttribute("fill", "#2c3e50");
-            outText.setAttribute("font-size", isSekki ? "19px" : "14px");
-            if (isSekki) outText.setAttribute("font-weight", "bold");
-            outText.setAttribute("font-family", "'Shippori Mincho', serif");
+            outText.setAttribute("fill", stOut.fill);
+            outText.setAttribute("font-size", stOut.fontSize + "px");
+            outText.setAttribute("font-family", stOut.fontFamily);
+            if (stOut.fontWeight === "bold") outText.setAttribute("font-weight", "bold");
+            outText.setAttribute("opacity", stOut.opacity);
+            if (stOut.strokeWidth > 0) {
+                outText.setAttribute("stroke", stOut.stroke);
+                outText.setAttribute("stroke-width", stOut.strokeWidth);
+                outText.setAttribute("stroke-linejoin", "round");
+                outText.setAttribute("paint-order", "stroke fill");
+            }
             outText.setAttribute("dominant-baseline", "middle");
             outText.setAttribute("text-anchor", "start");
             outText.setAttribute("transform", `rotate(${baseAngle}, ${ptTextOut.x}, ${ptTextOut.y})`);
