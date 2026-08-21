@@ -544,48 +544,41 @@ function drawKoyomiEvents(startDate) {
     outerSeasonLayer.innerHTML = "";
     textPathDefs.innerHTML = "";
 
+    // ★ グループの作成（tspanへのクラス付与で制御するためシンプルな構成に）
     const sekkiKouGroup = document.createElementNS(svgNS, "g");
     sekkiKouGroup.setAttribute("class", "layer-sekki-kou");
-
-    const eventShintoGroup = document.createElementNS(svgNS, "g");
-    eventShintoGroup.setAttribute("class", "layer-event-shinto");
-
-    const eventBuddhismGroup = document.createElementNS(svgNS, "g");
-    eventBuddhismGroup.setAttribute("class", "layer-event-buddhism");
-
-    const eventChurchGroup = document.createElementNS(svgNS, "g");
-    eventChurchGroup.setAttribute("class", "layer-event-church");
-
-    const eventIslamGroup = document.createElementNS(svgNS, "g");
-    eventIslamGroup.setAttribute("class", "layer-event-islam");
-
-    const eventSonotaGroup = document.createElementNS(svgNS, "g");
-    eventSonotaGroup.setAttribute("class", "layer-event-sonota");
-
     const gregorianGroup = document.createElementNS(svgNS, "g");
     gregorianGroup.setAttribute("class", "layer-date-gregorian");
-
     const weekdayGroup = document.createElementNS(svgNS, "g");
     weekdayGroup.setAttribute("class", "layer-date-weekday");
-
     const lunarGroup = document.createElementNS(svgNS, "g");
     lunarGroup.setAttribute("class", "layer-date-lunar");
 
+    const zassetsuGroup = document.createElementNS(svgNS, "g");
+    zassetsuGroup.setAttribute("class", "layer-zassetsu");
+    const holidayGroup = document.createElementNS(svgNS, "g");
+    holidayGroup.setAttribute("class", "layer-holiday");
+    const importantGroup = document.createElementNS(svgNS, "g");
+    importantGroup.setAttribute("class", "layer-event-important");
+
+    const eventMixGroup = document.createElementNS(svgNS, "g");
+    // eventMixGroupは親としてのクラスを持たず、中のtspanで制御します
+
     dateLayer.appendChild(sekkiKouGroup);
-    dateLayer.appendChild(eventShintoGroup);
-    dateLayer.appendChild(eventBuddhismGroup);
-    dateLayer.appendChild(eventChurchGroup);
-    dateLayer.appendChild(eventIslamGroup);
-    dateLayer.appendChild(eventSonotaGroup);
     dateLayer.appendChild(gregorianGroup);
     dateLayer.appendChild(weekdayGroup);
     dateLayer.appendChild(lunarGroup);
+    dateLayer.appendChild(zassetsuGroup);
+    dateLayer.appendChild(holidayGroup);
+    dateLayer.appendChild(importantGroup);
+    dateLayer.appendChild(eventMixGroup);
 
     outerSeasonLayer.setAttribute("class", "layer-sekki-kou");
 
     const R = concentricRings;
     if(R.length < 30) return;
 
+    // 階層24〜29の軌道
     const r24 = (R[23] + R[24]) / 2;
     const r25 = (R[24] + R[25]) / 2;
     const r26 = (R[25] + R[26]) / 2;
@@ -593,10 +586,16 @@ function drawKoyomiEvents(startDate) {
     const r28 = (R[27] + R[28]) / 2;
     const r29 = (R[28] + R[29]) / 2;
     
+    // 階層30（特等席）の3行分割と、日付用（Upper/Lower）
     const r30In = R[R.length - 2];
     const r30Out = R[R.length - 1];
-    const r30Lower = r30In + (r30Out - r30In) * 0.25;
-    const r30Upper = r30In + (r30Out - r30In) * 0.75;
+    const r30Lower = r30In + (r30Out - r30In) * 0.25; // 日付（曜日）用
+    const r30Upper = r30In + (r30Out - r30In) * 0.75; // 日付（月日）用
+    
+    // イベント3行用のテキストパス半径
+    const r30U_text = r30In + (r30Out - r30In) * 0.82;
+    const r30M_text = r30In + (r30Out - r30In) * 0.50;
+    const r30L_text = r30In + (r30Out - r30In) * 0.18;
 
     const daysStr = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     let startWafu = "";
@@ -626,26 +625,25 @@ function drawKoyomiEvents(startDate) {
         const angStart = baseAngle + 0.5;
         const angEnd = baseAngle + 11.5;
 
+        // 全軌道のパスを生成
         createArc(`${arcIdBase}_24`, r24, angStart, angEnd);
         createArc(`${arcIdBase}_25`, r25, angStart, angEnd);
         createArc(`${arcIdBase}_26`, r26, angStart, angEnd);
         createArc(`${arcIdBase}_27`, r27, angStart, angEnd);
         createArc(`${arcIdBase}_28`, r28, angStart, angEnd);
         createArc(`${arcIdBase}_29`, r29, angStart, angEnd);
-        createArc(`${arcIdBase}_30L`, r30Lower, angStart, angEnd);
-        createArc(`${arcIdBase}_30U`, r30Upper, angStart, angEnd);
+        createArc(`${arcIdBase}_30L_text`, r30L_text, angStart, angEnd);
+        createArc(`${arcIdBase}_30M_text`, r30M_text, angStart, angEnd);
+        createArc(`${arcIdBase}_30U_text`, r30U_text, angStart, angEnd);
 
-        // ★引数に `dyOffset` を追加し、上下方向の微調整ができるようにしました
-        const drawCurvedText = (pathId, textContent, color, fontSize, isBold = false, rVal, targetGroup, dyOffset = "0") => {
+        // --- ▼ 階層30（特等席）の3段配置 ---
+        const drawSingleText = (pathId, textContent, color, fontSize, isBold, rVal, targetGroup) => {
             if (!textContent) return;
             const textObj = document.createElementNS(svgNS, "text");
             textObj.setAttribute("fill", color);
             textObj.setAttribute("font-size", fontSize);
             textObj.setAttribute("font-family", "'Shippori Mincho', serif");
             if (isBold) textObj.setAttribute("font-weight", "bold");
-            
-            // ★ テキストを下（内側）へ押し下げるプロパティ
-            textObj.setAttribute("dy", dyOffset);
             
             const textPath = document.createElementNS(svgNS, "textPath");
             textPath.setAttribute("href", `#${pathId}`);
@@ -654,34 +652,97 @@ function drawKoyomiEvents(startDate) {
             textPath.textContent = textContent;
 
             const maxLen = 2 * Math.PI * rVal * (11 / 360);
-            const estimatedTextLen = textContent.length * parseFloat(fontSize);
-            if (estimatedTextLen > maxLen * 0.9) {
+            if (textContent.length * parseFloat(fontSize) > maxLen * 0.9) {
                 textPath.setAttribute("textLength", maxLen * 0.9);
                 textPath.setAttribute("lengthAdjust", "spacingAndGlyphs");
             }
-
             textObj.appendChild(textPath);
             targetGroup.appendChild(textObj);
         };
 
-        // ★ 年中行事（階層24〜29）の呼び出し時に、「1.5」を渡して少しだけ下にズラします
-        drawCurvedText(`${arcIdBase}_24`, dbRow[14], "#727171", "6.5px", false, r24, eventSonotaGroup, "1.5");
-        drawCurvedText(`${arcIdBase}_25`, dbRow[13], "#2c3e50", "6.5px", false, r25, eventIslamGroup, "1.5");
-        drawCurvedText(`${arcIdBase}_26`, dbRow[12], "#2c3e50", "6.5px", false, r26, eventChurchGroup, "1.5");
-        drawCurvedText(`${arcIdBase}_27`, dbRow[11], "#2c3e50", "6.5px", false, r27, eventBuddhismGroup, "1.5");
+        // 上段(30U): 雑節(H列 = dbRow[7])
+        drawSingleText(`${arcIdBase}_30U_text`, dbRow[7], "#727171", "6px", false, r30U_text, zassetsuGroup);
+        // 中段(30M): 祝日(I列 = dbRow[8]) ＋ 手動祝日(O列 = dbRow[14])
+        const holidayText = [dbRow[8], dbRow[14]].filter(Boolean).join(' ／ ');
+        drawSingleText(`${arcIdBase}_30M_text`, holidayText, "#d25b4e", "6.5px", true, r30M_text, holidayGroup);
+        // 下段(30L): 重要年中行事(J列 = dbRow[9])
+        drawSingleText(`${arcIdBase}_30L_text`, dbRow[9], "#2c3e50", "6px", true, r30L_text, importantGroup);
 
-        if (dbRow[10]) {
-            const shintoEvents = dbRow[10].split('・');
-            const shinto28 = shintoEvents.filter((_, idx) => idx % 2 === 0).join(' ｜ ');
-            const shinto29 = shintoEvents.filter((_, idx) => idx % 2 !== 0).join(' ｜ ');
-            drawCurvedText(`${arcIdBase}_28`, shinto28, "#2c3e50", "6.5px", false, r28, eventShintoGroup, "1.5");
-            drawCurvedText(`${arcIdBase}_29`, shinto29, "#2c3e50", "6.5px", false, r29, eventShintoGroup, "1.5");
+        // --- ▼ 階層24〜29（年中行事）の完全ミックス＆外側詰め配置 ---
+        let dailyEvents = [];
+        const pushEvents = (cellData, className, colorCode) => {
+            if (!cellData) return;
+            cellData.split('・').forEach(item => {
+                const trimmed = item.trim();
+                if (trimmed) dailyEvents.push({ text: trimmed, cls: className, col: colorCode });
+            });
+        };
+        // 絶妙な色分けで識別しやすくします
+        pushEvents(dbRow[10], "layer-event-shinto", "#1e3a8a");   // 神事 (濃い藍色)
+        pushEvents(dbRow[11], "layer-event-buddhism", "#3f3d56"); // 仏事 (紫がかった墨色)
+        pushEvents(dbRow[12], "layer-event-church", "#6b5b4e");   // 教会 (セピア)
+        pushEvents(dbRow[13], "layer-event-sonota", "#555555");   // その他 (グレー)
+
+        // 6本の軌道（外側の29から内側の24へ）に振り分ける
+        let tracks = [[], [], [], [], [], []]; 
+        if (dailyEvents.length > 0) {
+            if (dailyEvents.length <= 6) {
+                // 少ない場合は外側から順に
+                dailyEvents.forEach((ev, idx) => tracks[idx].push(ev));
+            } else {
+                // はみ出る場合は均等に相乗り
+                let currentTrack = 0;
+                dailyEvents.forEach((ev) => {
+                    tracks[currentTrack].push(ev);
+                    currentTrack = (currentTrack + 1) % 6;
+                });
+            }
         }
 
-        // 24節気・72候などはデフォルト（0）のままなのでズレません
-        drawCurvedText(`${arcIdBase}_30U`, dbRow[5], "#d25b4e", "8px", true, r30Upper, sekkiKouGroup);
-        drawCurvedText(`${arcIdBase}_30L`, dbRow[4], "#555555", "7px", false, r30Lower, sekkiKouGroup);
+        const availableR = [r29, r28, r27, r26, r25, r24];
+        const availableIds = [
+            `${arcIdBase}_29`, `${arcIdBase}_28`, `${arcIdBase}_27`,
+            `${arcIdBase}_26`, `${arcIdBase}_25`, `${arcIdBase}_24`
+        ];
 
+        tracks.forEach((trackEvents, tIdx) => {
+            if (trackEvents.length === 0) return;
+            const rVal = availableR[tIdx];
+            const pathId = availableIds[tIdx];
+
+            const textObj = document.createElementNS(svgNS, "text");
+            textObj.setAttribute("font-size", "6.5px");
+            textObj.setAttribute("font-family", "'Shippori Mincho', serif");
+            textObj.setAttribute("dy", "1.5"); // 内側に微調整
+
+            const textPath = document.createElementNS(svgNS, "textPath");
+            textPath.setAttribute("href", `#${pathId}`);
+            textPath.setAttribute("startOffset", "50%");
+            textPath.setAttribute("text-anchor", "middle"); // 中央揃え（魔法の再配置用）
+
+            let combinedLen = 0;
+            trackEvents.forEach((ev, eIdx) => {
+                const tspan = document.createElementNS(svgNS, "tspan");
+                tspan.setAttribute("class", ev.cls);
+                tspan.setAttribute("fill", ev.col);
+                // 相乗りしている場合は、中黒(ドット)と余白で区切る
+                let txt = (eIdx > 0 ? " \u00A0・\u00A0 " : "") + ev.text;
+                tspan.textContent = txt;
+                textPath.appendChild(tspan);
+                combinedLen += txt.length * 6.5;
+            });
+
+            // はみ出た場合のみ縮小
+            const maxLen = 2 * Math.PI * rVal * (11 / 360);
+            if (combinedLen > maxLen * 0.9) {
+                textPath.setAttribute("textLength", maxLen * 0.9);
+                textPath.setAttribute("lengthAdjust", "spacingAndGlyphs");
+            }
+            textObj.appendChild(textPath);
+            eventMixGroup.appendChild(textObj);
+        });
+
+        // --- ▼ 日付・曜日・旧暦の描画 ---
         const ptDate = polarToCartesian(cx, cy, r30Upper, baseAngle + 1.5);
         const ptDay = polarToCartesian(cx, cy, r30Lower, baseAngle + 1.5);
 
@@ -744,6 +805,7 @@ function drawKoyomiEvents(startDate) {
             }
         }
 
+        // --- ▼ 24節気・72候 (円外の引き出し線) ---
         if (dbRow[2] || dbRow[3]) {
             const isSekki = !!dbRow[2];
             const eventName = dbRow[2] || dbRow[3];
