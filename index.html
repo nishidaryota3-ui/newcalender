@@ -4,14 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Polar Calendar - 分割・精密ペイント版</title>
-    <!-- ▼ デザインのファイル（CSS）を読み込む ▼ -->
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <!-- カレンダー本体 -->
     <div class="calendar-container" id="container"></div>
 
-    <!-- 絵の具パレット -->
     <div id="palette">
         <div class="palette-title">気配の筆（ペイント）</div>
         <div class="color-tag tag-rain selected" data-color="#38bdf8">雨・湿気</div>
@@ -20,7 +17,6 @@
         <div class="color-tag tag-eraser" data-color="erase">消しゴム</div>
     </div>
 
-    <!-- ▼▼ 進化したレイヤーパネル ▼▼ -->
     <div id="layer-panel">
         <div class="layer-panel-title">レイヤーパネル</div>
 
@@ -36,38 +32,40 @@
         <div class="layer-item layer-indent"><input type="checkbox" id="toggle-daily-rain-bg" checked><label for="toggle-daily-rain-bg">日別総降水量 (背景色)</label></div>
         <div class="layer-item layer-indent"><input type="checkbox" id="toggle-daily-rain-text" checked><label for="toggle-daily-rain-text">日別総降水量 (数値)</label></div>
 
-        <!-- 目盛りグループ -->
+        <!-- 目盛り・ガイド -->
         <div class="layer-group-title">▼ 目盛り・ガイド</div>
         <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-time" checked><label for="toggle-guide-time">時間 (0/6/12/18)</label></div>
         <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-tide" checked><label for="toggle-guide-tide">潮位 (ft)</label></div>
         <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-rain" checked><label for="toggle-guide-rain">降水量 (mm)</label></div>
 
-        <!-- 日付グループ -->
+        <!-- 日付・暦（⚙️ボタン追加） -->
         <div class="layer-group-title">▼ 日付・暦</div>
-        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-date-gregorian" checked><label for="toggle-date-gregorian">新暦日付 (M/D)</label></div>
-        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-date-lunar" checked><label for="toggle-date-lunar">旧暦日 (漢数字+丸)</label></div>
-        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-date-weekday" checked><label for="toggle-date-weekday">曜日 (Sun-Sat)</label></div>
-        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-sekki-kou" checked><label for="toggle-sekki-kou">24節気・72候 (円外)</label></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-date-gregorian" checked><label for="toggle-date-gregorian">新暦日付 (M/D)</label><button class="layer-settings-btn" data-target="gregorian" title="デザイン設定">⚙️</button></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-date-lunar" checked><label for="toggle-date-lunar">旧暦日 (漢数字+丸)</label><button class="layer-settings-btn" data-target="lunar" title="デザイン設定">⚙️</button></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-date-weekday" checked><label for="toggle-date-weekday">曜日 (Sun-Sat)</label><button class="layer-settings-btn" data-target="weekday" title="デザイン設定">⚙️</button></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-sekki-kou" checked><label for="toggle-sekki-kou">24節気・72候 (円外)</label>
+            <div style="margin-left:auto; display:flex; gap:2px;">
+                <button class="layer-settings-btn" data-target="sekki" title="24節気の設定" style="margin-left:0;">⚙️節気</button>
+                <button class="layer-settings-btn" data-target="kou" title="72候の設定" style="margin-left:0;">⚙️候</button>
+            </div>
+        </div>
 
-        <!-- 階層30（特等席）グループ -->
+        <!-- 階層30（⚙️ボタン追加） -->
         <div class="layer-group-title">▼ 特等席 (階層30)</div>
-        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-zassetsu" checked><label for="toggle-zassetsu">雑節 (上段)</label></div>
-        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-holiday" checked><label for="toggle-holiday">祝日 (中段)</label></div>
-        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-event-important" checked><label for="toggle-event-important">重要年中行事 (下段)</label></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-zassetsu" checked><label for="toggle-zassetsu">雑節 (上段)</label><button class="layer-settings-btn" data-target="zassetsu" title="デザイン設定">⚙️</button></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-holiday" checked><label for="toggle-holiday">祝日 (中段)</label><button class="layer-settings-btn" data-target="holiday" title="デザイン設定">⚙️</button></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-event-important" checked><label for="toggle-event-important">重要年中行事 (下段)</label><button class="layer-settings-btn" data-target="important" title="デザイン設定">⚙️</button></div>
 
-        <!-- 階層24〜29（ミックス）グループ -->
+        <!-- 年中行事 -->
         <div class="layer-group-title">▼ 年中行事 (階層24-29)</div>
         <div class="layer-item layer-indent"><input type="checkbox" id="toggle-event-shinto" checked><label for="toggle-event-shinto">神事</label></div>
         <div class="layer-item layer-indent"><input type="checkbox" id="toggle-event-buddhism" checked><label for="toggle-event-buddhism">仏事</label></div>
         <div class="layer-item layer-indent"><input type="checkbox" id="toggle-event-church" checked><label for="toggle-event-church">教会行事</label></div>
         <div class="layer-item layer-indent"><input type="checkbox" id="toggle-event-sonota" checked><label for="toggle-event-sonota">その他</label></div>
     </div>
-    <!-- ▲▲ 追加ここまで ▲▲ -->
 
-    <!-- ステータスバー -->
     <div id="status-bar">空間を認識中...</div>
 
-    <!-- ▼ 脳みそのファイル（JavaScript）を読み込む ▼ -->
     <script src="globals.js"></script>
     <script src="astronomy.js"></script>
     <script src="draw.js"></script>
