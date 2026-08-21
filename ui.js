@@ -142,10 +142,19 @@ function initUI() {
                         <option value="star">星</option>
                     </select>
                 </label>
+                
+                <!-- ★ 倍率上限を4に変更 -->
                 <label id="dp-row-shape-scale" style="display:none; justify-content:space-between; align-items:center;">図形のサイズ (倍率):
-                    <input type="range" id="dp-shape-scale" min="0.5" max="2" step="0.1" style="width:100px; accent-color:#d4af37;">
+                    <input type="range" id="dp-shape-scale" min="0.5" max="4" step="0.1" style="width:100px; accent-color:#d4af37;">
                     <span id="dp-shape-scale-val" style="width:30px; text-align:right;">1</span>
                 </label>
+                
+                <!-- ★ 新規追加：配置位置（半径オフセット）スライダー -->
+                <label id="dp-row-radius-offset" style="display:none; justify-content:space-between; align-items:center;">配置位置 (半径ズラし):
+                    <input type="range" id="dp-radius-offset" min="0" max="800" step="5" style="width:100px; accent-color:#d4af37;">
+                    <span id="dp-radius-offset-val" style="width:30px; text-align:right;">0</span>
+                </label>
+
                 <label id="dp-row-density" style="display:none; justify-content:space-between; align-items:center;">グラデーション濃度:
                     <input type="range" id="dp-density" min="0.1" max="1" step="0.05" style="width:100px; accent-color:#d4af37;">
                     <span id="dp-density-val" style="width:30px; text-align:right;">0.35</span>
@@ -173,7 +182,7 @@ function initUI() {
                     <input type="range" id="dp-opacity" min="0" max="1" step="0.05" style="width:100px; accent-color:#d4af37;">
                     <span id="dp-opacity-val" style="width:30px; text-align:right;">1</span>
                 </label>
-                <label id="dp-row-offset" style="display:flex; justify-content:space-between; align-items:center;">位置 (半径/Y軸 オフセット):
+                <label id="dp-row-offset" style="display:flex; justify-content:space-between; align-items:center;">位置 (文字のY軸微調整):
                     <input type="number" id="dp-offset" style="width:60px; background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px;" step="1">
                 </label>
             </div>
@@ -253,7 +262,7 @@ function initUI() {
     let currentDesignTarget = null;
     const targetNames = {
         canvasBg: "キャンバス背景", baseSvg: "ベース図形", lunarShadow: "月相シャドウ",
-        astroPins: "天文学的ピン (朔望)", // ★ 新規追加
+        astroPins: "天文学的ピン (朔望)", 
         dateLines: "日付区切り線 (30等分)", lunarMansion: "二十七宿",
         tideGraph: "潮汐波形", rainGraph: "毎時降水量 (棒線)", dailyRainBg: "日別総降水量 (背景)", dailyRainText: "日別総降水量 (数値)",
         guideTime: "時間ガイド (0/6/12/18)", guideTide: "潮位ガイド (ft)", guideRain: "降水量ガイド (mm)",
@@ -267,7 +276,7 @@ function initUI() {
         const st = window.layerSettings[currentDesignTarget];
         if (!st) return;
 
-        ['dp-row-lunar-phase', 'dp-group-text', 'dp-group-shape', 'dp-row-shape-type', 'dp-row-shape-fill', 'dp-row-shape-stroke', 'dp-row-shape-stroke-width', 'dp-shape-stroke-orig', 'dp-shape-stroke-orig-text', 'dp-row-offset', 'dp-row-lang', 'dp-row-density', 'dp-row-shape-scale', 'dp-group-mansion-colors'].forEach(id => {
+        ['dp-row-lunar-phase', 'dp-group-text', 'dp-group-shape', 'dp-row-shape-type', 'dp-row-shape-fill', 'dp-row-shape-stroke', 'dp-row-shape-stroke-width', 'dp-shape-stroke-orig', 'dp-shape-stroke-orig-text', 'dp-row-offset', 'dp-row-lang', 'dp-row-density', 'dp-row-shape-scale', 'dp-row-radius-offset', 'dp-group-mansion-colors'].forEach(id => {
             document.getElementById(id).style.display = 'none';
         });
 
@@ -324,6 +333,11 @@ function initUI() {
                 document.getElementById('dp-row-shape-scale').style.display = 'flex';
                 document.getElementById('dp-shape-scale').value = st.scale || 1;
                 document.getElementById('dp-shape-scale-val').innerText = st.scale || 1;
+                
+                // ★ 配置位置スライダーの表示
+                document.getElementById('dp-row-radius-offset').style.display = 'flex';
+                document.getElementById('dp-radius-offset').value = st.radiusOffset || 0;
+                document.getElementById('dp-radius-offset-val').innerText = st.radiusOffset || 0;
             }
 
             if (currentDesignTarget === 'canvasBg' || currentDesignTarget === 'dailyRainBg') {
@@ -473,6 +487,10 @@ function initUI() {
             if (currentDesignTarget === 'astroPins') {
                 st.scale = parseFloat(document.getElementById('dp-shape-scale').value);
                 document.getElementById('dp-shape-scale-val').innerText = st.scale;
+                
+                // ★ 配置位置スライダーの値を保存
+                st.radiusOffset = parseFloat(document.getElementById('dp-radius-offset').value);
+                document.getElementById('dp-radius-offset-val').innerText = st.radiusOffset;
             }
 
             if(currentDesignTarget === 'baseSvg') {
@@ -533,7 +551,7 @@ function initUI() {
         }
     };
 
-    ['dp-lunar-phase', 'dp-font', 'dp-size', 'dp-color', 'dp-bold', 'dp-stroke-color', 'dp-stroke-width', 'dp-shape', 'dp-shape-scale', 'dp-lang', 'dp-density', 'dp-color-east', 'dp-color-south', 'dp-color-west', 'dp-color-north', 'dp-shape-fill-trans', 'dp-shape-fill', 'dp-shape-stroke-orig', 'dp-shape-stroke', 'dp-shape-stroke-width', 'dp-opacity', 'dp-offset'].forEach(id => {
+    ['dp-lunar-phase', 'dp-font', 'dp-size', 'dp-color', 'dp-bold', 'dp-stroke-color', 'dp-stroke-width', 'dp-shape', 'dp-shape-scale', 'dp-lang', 'dp-density', 'dp-color-east', 'dp-color-south', 'dp-color-west', 'dp-color-north', 'dp-shape-fill-trans', 'dp-shape-fill', 'dp-shape-stroke-orig', 'dp-shape-stroke', 'dp-shape-stroke-width', 'dp-opacity', 'dp-offset', 'dp-radius-offset'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             if (id === 'dp-lunar-phase') el.addEventListener('change', loadPanelData);
@@ -676,7 +694,7 @@ function initUI() {
 
         if(!document.getElementById("toggle-base-svg")?.checked) addHiddenRule("#bg-group");
         if(!document.getElementById("toggle-lunar-shadow")?.checked) addHiddenRule("#layer-shadow");
-        if(!document.getElementById("toggle-astro-pins")?.checked) addHiddenRule("#layer-astronomical-pins"); // ★ 追加
+        if(!document.getElementById("toggle-astro-pins")?.checked) addHiddenRule("#layer-astronomical-pins");
         if(!document.getElementById("toggle-layer-lunar")?.checked) addHiddenRule("#layer-lunar-mansion");
         if(!document.getElementById("toggle-tide-graph")?.checked) addHiddenRule("#layer-tide-wave");
         if(!document.getElementById("toggle-rain-graph")?.checked) addHiddenRule("#layer-rain-graph");
@@ -687,7 +705,6 @@ function initUI() {
         if(!document.getElementById("toggle-guide-tide")?.checked) addHiddenRule("#layer-guide-tide");
         if(!document.getElementById("toggle-guide-rain")?.checked) addHiddenRule("#layer-guide-rain");
         
-        // ★ IDではなくクラス名（.）で非表示を制御
         if(!document.getElementById("toggle-date-gregorian")?.checked) addHiddenRule(".layer-date-gregorian");
         if(!document.getElementById("toggle-date-lunar")?.checked) addHiddenRule(".layer-date-lunar");
         if(!document.getElementById("toggle-date-weekday")?.checked) addHiddenRule(".layer-date-weekday");
