@@ -472,6 +472,47 @@ function drawLunarShadow(cycleStartTime) {
     if(shadowLayer) shadowLayer.appendChild(shadowPath);
 }
 
+// ★ 新規追加：輝度放射線（光芒）の描画ロジック
+function drawLuminescenceRay(cycleStartTime) {
+    const rayLayer = document.getElementById("layer-luminescence-ray");
+    if(rayLayer) rayLayer.innerHTML = "";
+    if (concentricRings.length < 30) return;
+
+    const st = window.layerSettings.luminescenceRay;
+    if (!st) return;
+
+    const rMin = concentricRings[0];
+    const rMax = concentricRings[concentricRings.length - 2];
+    const totalHours = 720;
+    const startAngle = currentStartSegment * 3;
+
+    for (let i = 0; i <= totalHours; i++) {
+        const timeMs = cycleStartTime + i * 3600000;
+        let diff = (getLunarLongitude(timeMs) - getSolarLongitude(timeMs) + 360) % 360;
+        
+        const illumination = 0.5 * (1 - Math.cos(diff * Math.PI / 180));
+        
+        // 新月の時は線を描画しない（輝面比がごくわずかな時はスキップ）
+        if (illumination < 0.01) continue;
+        
+        const r = rMin + (rMax - rMin) * illumination;
+        const angle = startAngle + i * 0.5;
+
+        const ptStart = polarToCartesian(cx, cy, rMin, angle);
+        const ptEnd = polarToCartesian(cx, cy, r, angle);
+
+        const line = document.createElementNS(svgNS, "line");
+        line.setAttribute("x1", ptStart.x);
+        line.setAttribute("y1", ptStart.y);
+        line.setAttribute("x2", ptEnd.x);
+        line.setAttribute("y2", ptEnd.y);
+        line.setAttribute("stroke", st.stroke);
+        line.setAttribute("stroke-width", st.strokeWidth);
+        line.setAttribute("opacity", st.opacity);
+        if(rayLayer) rayLayer.appendChild(line);
+    }
+}
+
 function drawDynamicLines() {
     const linesLayer = document.getElementById("layer-lines");
     if(linesLayer) linesLayer.innerHTML = "";
@@ -622,7 +663,6 @@ function drawKoyomiEvents(startDate) {
     const r30Lower = r30In + (r30Out - r30In) * 0.25; 
     const r30Upper = r30In + (r30Out - r30In) * 0.75; 
     
-    // ★ ここで階層30の順番（U:上段, M:中段, L:下段）を制御
     const r30U_text = r30In + (r30Out - r30In) * 0.82; 
     const r30M_text = r30In + (r30Out - r30In) * 0.50; 
     const r30L_text = r30In + (r30Out - r30In) * 0.18; 
@@ -705,7 +745,6 @@ function drawKoyomiEvents(startDate) {
             targetGroup.appendChild(textObj);
         };
 
-        // ★ 上から 祝日(U)、雑節(M)、行事(L) に割り当て
         const holidayText = [dbRow[8], dbRow[14]].filter(Boolean).join(' ／ ');
         drawSingleText(`${arcIdBase}_30U_text`, holidayText, stH, r30U_text + stH.offsetRadius, holidayGroup);
         drawSingleText(`${arcIdBase}_30M_text`, dbRow[7], stZ, r30M_text + stZ.offsetRadius, zassetsuGroup);
@@ -833,10 +872,11 @@ function drawKoyomiEvents(startDate) {
             const lunarDay = lunarMatch ? lunarMatch[1] : "";
             
             let phaseKey = "normal";
-            if (lunarDay === "一") phaseKey = "newMoon";
-            else if (lunarDay === "八") phaseKey = "firstQuarter";
-            else if (lunarDay === "十五") phaseKey = "fullMoon";
-            else if (lunarDay === "二十三") phaseKey = "lastQuarter";
+            let phaseText = lunarDay;
+            if (lunarDay === "一") { phaseKey = "newMoon"; phaseText = "新月"; }
+            else if (lunarDay === "八") { phaseKey = "firstQuarter"; phaseText = "上弦"; }
+            else if (lunarDay === "十五") { phaseKey = "fullMoon"; phaseText = "満月"; }
+            else if (lunarDay === "二十三") { phaseKey = "lastQuarter"; phaseText = "下弦"; }
 
             const pst = stL.phases[phaseKey];
             const rLun = (r30In + r30Out)/2 + stL.offsetRadius;
@@ -904,7 +944,7 @@ function drawKoyomiEvents(startDate) {
             if (stL.fontWeight === "bold") textLunar.setAttribute("font-weight", "bold");
             textLunar.setAttribute("opacity", stL.opacity);
             textLunar.setAttribute("transform", `rotate(${baseAngle + 10.5}, ${ptLunar.x}, ${ptLunar.y})`);
-            textLunar.textContent = phaseKey === "newMoon" ? "新月" : lunarDay;
+            textLunar.textContent = phaseText;
             lunarGroup.appendChild(textLunar);
 
             if (i === 0) {
