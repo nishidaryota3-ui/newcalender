@@ -533,6 +533,9 @@ function getRingInfo(distance) {
 }
 
 function drawKoyomiEvents(startDate) {
+    // ★ 再描画のために現在の日付をグローバルに保存しておく
+    window.lastKoyomiStartDate = startDate;
+
     let dateLayer = document.getElementById("solar-dates-layer");
     if(dateLayer) {
         dateLayer.innerHTML = "";
@@ -544,7 +547,6 @@ function drawKoyomiEvents(startDate) {
     outerSeasonLayer.innerHTML = "";
     textPathDefs.innerHTML = "";
 
-    // ★ グループの作成（tspanへのクラス付与で制御するためシンプルな構成に）
     const sekkiKouGroup = document.createElementNS(svgNS, "g");
     sekkiKouGroup.setAttribute("class", "layer-sekki-kou");
     const gregorianGroup = document.createElementNS(svgNS, "g");
@@ -562,7 +564,6 @@ function drawKoyomiEvents(startDate) {
     importantGroup.setAttribute("class", "layer-event-important");
 
     const eventMixGroup = document.createElementNS(svgNS, "g");
-    // eventMixGroupは親としてのクラスを持たず、中のtspanで制御します
 
     dateLayer.appendChild(sekkiKouGroup);
     dateLayer.appendChild(gregorianGroup);
@@ -578,7 +579,6 @@ function drawKoyomiEvents(startDate) {
     const R = concentricRings;
     if(R.length < 30) return;
 
-    // 階層24〜29の軌道
     const r24 = (R[23] + R[24]) / 2;
     const r25 = (R[24] + R[25]) / 2;
     const r26 = (R[25] + R[26]) / 2;
@@ -586,22 +586,30 @@ function drawKoyomiEvents(startDate) {
     const r28 = (R[27] + R[28]) / 2;
     const r29 = (R[28] + R[29]) / 2;
     
-    // 階層30（特等席）の3行分割と、日付用（Upper/Lower）
     const r30In = R[R.length - 2];
     const r30Out = R[R.length - 1];
-    const r30Lower = r30In + (r30Out - r30In) * 0.25; // 日付（曜日）用
-    const r30Upper = r30In + (r30Out - r30In) * 0.75; // 日付（月日）用
+    const r30Lower = r30In + (r30Out - r30In) * 0.25; 
+    const r30Upper = r30In + (r30Out - r30In) * 0.75; 
     
-    // イベント3行用のテキストパス半径
     const r30U_text = r30In + (r30Out - r30In) * 0.82;
     const r30M_text = r30In + (r30Out - r30In) * 0.50;
     const r30L_text = r30In + (r30Out - r30In) * 0.18;
 
     const daysStr = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     let startWafu = "";
-
     let startGregorianMonth = startDate.getMonth() + 1;
     let endGregorianMonth = new Date(startDate.getTime() + 29 * 86400000).getMonth() + 1;
+
+    // ★ ループの「外」で、レイヤーパネルのチェック状態を一度だけ取得（UIがまだ無い場合はtrueとする）
+    const cbShinto = document.getElementById("toggle-event-shinto");
+    const cbBuddhism = document.getElementById("toggle-event-buddhism");
+    const cbChurch = document.getElementById("toggle-event-church");
+    const cbSonota = document.getElementById("toggle-event-sonota");
+
+    const showShinto = cbShinto ? cbShinto.checked : true;
+    const showBuddhism = cbBuddhism ? cbBuddhism.checked : true;
+    const showChurch = cbChurch ? cbChurch.checked : true;
+    const showSonota = cbSonota ? cbSonota.checked : true;
 
     for (let i = 0; i < 30; i++) {
         const loopDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
@@ -625,7 +633,6 @@ function drawKoyomiEvents(startDate) {
         const angStart = baseAngle + 0.5;
         const angEnd = baseAngle + 11.5;
 
-        // 全軌道のパスを生成
         createArc(`${arcIdBase}_24`, r24, angStart, angEnd);
         createArc(`${arcIdBase}_25`, r25, angStart, angEnd);
         createArc(`${arcIdBase}_26`, r26, angStart, angEnd);
@@ -660,37 +667,32 @@ function drawKoyomiEvents(startDate) {
             targetGroup.appendChild(textObj);
         };
 
-        // 上段(30U): 雑節(H列 = dbRow[7])
         drawSingleText(`${arcIdBase}_30U_text`, dbRow[7], "#727171", "6px", false, r30U_text, zassetsuGroup);
-        // 中段(30M): 祝日(I列 = dbRow[8]) ＋ 手動祝日(O列 = dbRow[14])
         const holidayText = [dbRow[8], dbRow[14]].filter(Boolean).join(' ／ ');
         drawSingleText(`${arcIdBase}_30M_text`, holidayText, "#d25b4e", "6.5px", true, r30M_text, holidayGroup);
-        // 下段(30L): 重要年中行事(J列 = dbRow[9])
         drawSingleText(`${arcIdBase}_30L_text`, dbRow[9], "#2c3e50", "6px", true, r30L_text, importantGroup);
 
-        // --- ▼ 階層24〜29（年中行事）の完全ミックス＆外側詰め配置 ---
+        // --- ▼ 階層24〜29（年中行事）のデータ駆動（再描画）配置 ---
         let dailyEvents = [];
-        const pushEvents = (cellData, className, colorCode) => {
+        const pushEvents = (cellData, colorCode) => {
             if (!cellData) return;
             cellData.split('・').forEach(item => {
                 const trimmed = item.trim();
-                if (trimmed) dailyEvents.push({ text: trimmed, cls: className, col: colorCode });
+                if (trimmed) dailyEvents.push({ text: trimmed, col: colorCode });
             });
         };
-        // 絶妙な色分けで識別しやすくします
-        pushEvents(dbRow[10], "layer-event-shinto", "#1e3a8a");   // 神事 (濃い藍色)
-        pushEvents(dbRow[11], "layer-event-buddhism", "#3f3d56"); // 仏事 (紫がかった墨色)
-        pushEvents(dbRow[12], "layer-event-church", "#6b5b4e");   // 教会 (セピア)
-        pushEvents(dbRow[13], "layer-event-sonota", "#555555");   // その他 (グレー)
 
-        // 6本の軌道（外側の29から内側の24へ）に振り分ける
+        // ★ チェックボックスがONのもの「だけ」を配列に加える（OFFのものは完全に除外）
+        if (showShinto) pushEvents(dbRow[10], "#1e3a8a");
+        if (showBuddhism) pushEvents(dbRow[11], "#3f3d56");
+        if (showChurch) pushEvents(dbRow[12], "#6b5b4e");
+        if (showSonota) pushEvents(dbRow[13], "#555555");
+
         let tracks = [[], [], [], [], [], []]; 
         if (dailyEvents.length > 0) {
             if (dailyEvents.length <= 6) {
-                // 少ない場合は外側から順に
                 dailyEvents.forEach((ev, idx) => tracks[idx].push(ev));
             } else {
-                // はみ出る場合は均等に相乗り
                 let currentTrack = 0;
                 dailyEvents.forEach((ev) => {
                     tracks[currentTrack].push(ev);
@@ -713,26 +715,24 @@ function drawKoyomiEvents(startDate) {
             const textObj = document.createElementNS(svgNS, "text");
             textObj.setAttribute("font-size", "6.5px");
             textObj.setAttribute("font-family", "'Shippori Mincho', serif");
-            textObj.setAttribute("dy", "1.5"); // 内側に微調整
+            textObj.setAttribute("dy", "1.5"); 
 
             const textPath = document.createElementNS(svgNS, "textPath");
             textPath.setAttribute("href", `#${pathId}`);
             textPath.setAttribute("startOffset", "50%");
-            textPath.setAttribute("text-anchor", "middle"); // 中央揃え（魔法の再配置用）
+            textPath.setAttribute("text-anchor", "middle");
 
             let combinedLen = 0;
             trackEvents.forEach((ev, eIdx) => {
                 const tspan = document.createElementNS(svgNS, "tspan");
-                tspan.setAttribute("class", ev.cls);
                 tspan.setAttribute("fill", ev.col);
-                // 相乗りしている場合は、中黒(ドット)と余白で区切る
+                // 配列に生き残っているデータだけで計算するので、絶対に先頭に「・」は付きません
                 let txt = (eIdx > 0 ? " \u00A0・\u00A0 " : "") + ev.text;
                 tspan.textContent = txt;
                 textPath.appendChild(tspan);
                 combinedLen += txt.length * 6.5;
             });
 
-            // はみ出た場合のみ縮小
             const maxLen = 2 * Math.PI * rVal * (11 / 360);
             if (combinedLen > maxLen * 0.9) {
                 textPath.setAttribute("textLength", maxLen * 0.9);
