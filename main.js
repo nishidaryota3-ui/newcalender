@@ -1,5 +1,6 @@
 // main.js (司令塔・初期化モジュール)
 
+// ▼▼ 究極のテーマ管理用：全要素を網羅したデザイン設定データ ▼▼
 window.defaultLayerSettings = {
     canvasBg: { fill: "#f5f5f0" },
     baseSvg: { stroke: "", opacity: 0.8 }, 
@@ -197,7 +198,7 @@ async function updateCalendarCycle() {
     globalRotation = -currentStartSegment * 3;
     masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
 
-    // ★ ベースSVGの色の復元処理を修正（オリジナルを記憶している場合のみ復元）
+    // ベースSVGの色の復元処理
     const stBase = window.layerSettings.baseSvg;
     if (bgGroup) {
         bgGroup.style.opacity = stBase.opacity;
@@ -257,21 +258,23 @@ loadLocalCSV().then(() => {
             masterGroup.appendChild(bgGroup);
             svg.appendChild(masterGroup);
 
+            // ★ Z-index（重ね順）を完全に制御するためのレイヤー群（下から順に描画される）
             const layerIds = [
-                "layer-shadow",               
-                "layer-lines",                
-                "layer-data",                 
-                "layer-tide-wave",            
-                "layer-rain-graph",           
-                "layer-daily-rain-bg",        
-                "layer-lunar-mansion",        
-                "layer-solar-dates",          
-                "layer-outer-season",         
-                "layer-guide-tide",           
-                "layer-guide-rain",           
-                "layer-daily-rain-text",      
-                "layer-guide-time",           
-                "layer-month-names" // ★ IDを独立した名前に変更
+                "layer-shadow",               // 月相シャドウ
+                "layer-lines",                // 30分割線
+                "layer-data",                 // ペイント塗り
+                "layer-tide-wave",            // 潮汐波形 (波のみ)
+                "layer-rain-graph",           // 毎時降水量 (棒のみ)
+                "layer-daily-rain-bg",        // 日別総降水量 (背景)
+                "layer-lunar-mansion",        // 二十七宿
+                "layer-solar-dates",          // カレンダー文字群
+                "layer-outer-season",         // 節気・候
+                // ▼▼ 最前面（一番上）に表示されるガイドレイヤー群 ▼▼
+                "layer-guide-tide",           // 潮位ガイド目盛り
+                "layer-guide-rain",           // 降水量ガイド目盛り
+                "layer-daily-rain-text",      // 日別総降水量 (数値)
+                "layer-guide-time",           // 時間ラベル
+                "layer-wafu-text"             // 右上 月名
             ];
 
             const defs = document.createElementNS(svgNS, "defs");
