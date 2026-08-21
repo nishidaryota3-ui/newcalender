@@ -198,7 +198,7 @@ function drawLunarMansions(cycleStartTimeMs) {
 function drawConstellationMark(startAng, endAng, index, rCenter, st, color) {
     if(endAng < startAng) endAng += 360;
     const midAngle = startAng + (endAng - startAng) / 2;
-    const mansion = window.mansions[index]; // ★ 安全網から取得
+    const mansion = window.mansions[index]; 
     const g = document.createElementNS(svgNS, "g");
     
     const ptText = polarToCartesian(cx, cy, rCenter + 22, midAngle);
@@ -347,7 +347,7 @@ function drawTideGraph(cycleStartTimeMs) {
             const diffHours = (pt.time - cycleStartTimeMs) / 3600000;
             const segmentIndex = (currentStartSegment + diffHours * (4/24)) % 120;
             let angle = segmentIndex * 3;
-            const r = window.getTideRadius(pt.tide, rMin, rMax); // ★ 安全網から取得
+            const r = window.getTideRadius(pt.tide, rMin, rMax); 
             const coords = polarToCartesian(cx, cy, r, angle);
 
             if(i === 0) {
@@ -361,7 +361,7 @@ function drawTideGraph(cycleStartTimeMs) {
 
                 const cp1Angle = anglePrev + (angle - anglePrev) * 0.4;
                 const cp2Angle = anglePrev + (angle - anglePrev) * 0.6;
-                const rPrev = window.getTideRadius(prev.tide, rMin, rMax); // ★ 安全網から取得
+                const rPrev = window.getTideRadius(prev.tide, rMin, rMax); 
                 const cp1 = polarToCartesian(cx, cy, rPrev, cp1Angle);
                 const cp2 = polarToCartesian(cx, cy, r, cp2Angle);
                 
@@ -379,7 +379,7 @@ function drawTideGraph(cycleStartTimeMs) {
 
     const guideTides = [-1.5, 0, 1.5, 3.0, 4.5, 6.0, 7.5];
     guideTides.forEach(ft => {
-        const r = window.getTideRadius(ft, rMin, rMax); // ★ 安全網から取得
+        const r = window.getTideRadius(ft, rMin, rMax); 
         const circle = document.createElementNS(svgNS, "circle");
         circle.setAttribute("cx", cx);
         circle.setAttribute("cy", cy);
@@ -531,7 +531,7 @@ function drawTimeLabels() {
     const rMidTime = (concentricRings[19] + concentricRings[20]) / 2 + st.offsetRadius;
     const timeStr = ["0", "6", "12", "18"];
     
-    for (let i = 0; i < 120; i++) { // ★ 常に30日分描く
+    for (let i = 0; i < 120; i++) { 
         const angle = ((currentStartSegment + i) % 120) * 3;
         const ptTime = polarToCartesian(cx, cy, rMidTime, angle);
         
@@ -620,7 +620,7 @@ function drawDynamicLines() {
     ringDateInner.setAttribute("opacity", st.opacity);
     if(linesLayer) linesLayer.appendChild(ringDateInner);
 
-    for (let i = 0; i < 30; i++) { // ★ 常に30日分描く
+    for (let i = 0; i < 30; i++) { 
         const angle = ((currentStartSegment + i * 4) % 120) * 3;
         const ptInner = polarToCartesian(cx, cy, rMin, angle);
         const ptOuter = polarToCartesian(cx, cy, rMax, angle);
@@ -960,13 +960,16 @@ function drawKoyomiEvents(startDate) {
 
         if (dbRow[1]) {
             const lunarMatch = dbRow[1].match(/旧暦.*?月(.+?)日/);
-            const lunarDay = lunarMatch ? lunarMatch[1] : "";
+            const rawLunarDay = lunarMatch ? lunarMatch[1] : "";
+            
+            // ★ 文字数の多い漢数字をスマートな一文字に置換 (二十 -> 廿, 三十 -> 丗)
+            const lunarDay = rawLunarDay.replace("三十", "丗").replace("二十", "廿");
             
             let phaseKey = "normal";
-            if (lunarDay === "一") phaseKey = "newMoon";
-            else if (lunarDay === "八") phaseKey = "firstQuarter";
-            else if (lunarDay === "十五") phaseKey = "fullMoon";
-            else if (lunarDay === "二十三") phaseKey = "lastQuarter";
+            if (rawLunarDay === "一") phaseKey = "newMoon";
+            else if (rawLunarDay === "八") phaseKey = "firstQuarter";
+            else if (rawLunarDay === "十五") phaseKey = "fullMoon";
+            else if (rawLunarDay === "二十三") phaseKey = "lastQuarter";
 
             const pst = stL.phases[phaseKey];
             const rLun = (r30In + r30Out)/2 + stL.offsetRadius;
@@ -1035,7 +1038,7 @@ function drawKoyomiEvents(startDate) {
             textLunar.setAttribute("opacity", stL.opacity);
             textLunar.setAttribute("transform", `rotate(${baseAngle + 10.5}, ${ptLunar.x}, ${ptLunar.y})`);
             
-            textLunar.textContent = lunarDay;
+            textLunar.textContent = lunarDay; // ★ 「廿」「丗」にスマート変換されたテキストを描画
             lunarGroup.appendChild(textLunar);
 
             if (i === 0) {
