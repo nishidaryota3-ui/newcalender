@@ -1,48 +1,35 @@
 // main.js (司令塔・初期化モジュール)
 
-// ▼▼ 究極のテーマ管理用：全要素を網羅したデザイン設定データの定義 ▼▼
+// ▼▼ 全要素を網羅したデザイン設定データの定義 ▼▼
 window.defaultLayerSettings = {
-    // キャンバス全体
-    canvasBg: { fill: "#f5f5f0" }, // デフォルトの生成りっぽい背景色
-    
-    // グラフ・図形系
-    baseSvg: { stroke: "", opacity: 0.8 }, // stroke空ならオリジナル
+    canvasBg: { fill: "#f5f5f0" },
+    baseSvg: { stroke: "", opacity: 0.8 }, 
     lunarShadow: { fill: "#000000", opacity: 0.03 },
     dateLines: { stroke: "#555555", strokeWidth: 1.5, opacity: 1 },
     lunarMansion: { 
         strokeWidth: 0.5, opacity: 0.5, fontFamily: "'Shippori Mincho', 'YuMincho', serif", fontSize: 9,
-        colorEast: "#888888", colorSouth: "#888888", colorWest: "#888888", colorNorth: "#888888" // ニュートラル初期値
+        colorEast: "#888888", colorSouth: "#888888", colorWest: "#888888", colorNorth: "#888888" 
     },
     tideGraph: { stroke: "#3b82f6", strokeWidth: 1.5, opacity: 1 },
     rainGraph: { stroke: "rgba(14, 165, 233, 0.8)", strokeWidth: 1.5, opacity: 1 },
-    dailyRainBg: { fill: "rgba(14, 165, 233, 1)", opacity: 1, density: 0.35 }, // density追加（デフォルト0.35）
-    
-    // ガイド・ラベル系
+    dailyRainBg: { fill: "rgba(14, 165, 233, 1)", opacity: 1, density: 0.35 }, 
     dailyRainText: { fontFamily: "'Arial', sans-serif", fontSize: 8, fill: "rgba(14, 165, 233, 1)", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     guideTime: { fontFamily: "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif", fontSize: 7, fill: "#2c3e50", fontWeight: "bold", stroke: "rgba(255, 255, 255, 0.5)", strokeWidth: 3, opacity: 1, offsetRadius: 0 },
     guideTide: { fontFamily: "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif", fontSize: 7, fill: "#3b82f6", fontWeight: "bold", stroke: "rgba(255, 255, 255, 0.5)", strokeWidth: 3, opacity: 1, offsetRadius: 0, shapeStroke: "rgba(114, 113, 113, 0.4)", shapeStrokeWidth: 0.5 },
     guideRain: { fontFamily: "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif", fontSize: 7, fill: "rgba(14, 165, 233, 1)", fontWeight: "bold", stroke: "rgba(255, 255, 255, 0.5)", strokeWidth: 2.5, opacity: 1, offsetRadius: 0, shapeStroke: "rgba(14, 165, 233, 0.3)", shapeStrokeWidth: 1 },
-    
-    // 暦・日付系
     gregorian: { fontFamily: "'Shippori Mincho', serif", fontSize: 9, fill: "#727171", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
-    weekday: { fontFamily: "'Shippori Mincho', serif", fontSize: 6, fill: "#b0b0b0", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0, lang: "en" }, // 日英切替追加
+    weekday: { fontFamily: "'Shippori Mincho', serif", fontSize: 6, fill: "#b0b0b0", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0, lang: "en" }, 
     sekki: { fontFamily: "'Shippori Mincho', serif", fontSize: 19, fill: "#2c3e50", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     kou: { fontFamily: "'Shippori Mincho', serif", fontSize: 14, fill: "#2c3e50", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     wafuText: { fontFamily: "'Shippori Mincho', serif", fontSize: 70, fill: "#d4af37", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     gregorianText: { fontFamily: "'Shippori Mincho', serif", fontSize: 40, fill: "#b0b0b0", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
-    
-    // 階層30特等席
     zassetsu: { fontFamily: "'Shippori Mincho', serif", fontSize: 6, fill: "#727171", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     holiday: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#d25b4e", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     important: { fontFamily: "'Shippori Mincho', serif", fontSize: 6, fill: "#2c3e50", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
-
-    // 年中行事
     eventShinto: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#1e3a8a", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     eventBuddhism: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#3f3d56", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     eventChurch: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#6b5b4e", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     eventSonota: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#555555", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
-
-    // 旧暦（月相対応）- スケール(scale)追加
     lunar: {
         fontFamily: "'Shippori Mincho', serif", fontSize: 11, fontWeight: "normal", opacity: 1, offsetRadius: 0,
         phases: {
@@ -55,13 +42,9 @@ window.defaultLayerSettings = {
     }
 };
 
-// V4にバージョンアップしてデータの競合を防止
 window.layerSettings = JSON.parse(localStorage.getItem('polarCalendarSettingsV4')) || JSON.parse(JSON.stringify(window.defaultLayerSettings));
-
-// ユーザーが保存したカスタムテーマのリスト
 window.savedThemes = JSON.parse(localStorage.getItem('polarCalendarThemesV1')) || {};
 
-// 未設定項目の補完
 for (let key in window.defaultLayerSettings) {
     if (!window.layerSettings[key]) {
         window.layerSettings[key] = JSON.parse(JSON.stringify(window.defaultLayerSettings[key]));
@@ -71,7 +54,6 @@ for (let key in window.defaultLayerSettings) {
 window.saveLayerSettings = () => {
     localStorage.setItem('polarCalendarSettingsV4', JSON.stringify(window.layerSettings));
 };
-// ▲▲ 追加ここまで ▲▲
 
 let koyomiDatabase = {};
 const KOYOMI_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRqoX31YV0YAO3Mq4WatmLhjP7uUSF6dPMy3D2H3ktEFDFg1X1gJmoIXkul9JpS4aLgK9Ze3SSbV9BZ/pub?gid=0&single=true&output=csv';
@@ -175,7 +157,6 @@ async function loadLocalCSV() {
 }
 
 async function updateCalendarCycle() {
-    // ★ キャンバス背景色の適用
     document.body.style.backgroundColor = window.layerSettings.canvasBg.fill;
 
     const totalElapsedDays = currentCycle * synodicMonth;
@@ -260,26 +241,37 @@ loadLocalCSV().then(() => {
             while (svg.firstChild) bgGroup.appendChild(svg.firstChild);
             masterGroup.appendChild(bgGroup);
             svg.appendChild(masterGroup);
-            
+
+            // ★ Z-index（重ね順）を完璧に制御するためのレイヤー群（下から順に追加）
+            const layerIds = [
+                { id: "layer-shadow", varName: "shadowLayer" },               // 月相シャドウ
+                { id: "layer-lines", varName: "linesLayer" },                 // 30分割線
+                { id: "layer-data", varName: "dataLayer" },                   // ペイント塗り
+                { id: "layer-tide-wave", varName: "tideLayer" },              // 潮汐波形 (波のみ)
+                { id: "layer-rain-graph", varName: "rainfallLayer" },         // 毎時降水量 (棒のみ)
+                { id: "layer-daily-rain-bg" },                                // 日別総降水量 (背景)
+                { id: "layer-lunar-mansion", varName: "lunarMansionLayer" },  // 二十七宿
+                { id: "layer-solar-dates" },                                  // カレンダー文字群
+                { id: "layer-outer-season", varName: "outerSeasonLayer" },    // 節気・候
+                // ▼▼ 最前面（一番上）に表示されるガイドレイヤー群 ▼▼
+                { id: "layer-guide-tide" },                                   // 潮位ガイド目盛り
+                { id: "layer-guide-rain" },                                   // 降水量ガイド目盛り
+                { id: "layer-daily-rain-text" },                              // 日別総降水量 (数値)
+                { id: "layer-guide-time" },                                   // 時間ラベル
+                { id: "layer-wafu-text" }                                     // 右上 月名
+            ];
+
             textPathDefs = document.createElementNS(svgNS, "defs");
-            dataLayer = document.createElementNS(svgNS, "g");
-            shadowLayer = document.createElementNS(svgNS, "g");
-            linesLayer = document.createElementNS(svgNS, "g");
-            tideLayer = document.createElementNS(svgNS, "g");
-            rainfallLayer = document.createElementNS(svgNS, "g");
-            lunarMansionLayer = document.createElementNS(svgNS, "g");
-            lunarMansionLayer.setAttribute("id", "lunar-mansion-layer");
-            outerSeasonLayer = document.createElementNS(svgNS, "g");
-            outerSeasonLayer.setAttribute("id", "outer-season-layer");
-            
             masterGroup.appendChild(textPathDefs);
-            masterGroup.appendChild(dataLayer);
-            masterGroup.appendChild(shadowLayer);
-            masterGroup.appendChild(linesLayer);
-            masterGroup.appendChild(tideLayer);
-            masterGroup.appendChild(rainfallLayer);
-            masterGroup.appendChild(lunarMansionLayer);
-            masterGroup.appendChild(outerSeasonLayer);
+            
+            layerIds.forEach(def => {
+                const g = document.createElementNS(svgNS, "g");
+                g.setAttribute("id", def.id);
+                masterGroup.appendChild(g);
+                if (def.varName) {
+                    window[def.varName] = g;
+                }
+            });
             
             updateCalendarCycle();
             initInteractions();
