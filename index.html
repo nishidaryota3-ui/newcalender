@@ -20,13 +20,34 @@
         <div class="color-tag tag-eraser" data-color="erase">消しゴム</div>
     </div>
 
-    <!-- ▼▼ 追加：レイヤーパネル ▼▼ -->
+    <!-- ▼▼ 進化したレイヤーパネル ▼▼ -->
     <div id="layer-panel">
-        <div class="layer-panel-title">レイヤー</div>
-        <div class="layer-item">
-            <input type="checkbox" id="toggle-layer-lunar" checked>
-            <label for="toggle-layer-lunar">二十七宿（月）</label>
-        </div>
+        <div class="layer-panel-title">レイヤーパネル</div>
+
+        <!-- ベース・図形 -->
+        <div class="layer-item"><input type="checkbox" id="toggle-base-svg" checked><label for="toggle-base-svg">ベース図 (calendar.svg)</label></div>
+        <div class="layer-item"><input type="checkbox" id="toggle-lunar-shadow" checked><label for="toggle-lunar-shadow">月相シャドウ (ハート型)</label></div>
+        <div class="layer-item"><input type="checkbox" id="toggle-layer-lunar" checked><label for="toggle-layer-lunar">二十七宿 (一番外周)</label></div>
+
+        <!-- グラフデータ -->
+        <div class="layer-group-title">▼ グラフ・データ</div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-tide-graph" checked><label for="toggle-tide-graph">潮汐波形</label></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-rain-graph" checked><label for="toggle-rain-graph">毎時降水量 (棒線)</label></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-daily-rain-bg" checked><label for="toggle-daily-rain-bg">日別総降水量 (背景色)</label></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-daily-rain-text" checked><label for="toggle-daily-rain-text">日別総降水量 (数値)</label></div>
+
+        <!-- 目盛りグループ -->
+        <div class="layer-group-title">▼ 目盛り・ガイド</div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-time" checked><label for="toggle-guide-time">時間 (0/6/12/18)</label></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-tide" checked><label for="toggle-guide-tide">潮位 (ft)</label></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-rain" checked><label for="toggle-guide-rain">降水量 (mm)</label></div>
+
+        <!-- 日付グループ -->
+        <div class="layer-group-title">▼ 日付・暦</div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-date-gregorian" checked><label for="toggle-date-gregorian">新暦日付 (M/D)</label></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-date-lunar" checked><label for="toggle-date-lunar">旧暦日 (漢数字+丸)</label></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-date-weekday" checked><label for="toggle-date-weekday">曜日 (Sun-Sat)</label></div>
+        <div class="layer-item layer-indent"><input type="checkbox" id="toggle-koyomi-events" checked><label for="toggle-koyomi-events">24節気・72候・行事</label></div>
     </div>
     <!-- ▲▲ 追加ここまで ▲▲ -->
 
@@ -34,7 +55,6 @@
     <div id="status-bar">空間を認識中...</div>
 
     <!-- ▼ 脳みそのファイル（JavaScript）を読み込む ▼ -->
-    <!-- ▼ 分割されたモジュール群を順番に読み込む ▼ -->
     <script src="globals.js"></script>
     <script src="astronomy.js"></script>
     <script src="draw.js"></script>
