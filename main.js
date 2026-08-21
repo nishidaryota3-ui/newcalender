@@ -1,5 +1,22 @@
 // main.js (司令塔・初期化モジュール)
 
+function isObject(item) { return (item && typeof item === 'object' && !Array.isArray(item)); }
+function mergeDeep(target, ...sources) {
+    if (!sources.length) return target;
+    const source = sources.shift();
+    if (isObject(target) && isObject(source)) {
+        for (const key in source) {
+            if (isObject(source[key])) {
+                if (!target[key]) Object.assign(target, { [key]: {} });
+                mergeDeep(target[key], source[key]);
+            } else {
+                Object.assign(target, { [key]: source[key] });
+            }
+        }
+    }
+    return mergeDeep(target, ...sources);
+}
+
 window.defaultLayerSettings = {
     canvasBg: { fill: "#f5f5f0" },
     baseSvg: { stroke: "", opacity: 0.8 }, 
@@ -8,15 +25,23 @@ window.defaultLayerSettings = {
     dateLines: { stroke: "#555555", strokeWidth: 1.5, opacity: 1 },
     lunarMansion: { 
         strokeWidth: 0.5, opacity: 0.5, fontFamily: "'Shippori Mincho', 'YuMincho', serif", fontSize: 9,
-        colorEast: "#888888", colorSouth: "#888888", colorWest: "#888888", colorNorth: "#888888" 
+        colorEast: "#888888", colorSouth: "#888888", colorWest: "#888888", colorNorth: "#888888",
+        starSize: 1.5, bgRingColor: "#ffffff", bgRingOpacity: 0.05
     },
     tideGraph: { stroke: "#3b82f6", strokeWidth: 1.5, opacity: 1 },
     rainGraph: { stroke: "rgba(14, 165, 233, 0.8)", strokeWidth: 1.5, opacity: 1 },
     dailyRainBg: { fill: "rgba(14, 165, 233, 1)", opacity: 1, density: 0.35 }, 
     dailyRainText: { fontFamily: "'Arial', sans-serif", fontSize: 8, fill: "rgba(14, 165, 233, 1)", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     guideTime: { fontFamily: "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif", fontSize: 7, fill: "#2c3e50", fontWeight: "bold", stroke: "rgba(255, 255, 255, 0.5)", strokeWidth: 3, opacity: 1, offsetRadius: 0 },
-    guideTide: { fontFamily: "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif", fontSize: 7, fill: "#3b82f6", fontWeight: "bold", stroke: "rgba(255, 255, 255, 0.5)", strokeWidth: 3, opacity: 1, offsetRadius: 0, shapeStroke: "rgba(114, 113, 113, 0.4)", shapeStrokeWidth: 0.5 },
-    guideRain: { fontFamily: "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif", fontSize: 7, fill: "rgba(14, 165, 233, 1)", fontWeight: "bold", stroke: "rgba(255, 255, 255, 0.5)", strokeWidth: 2.5, opacity: 1, offsetRadius: 0, shapeStroke: "rgba(14, 165, 233, 0.3)", shapeStrokeWidth: 1 },
+    
+    // ★ 潮位の「線」と「文字」を分離
+    guideTideLine: { stroke: "rgba(114, 113, 113, 0.4)", strokeWidth: 0.5, opacity: 1 },
+    guideTideText: { fontFamily: "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif", fontSize: 7, fill: "#3b82f6", fontWeight: "bold", stroke: "rgba(255, 255, 255, 0.5)", strokeWidth: 3, opacity: 1, offsetRadius: 0 },
+    
+    // ★ 降水量の「線」と「文字」を分離
+    guideRainLine: { stroke: "rgba(14, 165, 233, 0.3)", strokeWidth: 1, opacity: 1 },
+    guideRainText: { fontFamily: "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif", fontSize: 7, fill: "rgba(14, 165, 233, 1)", fontWeight: "bold", stroke: "rgba(255, 255, 255, 0.5)", strokeWidth: 2.5, opacity: 1, offsetRadius: 0 },
+    
     gregorian: { fontFamily: "'Shippori Mincho', serif", fontSize: 9, fill: "#727171", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     weekday: { fontFamily: "'Shippori Mincho', serif", fontSize: 6, fill: "#b0b0b0", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0, lang: "en" }, 
     sekki: { fontFamily: "'Shippori Mincho', serif", fontSize: 19, fill: "#2c3e50", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
@@ -42,17 +67,37 @@ window.defaultLayerSettings = {
     }
 };
 
-window.layerSettings = JSON.parse(localStorage.getItem('polarCalendarSettingsV4')) || JSON.parse(JSON.stringify(window.defaultLayerSettings));
-window.savedThemes = JSON.parse(localStorage.getItem('polarCalendarThemesV1')) || {};
+// ★ 月別テーマ機能のコア：V5ストレージ
+window.appSettings = JSON.parse(localStorage.getItem('polarCalendarSettingsV5')) || {
+    global: JSON.parse(JSON.stringify(window.defaultLayerSettings)),
+    months: {}
+};
+window.layerSettings = {}; 
 
-for (let key in window.defaultLayerSettings) {
-    if (!window.layerSettings[key]) {
-        window.layerSettings[key] = JSON.parse(JSON.stringify(window.defaultLayerSettings[key]));
+function loadSettingsForCycle(cycleIdx) {
+    let base = JSON.parse(JSON.stringify(window.appSettings.global));
+    base = mergeDeep(JSON.parse(JSON.stringify(window.defaultLayerSettings)), base);
+    
+    let monthData = window.appSettings.months[`cycle_${cycleIdx}`];
+    if (monthData) {
+        window.layerSettings = mergeDeep(base, monthData);
+    } else {
+        window.layerSettings = base;
     }
 }
 
 window.saveLayerSettings = () => {
-    localStorage.setItem('polarCalendarSettingsV4', JSON.stringify(window.layerSettings));
+    const cycleKey = `cycle_${currentCycle}`;
+    window.appSettings.months[cycleKey] = JSON.parse(JSON.stringify(window.layerSettings));
+    localStorage.setItem('polarCalendarSettingsV5', JSON.stringify(window.appSettings));
+};
+
+// ★ 現在のデザインを全月に一括適用する関数
+window.applyGlobalSettings = () => {
+    window.appSettings.global = JSON.parse(JSON.stringify(window.layerSettings));
+    window.appSettings.months = {}; 
+    localStorage.setItem('polarCalendarSettingsV5', JSON.stringify(window.appSettings));
+    alert("現在のデザインをすべての月に適用しました！");
 };
 
 let koyomiDatabase = {};
@@ -157,6 +202,10 @@ async function loadLocalCSV() {
 }
 
 async function updateCalendarCycle() {
+    // ★ 描画の前に必ず「その月の設定」を読み込み、UIツマミを最新化する
+    loadSettingsForCycle(currentCycle);
+    if(typeof window.refreshUIValues === 'function') window.refreshUIValues();
+
     document.body.style.backgroundColor = window.layerSettings.canvasBg.fill;
 
     const totalElapsedDays = currentCycle * synodicMonth;
@@ -181,7 +230,6 @@ async function updateCalendarCycle() {
     currentStartSegment = Math.round((diffDaysExact % 30) / 0.25) % 120;
     if (currentStartSegment < 0) currentStartSegment += 120;
 
-    // ★ バグ修正：テキストを逆回転させるために、描画関数を呼ぶ【前】に角度を計算する！
     globalRotation = -currentStartSegment * 3;
 
     const y = startDate.getFullYear();
@@ -189,7 +237,6 @@ async function updateCalendarCycle() {
     const d = startDate.getDate();
     document.getElementById('cycleDisplay').innerHTML = `${y}年 ${m}月 <span style="font-size:10px;">▼</span><br><span style="font-size:11px; color:#8b949e;">新月: ${m}月${d}日〜</span>`;
 
-    // ★ 今月が29日か30日かを判定
     if (typeof computeMonthDays === 'function') computeMonthDays(startDate);
 
     drawLunarShadow(cycleStartTimeMs);
@@ -223,7 +270,6 @@ async function updateCalendarCycle() {
     });
 }
 
-initUI();
 loadLocalCSV().then(() => {
     fetch('calendar.svg')
         .then(response => response.text())
@@ -290,8 +336,11 @@ loadLocalCSV().then(() => {
                 masterGroup.appendChild(g);
             });
             
+            // ★UI構築を先に実行
+            if(typeof initUI === 'function') initUI();
+            
             updateCalendarCycle();
-            initInteractions();
+            if(typeof initInteractions === 'function') initInteractions();
         })
         .catch(err => console.error("SVG読み込みエラー:", err));
 });
