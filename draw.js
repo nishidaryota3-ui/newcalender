@@ -8,120 +8,6 @@ function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
     };
 }
 
-// ★ アイデアB：境界線の軌跡（ターミネーター・エンベロープ）
-function drawTerminatorEnvelope(cycleStartTime) {
-    const layer = document.getElementById("layer-terminator-envelope");
-    if(!layer) return;
-    layer.innerHTML = "";
-    if (concentricRings.length < 30) return;
-
-    const st = window.layerSettings.terminatorEnvelope;
-    if(!st || st.opacity === 0) return;
-
-    const rMin = concentricRings[0];
-    const rMax = concentricRings[concentricRings.length - 2];
-    const startAngle = currentStartSegment * 3;
-
-    // 6時間ごとにワイヤーフレームを描画して立体感を出す
-    for (let i = 0; i <= 720; i += 6) { 
-        const timeMs = cycleStartTime + i * 3600000;
-        let diff = (getLunarLongitude(timeMs) - getSolarLongitude(timeMs) + 360) % 360;
-        let phase = diff * Math.PI / 180;
-        
-        const angle = startAngle + i * 0.5;
-        const pStart = polarToCartesian(cx, cy, rMin, angle);
-        const pEnd = polarToCartesian(cx, cy, rMax, angle);
-        
-        // 膨らみ具合を計算（新月で最大、満月で反転するサイン波）
-        const bulge = Math.cos(phase); 
-        const angleOffset = bulge * 6; // 角度を最大6度ズラしてカーブを作る
-        
-        const cp1 = polarToCartesian(cx, cy, rMin + (rMax - rMin)*0.25, angle + angleOffset);
-        const cp2 = polarToCartesian(cx, cy, rMax - (rMax - rMin)*0.25, angle + angleOffset);
-
-        const path = document.createElementNS(svgNS, "path");
-        path.setAttribute("d", `M ${pStart.x},${pStart.y} C ${cp1.x},${cp1.y} ${cp2.x},${cp2.y} ${pEnd.x},${pEnd.y}`);
-        path.setAttribute("stroke", st.stroke);
-        path.setAttribute("stroke-width", st.strokeWidth);
-        path.setAttribute("fill", st.fill);
-        path.setAttribute("opacity", st.opacity);
-        layer.appendChild(path);
-        
-        // 奥の境界線を薄く描画して球体の透明感を演出
-        const cp1_rev = polarToCartesian(cx, cy, rMin + (rMax - rMin)*0.25, angle - angleOffset);
-        const cp2_rev = polarToCartesian(cx, cy, rMax - (rMax - rMin)*0.25, angle - angleOffset);
-        const path_rev = document.createElementNS(svgNS, "path");
-        path_rev.setAttribute("d", `M ${pStart.x},${pStart.y} C ${cp1_rev.x},${cp1_rev.y} ${cp2_rev.x},${cp2_rev.y} ${pEnd.x},${pEnd.y}`);
-        path_rev.setAttribute("stroke", st.stroke);
-        path_rev.setAttribute("stroke-width", st.strokeWidth * 0.5);
-        path_rev.setAttribute("fill", "none");
-        path_rev.setAttribute("opacity", st.opacity * 0.3);
-        layer.appendChild(path_rev);
-    }
-}
-
-// ★ アイデアC：望の頂点曲線（朔望カーディオイド水滴線）
-function drawSyzygyApex(cycleStartTime) {
-    const layer = document.getElementById("layer-syzygy-apex");
-    if(!layer) return;
-    layer.innerHTML = "";
-    if (concentricRings.length < 30) return;
-
-    const st = window.layerSettings.syzygyApex;
-    if(!st || st.opacity === 0) return;
-
-    const rMin = concentricRings[0];
-    const rMax = concentricRings[concentricRings.length - 2];
-    const startAngle = currentStartSegment * 3;
-
-    let d = "";
-    let maxIllum = -1;
-    let peakPt = null;
-
-    // 1本のなめらかな水滴線を描画
-    for (let i = 0; i <= 720; i++) {
-        const timeMs = cycleStartTime + i * 3600000;
-        let diff = (getLunarLongitude(timeMs) - getSolarLongitude(timeMs) + 360) % 360;
-        const illumination = 0.5 * (1 - Math.cos(diff * Math.PI / 180));
-        
-        // べき乗を使って、満月（望）に向かって一気に尖る美しいカーブを作る
-        const sharpIllumination = Math.pow(illumination, 4); 
-        const r = rMin + (rMax - rMin) * sharpIllumination;
-        
-        const angle = startAngle + i * 0.5;
-        const pt = polarToCartesian(cx, cy, r, angle);
-        
-        if (i === 0) d += `M ${pt.x},${pt.y} `;
-        else d += `L ${pt.x},${pt.y} `;
-
-        // 本当の満月（ピーク）の座標を記録
-        if (illumination > maxIllum) {
-            maxIllum = illumination;
-            peakPt = pt;
-        }
-    }
-
-    const path = document.createElementNS(svgNS, "path");
-    path.setAttribute("d", d);
-    path.setAttribute("fill", st.fill);
-    path.setAttribute("stroke", st.stroke);
-    path.setAttribute("stroke-width", st.strokeWidth);
-    path.setAttribute("stroke-linejoin", "round");
-    path.setAttribute("opacity", st.opacity);
-    layer.appendChild(path);
-    
-    // ピークの瞬間に極小の輝点（ドット）を打つ
-    if (peakPt) {
-        const circle = document.createElementNS(svgNS, "circle");
-        circle.setAttribute("cx", peakPt.x);
-        circle.setAttribute("cy", peakPt.y);
-        circle.setAttribute("r", st.strokeWidth * 2);
-        circle.setAttribute("fill", st.stroke);
-        circle.setAttribute("opacity", st.opacity);
-        layer.appendChild(circle);
-    }
-}
-
 function drawLunarMansions(cycleStartTimeMs) {
     const layer = document.getElementById("layer-lunar-mansion");
     if(layer) layer.innerHTML = "";
@@ -736,6 +622,7 @@ function drawKoyomiEvents(startDate) {
     const r30Lower = r30In + (r30Out - r30In) * 0.25; 
     const r30Upper = r30In + (r30Out - r30In) * 0.75; 
     
+    // ★ ここで階層30の順番（U:上段, M:中段, L:下段）を制御
     const r30U_text = r30In + (r30Out - r30In) * 0.82; 
     const r30M_text = r30In + (r30Out - r30In) * 0.50; 
     const r30L_text = r30In + (r30Out - r30In) * 0.18; 
@@ -818,6 +705,7 @@ function drawKoyomiEvents(startDate) {
             targetGroup.appendChild(textObj);
         };
 
+        // ★ 上から 祝日(U)、雑節(M)、行事(L) に割り当て
         const holidayText = [dbRow[8], dbRow[14]].filter(Boolean).join(' ／ ');
         drawSingleText(`${arcIdBase}_30U_text`, holidayText, stH, r30U_text + stH.offsetRadius, holidayGroup);
         drawSingleText(`${arcIdBase}_30M_text`, dbRow[7], stZ, r30M_text + stZ.offsetRadius, zassetsuGroup);
@@ -914,7 +802,7 @@ function drawKoyomiEvents(startDate) {
             textDate.setAttribute("stroke-linejoin", "round");
             textDate.setAttribute("paint-order", "stroke fill");
         }
-        textDate.setAttribute("transform", `rotate(${baseAngle + 1.5}, ptDate.x}, ${ptDate.y})`);
+        textDate.setAttribute("transform", `rotate(${baseAngle + 1.5}, ${ptDate.x}, ${ptDate.y})`);
         textDate.textContent = `${loopDate.getMonth() + 1}/${loopDate.getDate()}`;
         gregorianGroup.appendChild(textDate); 
 
@@ -945,11 +833,10 @@ function drawKoyomiEvents(startDate) {
             const lunarDay = lunarMatch ? lunarMatch[1] : "";
             
             let phaseKey = "normal";
-            let phaseText = lunarDay;
-            if (lunarDay === "一") { phaseKey = "newMoon"; phaseText = "新月"; }
-            else if (lunarDay === "八") { phaseKey = "firstQuarter"; phaseText = "上弦"; }
-            else if (lunarDay === "十五") { phaseKey = "fullMoon"; phaseText = "満月"; }
-            else if (lunarDay === "二十三") { phaseKey = "lastQuarter"; phaseText = "下弦"; }
+            if (lunarDay === "一") phaseKey = "newMoon";
+            else if (lunarDay === "八") phaseKey = "firstQuarter";
+            else if (lunarDay === "十五") phaseKey = "fullMoon";
+            else if (lunarDay === "二十三") phaseKey = "lastQuarter";
 
             const pst = stL.phases[phaseKey];
             const rLun = (r30In + r30Out)/2 + stL.offsetRadius;
@@ -1017,7 +904,7 @@ function drawKoyomiEvents(startDate) {
             if (stL.fontWeight === "bold") textLunar.setAttribute("font-weight", "bold");
             textLunar.setAttribute("opacity", stL.opacity);
             textLunar.setAttribute("transform", `rotate(${baseAngle + 10.5}, ${ptLunar.x}, ${ptLunar.y})`);
-            textLunar.textContent = phaseText;
+            textLunar.textContent = phaseKey === "newMoon" ? "新月" : lunarDay;
             lunarGroup.appendChild(textLunar);
 
             if (i === 0) {
