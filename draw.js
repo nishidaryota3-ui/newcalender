@@ -8,7 +8,57 @@ function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
     };
 }
 
-// ★ 天文学的ピン (朔望) - 塗りつぶし反転＆半径オフセット対応版
+// ★ 新規追加：この月が29日か30日かを判定する関数
+function computeMonthDays(startDate) {
+    window.currentMonthDays = 30; // デフォルトは大の月（30日）
+    for (let i = 15; i < 30; i++) { // 月の後半だけをチェック
+        const loopDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
+        const dateStr = formatDateStr(loopDate);
+        const dbRow = koyomiDatabase[dateStr];
+        // 次の月の「一日（朔）」が食い込んできたら、そこで今月の日数を確定する
+        if (dbRow && dbRow[1] && dbRow[1].match(/旧暦.*?月(.+?)日/)) {
+            if (dbRow[1].match(/旧暦.*?月(.+?)日/)[1] === "一") {
+                window.currentMonthDays = i; 
+                break;
+            }
+        }
+    }
+}
+
+// ★ 新規追加：小の月（29日）の時に、最後尾のピースを空白にするマスク
+function drawPacmanMask() {
+    let maskLayer = document.getElementById("layer-pacman-mask");
+    if (!maskLayer) {
+        maskLayer = document.createElementNS(svgNS, "g");
+        maskLayer.setAttribute("id", "layer-pacman-mask");
+        const shadowLayer = document.getElementById("layer-shadow");
+        if (masterGroup && shadowLayer) masterGroup.insertBefore(maskLayer, shadowLayer);
+    }
+    maskLayer.innerHTML = "";
+    
+    // 30日に満たない場合、余ったピースを背景色で完全に覆い隠す
+    if (window.currentMonthDays < 30) {
+        for(let i = window.currentMonthDays; i < 30; i++) {
+            const absSeg = (currentStartSegment + i * 4) % 120;
+            const startAngle = absSeg * 3;
+            const endAngle = startAngle + 12;
+            
+            const rMask = 3000;
+            const pStart = polarToCartesian(cx, cy, rMask, endAngle);
+            const pEnd = polarToCartesian(cx, cy, rMask, startAngle);
+            
+            const d = `M ${cx},${cy} L ${pEnd.x},${pEnd.y} A ${rMask} ${rMask} 0 0 1 ${pStart.x} ${pStart.y} Z`;
+            const path = document.createElementNS(svgNS, "path");
+            path.setAttribute("d", d);
+            path.setAttribute("fill", window.layerSettings.canvasBg.fill);
+            path.setAttribute("stroke", window.layerSettings.canvasBg.fill);
+            path.setAttribute("stroke-width", "2"); 
+            maskLayer.appendChild(path);
+        }
+    }
+}
+
+// 天文学的ピン (朔望)
 function drawAstronomicalPins(cycleStartTime) {
     const layer = document.getElementById("layer-astronomical-pins");
     if(!layer) return;
@@ -18,19 +68,17 @@ function drawAstronomicalPins(cycleStartTime) {
     const st = window.layerSettings.astroPins;
     if(!st || st.opacity === 0) return;
 
-    // ★ スライダーの値（radiusOffset）を足して、配置する半径を自在に変更
     const rMin = concentricRings[0] + (st.radiusOffset || 0);
     const startAngle = currentStartSegment * 3;
     
     let prevDiff = null;
     
-    // 1時間ごとに月の黄経差をチェックし、特定の角度をまたぐ瞬間を探す
-    for (let i = 0; i <= 720; i++) {
+    // ★ currentMonthDaysの分だけスキャンする（はみ出した次の新月は無視される）
+    for (let i = 0; i <= window.currentMonthDays * 24; i++) {
         const timeMs = cycleStartTime + i * 3600000;
         let diff = (getLunarLongitude(timeMs) - getSolarLongitude(timeMs) + 360) % 360;
         
         if (prevDiff !== null) {
-            // チェックする4つの天文学的瞬間 (0=新月, 90=上弦, 180=満月, 270=下弦)
             const targets = [
                 {val: 0, key: 'new'}, 
                 {val: 90, key: 'first'}, 
@@ -42,7 +90,6 @@ function drawAstronomicalPins(cycleStartTime) {
                 let cross = false;
                 let fraction = 0;
                 
-                // 359度から0度へリセットされる瞬間の処理
                 if (t.val === 0) {
                     if (prevDiff > 300 && diff < 60) {
                         cross = true;
@@ -56,19 +103,16 @@ function drawAstronomicalPins(cycleStartTime) {
                 }
                 
                 if (cross) {
-                    // 交差した正確な時間を計算
                     const exactI = i - 1 + fraction;
                     const angle = startAngle + exactI * 0.5;
                     const pt = polarToCartesian(cx, cy, rMin, angle);
                     
-                    // 回転させて図形を配置するためのグループを作成
                     const g = document.createElementNS(svgNS, "g");
                     g.setAttribute("transform", `translate(${pt.x}, ${pt.y}) rotate(${angle})`);
                     g.setAttribute("opacity", st.opacity);
                     
-                    const R = 3.5 * (st.scale || 1); // ピンの半径（倍率対応）
+                    const R = 3.5 * (st.scale || 1); 
                     
-                    // ベースとなる円（縁取り）
                     const circle = document.createElementNS(svgNS, "circle");
                     circle.setAttribute("cx", 0);
                     circle.setAttribute("cy", 0);
@@ -78,21 +122,17 @@ function drawAstronomicalPins(cycleStartTime) {
                     circle.setAttribute("stroke-width", st.strokeWidth);
                     
                     if (t.key === 'new') {
-                        // ★ 新月：黒丸（塗りつぶし）
                         circle.setAttribute("fill", st.fill);
                         g.appendChild(circle);
                     } else if (t.key === 'full') {
-                        // ★ 満月：白抜き（線のみ）
                         g.appendChild(circle);
                     } else if (t.key === 'first') {
-                        // 上弦：右半月
                         const path = document.createElementNS(svgNS, "path");
                         path.setAttribute("d", `M 0,-${R} A ${R},${R} 0 0,1 0,${R} Z`);
                         path.setAttribute("fill", st.fill);
                         g.appendChild(path);
                         g.appendChild(circle);
                     } else if (t.key === 'last') {
-                        // 下弦：左半月
                         const path = document.createElementNS(svgNS, "path");
                         path.setAttribute("d", `M 0,-${R} A ${R},${R} 0 0,0 0,${R} Z`);
                         path.setAttribute("fill", st.fill);
@@ -116,7 +156,7 @@ function drawLunarMansions(cycleStartTimeMs) {
     const rBase = concentricRings[concentricRings.length - 1] + 60;
     const rMax = rBase + 30;
     const resolution = 2;
-    const totalHours = 720;
+    const totalHours = window.currentMonthDays * 24; // ★ 修正
     const startAngle = currentStartSegment * 3;
 
     const trackBg = document.createElementNS(svgNS, "circle");
@@ -165,7 +205,7 @@ function drawLunarMansions(cycleStartTimeMs) {
             mansionStartAngle = angle;
         }
     }
-    const finalAngle = startAngle + 360;
+    const finalAngle = startAngle + (totalHours * 0.5);
     drawConstellationMark(mansionStartAngle, finalAngle, currentMansionIndex, rBase + 15, st, getMansionColor(currentMansionIndex));
 }
 
@@ -236,7 +276,8 @@ function drawDailyRainStats(startDate) {
     const rMax = concentricRings[22];
     const layer23CenterR = (concentricRings[22] + concentricRings[23]) / 2;
 
-    for (let i = 0; i < 30; i++) {
+    // ★ 修正
+    for (let i = 0; i < window.currentMonthDays; i++) {
         const loopDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
         const dateStr = formatDateStr(loopDate);
         if (localRainData[dateStr] !== undefined && localRainData[dateStr] > 0) {
@@ -306,7 +347,7 @@ function drawTideGraph(cycleStartTimeMs) {
     const stGuide = window.layerSettings.guideTide;
     const rMin = concentricRings[16];
     const rMax = concentricRings[22];
-    const cycleEndMs = cycleStartTimeMs + 30 * 24 * 60 * 60 * 1000;
+    const cycleEndMs = cycleStartTimeMs + window.currentMonthDays * 24 * 60 * 60 * 1000; // ★ 修正
     
     const waveGroup = document.createElementNS(svgNS, "g");
 
@@ -419,7 +460,8 @@ function drawRainfallGraph(cycleStartTimeMs) {
     if(guideLayer) guideLayer.appendChild(circle);
 
     const startAngle = currentStartSegment * 3;
-    for (let h = 0; h < 720; h++) {
+    // ★ 修正
+    for (let h = 0; h < window.currentMonthDays * 24; h++) {
         let rain = apiRainData[h];
         if(rain === null || isNaN(rain) || rain <= 0) continue;
         
@@ -501,7 +543,8 @@ function drawTimeLabels() {
     const rMidTime = (concentricRings[19] + concentricRings[20]) / 2 + st.offsetRadius;
     const timeStr = ["0", "6", "12", "18"];
     
-    for (let i = 0; i < 120; i++) {
+    // ★ 修正
+    for (let i = 0; i < window.currentMonthDays * 4; i++) {
         const angle = ((currentStartSegment + i) % 120) * 3;
         const ptTime = polarToCartesian(cx, cy, rMidTime, angle);
         
@@ -534,12 +577,16 @@ function drawLunarShadow(cycleStartTime) {
     if(shadowLayer) shadowLayer.innerHTML = "";
     if (concentricRings.length < 30) return;
 
+    // ★ ここでこの月の日数を計算し、パックマンマスクをかける
+    computeMonthDays(new Date(cycleStartTime));
+    drawPacmanMask();
+
     const st = window.layerSettings.lunarShadow; 
     const rMin = concentricRings[0];
     const rMax = concentricRings[concentricRings.length - 2];
     const maxArea = rMax * rMax - rMin * rMin;
     const resolution = 2;
-    const totalHours = 720;
+    const totalHours = window.currentMonthDays * 24; // ★ 修正
     const startAngle = currentStartSegment * 3;
 
     let pathD = "";
@@ -559,10 +606,10 @@ function drawLunarShadow(cycleStartTime) {
         else pathD += `L ${pt.x},${pt.y} `;
     }
 
-    const endAngle = startAngle + 360;
+    const endAngle = startAngle + (totalHours * 0.5);
     const pEndMin = polarToCartesian(cx, cy, rMin, endAngle);
     const pStartMin = polarToCartesian(cx, cy, rMin, startAngle);
-    pathD += ` L ${pEndMin.x},${pEndMin.y} A ${rMin} ${rMin} 0 1 0 ${pStartMin.x} ${pStartMin.y} Z`;
+    pathD += ` L ${pEndMin.x},${pEndMin.y} A ${rMin} ${rMin} 0 0 0 ${pStartMin.x} ${pStartMin.y} Z`;
 
     const shadowPath = document.createElementNS(svgNS, "path");
     shadowPath.setAttribute("d", pathD);
@@ -588,7 +635,8 @@ function drawDynamicLines() {
     ringDateInner.setAttribute("opacity", st.opacity);
     if(linesLayer) linesLayer.appendChild(ringDateInner);
 
-    for (let i = 0; i < 30; i++) {
+    // ★ 修正 (<= にすることで、最後の日の締めくくり線まで描画)
+    for (let i = 0; i <= window.currentMonthDays; i++) {
         const angle = ((currentStartSegment + i * 4) % 120) * 3;
         const ptInner = polarToCartesian(cx, cy, rMin, angle);
         const ptOuter = polarToCartesian(cx, cy, rMax, angle);
@@ -727,7 +775,7 @@ function drawKoyomiEvents(startDate) {
 
     let startWafu = "";
     let startGregorianMonth = startDate.getMonth() + 1;
-    let endGregorianMonth = new Date(startDate.getTime() + 29 * 86400000).getMonth() + 1;
+    let endGregorianMonth = new Date(startDate.getTime() + (window.currentMonthDays - 1) * 86400000).getMonth() + 1;
 
     const cbShinto = document.getElementById("toggle-event-shinto");
     const cbBuddhism = document.getElementById("toggle-event-buddhism");
@@ -739,7 +787,8 @@ function drawKoyomiEvents(startDate) {
     const showChurch = cbChurch ? cbChurch.checked : true;
     const showSonota = cbSonota ? cbSonota.checked : true;
 
-    for (let i = 0; i < 30; i++) {
+    // ★ 修正
+    for (let i = 0; i < window.currentMonthDays; i++) {
         const loopDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
         const dateStr = formatDateStr(loopDate);
         const dbRow = koyomiDatabase[dateStr] || [];
@@ -1002,7 +1051,6 @@ function drawKoyomiEvents(startDate) {
             textLunar.setAttribute("opacity", stL.opacity);
             textLunar.setAttribute("transform", `rotate(${baseAngle + 10.5}, ${ptLunar.x}, ${ptLunar.y})`);
             
-            // ★ 文字は「新月」や「満月」ではなく、確実に「数字（十五など）」を維持します
             textLunar.textContent = lunarDay;
             lunarGroup.appendChild(textLunar);
 
@@ -1079,6 +1127,10 @@ function drawKoyomiEvents(startDate) {
             tspanOld.setAttribute("stroke-linejoin", "round");
             tspanOld.setAttribute("paint-order", "stroke fill");
         }
+        
+        // ★ ここで「逆回転」を付与してテキストを画面にロック
+        tspanOld.setAttribute("transform", `rotate(${-globalRotation}, ${cx}, ${cy})`);
+        
         tspanOld.textContent = startWafu ? `${startWafu}（旧暦）` : "旧暦取得中";
         wafuTextLayer.appendChild(tspanOld);
         
@@ -1103,6 +1155,10 @@ function drawKoyomiEvents(startDate) {
             tspanNew.setAttribute("stroke-linejoin", "round");
             tspanNew.setAttribute("paint-order", "stroke fill");
         }
+        
+        // ★ ここにも「逆回転」を付与
+        tspanNew.setAttribute("transform", `rotate(${-globalRotation}, ${cx}, ${cy})`);
+        
         tspanNew.textContent = `${newWafuStr}（新暦）`;
         wafuTextLayer.appendChild(tspanNew);
     }
