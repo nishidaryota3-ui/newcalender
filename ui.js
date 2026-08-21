@@ -49,15 +49,19 @@ function initUI() {
     paletteDiv.style = "position:fixed; top:134px; left:74px; background:rgba(25,30,40,0.9); padding:10px; border-radius:8px; z-index:99; border: 1px solid rgba(255,255,255,0.1); display:none; grid-template-columns:repeat(4, 1fr); gap:6px; width:120px; box-sizing:border-box;";
     document.body.appendChild(paletteDiv);
 
-    // ▼▼ 進化したデザイン設定パネルのDOM構築 ▼▼
+    // ▼▼ 進化したデザイン設定パネル ▼▼
     const designPanel = document.createElement('div');
     designPanel.id = 'design-panel';
     designPanel.className = 'panel-ui';
-    designPanel.style = "display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(25,30,40,0.95); padding:20px; border-radius:12px; border:1px solid rgba(212,175,55,0.5); color:#fff; z-index:200; box-shadow:0 10px 40px rgba(0,0,0,0.8); min-width:320px; backdrop-filter:blur(10px);";
+    designPanel.style = "display:none; position:fixed; top:100px; left:50%; background:rgba(25,30,40,0.95); padding:0 20px 20px 20px; border-radius:12px; border:1px solid rgba(212,175,55,0.5); color:#fff; z-index:200; box-shadow:0 10px 40px rgba(0,0,0,0.8); min-width:320px; backdrop-filter:blur(10px);";
     designPanel.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid rgba(212,175,55,0.3); padding-bottom:10px;">
+        <!-- ドラッグ可能なヘッダー -->
+        <div id="dp-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid rgba(212,175,55,0.3); padding:12px 0 10px 0; cursor:grab; user-select:none;">
             <div id="dp-title" style="color:#d4af37; font-weight:bold; font-size:15px;">デザイン設定</div>
-            <button id="dp-close" style="background:none; border:none; color:#fff; cursor:pointer; font-size:18px;">×</button>
+            <div style="display:flex; gap:10px; align-items:center;">
+                <button id="dp-reset" title="この項目を初期化" style="background:rgba(255,100,100,0.2); border:1px solid #ff8888; color:#ff8888; border-radius:4px; font-size:11px; padding:2px 6px; cursor:pointer;">初期化</button>
+                <button id="dp-close" style="background:none; border:none; color:#fff; cursor:pointer; font-size:20px; padding:0; line-height:1;">×</button>
+            </div>
         </div>
         <div style="display:flex; flex-direction:column; gap:12px; font-size:13px; max-height: 65vh; overflow-y: auto; padding-right: 5px;">
 
@@ -89,13 +93,13 @@ function initUI() {
                 <label id="dp-row-size" style="display:flex; justify-content:space-between; align-items:center;">文字サイズ:
                     <input type="number" id="dp-size" style="width:60px; background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px;" step="0.5">
                 </label>
-                <label id="dp-row-color" style="display:flex; justify-content:space-between; align-items:center;">文字色:
+                <label id="dp-row-color" style="display:flex; justify-content:space-between; align-items:center;">文字色 (Fill):
                     <input type="color" id="dp-color" style="background:none; border:none; width:30px; height:30px; cursor:pointer;">
                 </label>
                 <label id="dp-row-bold" style="display:flex; align-items:center; gap:8px;">
                     <input type="checkbox" id="dp-bold" style="accent-color:#d4af37; width:16px; height:16px;"> 太字にする
                 </label>
-                <label id="dp-row-stroke-color" style="display:flex; justify-content:space-between; align-items:center;">縁取り色 (後光):
+                <label id="dp-row-stroke-color" style="display:flex; justify-content:space-between; align-items:center;">縁取り色 (Stroke):
                     <input type="color" id="dp-stroke-color" style="background:none; border:none; width:30px; height:30px; cursor:pointer;">
                 </label>
                 <label id="dp-row-stroke-width" style="display:flex; justify-content:space-between; align-items:center;">縁取り太さ:
@@ -117,7 +121,7 @@ function initUI() {
                 </label>
                 <label id="dp-row-shape-fill" style="display:flex; justify-content:space-between; align-items:center;">塗りつぶし色:
                     <div style="display:flex; align-items:center; gap:5px;">
-                        <input type="checkbox" id="dp-shape-fill-trans" title="透明にする" style="accent-color:#d4af37;"> 透明
+                        <input type="checkbox" id="dp-shape-fill-trans" title="透明にする" style="accent-color:#d4af37;"> <span id="dp-shape-fill-trans-text">透明</span>
                         <input type="color" id="dp-shape-fill" style="background:none; border:none; width:30px; height:30px; cursor:pointer;">
                     </div>
                 </label>
@@ -139,7 +143,7 @@ function initUI() {
                     <input type="range" id="dp-opacity" min="0" max="1" step="0.05" style="width:100px; accent-color:#d4af37;">
                     <span id="dp-opacity-val" style="width:30px; text-align:right;">1</span>
                 </label>
-                <label id="dp-row-offset" style="display:flex; justify-content:space-between; align-items:center;">位置 (半径調整):
+                <label id="dp-row-offset" style="display:flex; justify-content:space-between; align-items:center;">位置 (半径/Y軸 オフセット):
                     <input type="number" id="dp-offset" style="width:60px; background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px;" step="1">
                 </label>
             </div>
@@ -147,37 +151,58 @@ function initUI() {
     `;
     document.body.appendChild(designPanel);
 
-    // 設定パネルの制御ロジック
+    // ▼ ドラッグ移動ロジック
+    let isDraggingPanel = false;
+    let dpStartX = 0, dpStartY = 0;
+    const dpHeader = document.getElementById('dp-header');
+    
+    dpHeader.addEventListener('mousedown', (e) => {
+        if(e.target.id === 'dp-close' || e.target.id === 'dp-reset') return;
+        isDraggingPanel = true;
+        // transform が適用されている場合を考慮して絶対座標を計算
+        const rect = designPanel.getBoundingClientRect();
+        dpStartX = e.clientX - rect.left;
+        dpStartY = e.clientY - rect.top;
+        dpHeader.style.cursor = 'grabbing';
+        
+        // drag開始時にtranslateを解除し、現在の座標で固定する
+        designPanel.style.transform = 'none';
+        designPanel.style.left = rect.left + 'px';
+        designPanel.style.top = rect.top + 'px';
+    });
+    
+    window.addEventListener('mousemove', (e) => {
+        if(isDraggingPanel) {
+            designPanel.style.left = (e.clientX - dpStartX) + 'px';
+            designPanel.style.top = (e.clientY - dpStartY) + 'px';
+        }
+    });
+    
+    window.addEventListener('mouseup', () => {
+        isDraggingPanel = false;
+        if(dpHeader) dpHeader.style.cursor = 'grab';
+    });
+
+    // パネル開閉・リセットロジック
     let currentDesignTarget = null;
     const targetNames = {
-        baseSvg: "ベース図形 (定規)",
-        lunarShadow: "月相シャドウ",
-        dateLines: "日付区切り線 (30等分)",
-        gregorian: "新暦日付",
-        weekday: "曜日",
-        lunar: "旧暦 (月相対応)",
-        sekki: "24節気",
-        kou: "72候",
-        zassetsu: "雑節",
-        holiday: "祝日",
-        important: "重要年中行事"
+        baseSvg: "ベース図形 (定規)", lunarShadow: "月相シャドウ", dateLines: "日付区切り線 (30等分)", lunarMansion: "二十七宿",
+        tideGraph: "潮汐波形", rainGraph: "毎時降水量 (棒線)", dailyRainBg: "日別総降水量 (背景)", dailyRainText: "日別総降水量 (数値)",
+        guideTime: "時間ガイド (0/6/12/18)", guideTide: "潮位ガイド (ft)", guideRain: "降水量ガイド (mm)",
+        gregorian: "新暦日付", weekday: "曜日", lunar: "旧暦 (月相対応)", sekki: "24節気", kou: "72候",
+        wafuText: "右上 月名 (旧暦)", gregorianText: "右上 月名 (新暦)",
+        zassetsu: "雑節", holiday: "祝日", important: "重要年中行事",
+        eventShinto: "神事", eventBuddhism: "仏事", eventChurch: "教会行事", eventSonota: "その他"
     };
 
     const loadPanelData = () => {
         const st = window.layerSettings[currentDesignTarget];
         if (!st) return;
 
-        // 一旦すべての要素を非表示に
-        document.getElementById('dp-row-lunar-phase').style.display = 'none';
-        document.getElementById('dp-group-text').style.display = 'none';
-        document.getElementById('dp-group-shape').style.display = 'none';
-        document.getElementById('dp-row-shape-type').style.display = 'none';
-        document.getElementById('dp-row-shape-fill').style.display = 'none';
-        document.getElementById('dp-row-shape-stroke').style.display = 'none';
-        document.getElementById('dp-row-shape-stroke-width').style.display = 'none';
-        document.getElementById('dp-shape-stroke-orig').style.display = 'none';
-        document.getElementById('dp-shape-stroke-orig-text').style.display = 'none';
-        document.getElementById('dp-row-offset').style.display = 'none';
+        // 全要素非表示リセット
+        ['dp-row-lunar-phase', 'dp-group-text', 'dp-group-shape', 'dp-row-shape-type', 'dp-row-shape-fill', 'dp-row-shape-stroke', 'dp-row-shape-stroke-width', 'dp-shape-stroke-orig', 'dp-shape-stroke-orig-text', 'dp-row-offset'].forEach(id => {
+            document.getElementById(id).style.display = 'none';
+        });
 
         // 透明度の反映
         if (st.opacity !== undefined) {
@@ -185,31 +210,59 @@ function initUI() {
             document.getElementById('dp-opacity-val').innerText = st.opacity;
         }
 
-        const isTextTarget = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'lunar'].includes(currentDesignTarget);
+        const isTextTarget = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'wafuText', 'gregorianText', 'dailyRainText', 'guideTime', 'guideTide', 'guideRain', 'lunarMansion', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar'].includes(currentDesignTarget);
+        const isShapeTarget = ['baseSvg', 'lunarShadow', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTide', 'guideRain'].includes(currentDesignTarget);
+
         if (isTextTarget) {
             document.getElementById('dp-group-text').style.display = 'flex';
-            document.getElementById('dp-row-offset').style.display = 'flex';
+            if(st.offsetRadius !== undefined) document.getElementById('dp-row-offset').style.display = 'flex';
 
-            document.getElementById('dp-font').value = st.fontFamily;
-            document.getElementById('dp-size').value = st.fontSize;
-            document.getElementById('dp-offset').value = st.offsetRadius;
+            document.getElementById('dp-font').value = st.fontFamily || "Arial";
+            document.getElementById('dp-size').value = st.fontSize || 10;
+            if(st.offsetRadius !== undefined) document.getElementById('dp-offset').value = st.offsetRadius;
             
             if (currentDesignTarget !== 'lunar') {
-                document.getElementById('dp-color').value = st.fill;
+                document.getElementById('dp-color').value = st.fill || "#ffffff";
                 document.getElementById('dp-bold').checked = st.fontWeight === "bold";
-                document.getElementById('dp-stroke-color').value = st.stroke;
-                document.getElementById('dp-stroke-width').value = st.strokeWidth;
-                document.getElementById('dp-stroke-val').innerText = st.strokeWidth;
+                document.getElementById('dp-stroke-color').value = st.stroke || "#000000";
+                document.getElementById('dp-stroke-width').value = st.strokeWidth || 0;
+                document.getElementById('dp-stroke-val').innerText = st.strokeWidth || 0;
+            }
+        }
+
+        if (isShapeTarget) {
+            document.getElementById('dp-group-shape').style.display = 'flex';
+            document.getElementById('dp-row-shape-stroke').style.display = 'flex';
+            document.getElementById('dp-row-shape-stroke-width').style.display = 'flex';
+            
+            if(st.fill !== undefined) {
+                document.getElementById('dp-row-shape-fill').style.display = 'flex';
+                document.getElementById('dp-shape-fill-trans').checked = false; 
+                document.getElementById('dp-shape-fill').value = st.fill;
+            } else {
+                document.getElementById('dp-row-shape-fill').style.display = 'none';
+            }
+
+            if(st.stroke !== undefined || st.shapeStroke !== undefined) {
+                document.getElementById('dp-shape-stroke').value = st.stroke !== undefined ? st.stroke : st.shapeStroke;
+                document.getElementById('dp-shape-stroke-width').value = st.strokeWidth !== undefined ? st.strokeWidth : st.shapeStrokeWidth;
+                document.getElementById('dp-shape-stroke-width-val').innerText = document.getElementById('dp-shape-stroke-width').value;
+            }
+
+            if (currentDesignTarget === 'baseSvg') {
+                document.getElementById('dp-shape-stroke-orig').style.display = 'inline-block';
+                document.getElementById('dp-shape-stroke-orig-text').style.display = 'inline-block';
+                const isOrig = (st.stroke === "");
+                document.getElementById('dp-shape-stroke-orig').checked = isOrig;
+                document.getElementById('dp-shape-stroke').value = isOrig ? "#000000" : st.stroke;
+                document.getElementById('dp-row-shape-stroke-width').style.display = 'none';
             }
         }
 
         if (currentDesignTarget === 'lunar') {
             document.getElementById('dp-row-lunar-phase').style.display = 'flex';
             document.getElementById('dp-group-shape').style.display = 'flex';
-            document.getElementById('dp-row-shape-type').style.display = 'flex';
-            document.getElementById('dp-row-shape-fill').style.display = 'flex';
-            document.getElementById('dp-row-shape-stroke').style.display = 'flex';
-            document.getElementById('dp-row-shape-stroke-width').style.display = 'flex';
+            ['dp-row-shape-type', 'dp-row-shape-fill', 'dp-row-shape-stroke', 'dp-row-shape-stroke-width'].forEach(id => document.getElementById(id).style.display = 'flex');
 
             const phase = document.getElementById('dp-lunar-phase').value;
             const pst = st.phases[phase];
@@ -220,67 +273,65 @@ function initUI() {
             
             const isTrans = (pst.bgFill === "transparent" || pst.bgFill === "none");
             document.getElementById('dp-shape-fill-trans').checked = isTrans;
+            document.getElementById('dp-shape-fill-trans-text').innerText = "透明";
             document.getElementById('dp-shape-fill').value = isTrans ? "#000000" : pst.bgFill;
             
             document.getElementById('dp-shape-stroke').value = pst.shapeStroke;
             document.getElementById('dp-shape-stroke-width').value = pst.shapeStrokeWidth;
             document.getElementById('dp-shape-stroke-width-val').innerText = pst.shapeStrokeWidth;
         }
-
-        if (currentDesignTarget === 'baseSvg') {
-            document.getElementById('dp-group-shape').style.display = 'flex';
-            document.getElementById('dp-row-shape-stroke').style.display = 'flex';
-            document.getElementById('dp-shape-stroke-orig').style.display = 'inline-block';
-            document.getElementById('dp-shape-stroke-orig-text').style.display = 'inline-block';
-
-            const isOrig = (st.stroke === "");
-            document.getElementById('dp-shape-stroke-orig').checked = isOrig;
-            document.getElementById('dp-shape-stroke').value = isOrig ? "#000000" : st.stroke;
-        }
-
-        if (currentDesignTarget === 'lunarShadow') {
-            document.getElementById('dp-group-shape').style.display = 'flex';
-            document.getElementById('dp-row-shape-fill').style.display = 'flex';
-            document.getElementById('dp-shape-fill-trans').checked = false; 
-            document.getElementById('dp-shape-fill').value = st.fill;
-        }
-
-        if (currentDesignTarget === 'dateLines') {
-            document.getElementById('dp-group-shape').style.display = 'flex';
-            document.getElementById('dp-row-shape-stroke').style.display = 'flex';
-            document.getElementById('dp-row-shape-stroke-width').style.display = 'flex';
-
-            document.getElementById('dp-shape-stroke').value = st.stroke;
-            document.getElementById('dp-shape-stroke-width').value = st.strokeWidth;
-            document.getElementById('dp-shape-stroke-width-val').innerText = st.strokeWidth;
-        }
     };
 
     document.getElementById('dp-close').onclick = () => { designPanel.style.display = 'none'; };
+    
+    // ▼ 個別リセット
+    document.getElementById('dp-reset').onclick = () => {
+        if (confirm(`「${targetNames[currentDesignTarget]}」のデザイン設定を初期状態に戻しますか？`)) {
+            window.layerSettings[currentDesignTarget] = JSON.parse(JSON.stringify(window.defaultLayerSettings[currentDesignTarget]));
+            window.saveLayerSettings();
+            loadPanelData();
+            updateDesign();
+        }
+    };
+    
+    // ▼ マスターリセット
+    document.getElementById('reset-all-settings').onclick = () => {
+        if (confirm('すべてのデザイン設定を完全に初期化しますか？\n（カレンダーの塗りデータは消えません）')) {
+            window.layerSettings = JSON.parse(JSON.stringify(window.defaultLayerSettings));
+            window.saveLayerSettings();
+            location.reload();
+        }
+    };
 
-    // レイヤーパネル内の「⚙️」が押された時
     document.addEventListener('click', (e) => {
         if (e.target.classList.contains('layer-settings-btn')) {
             currentDesignTarget = e.target.getAttribute('data-target');
             document.getElementById('dp-title').innerText = `${targetNames[currentDesignTarget]} の設定`;
+            
+            // 初回表示時のみ中央寄りにセット（ドラッグで動かせるように）
+            designPanel.style.transform = 'translate(-50%, -50%)';
+            designPanel.style.left = '50%';
+            designPanel.style.top = '50%';
+            
             loadPanelData();
             designPanel.style.display = 'block';
         }
     });
 
-    // パネル内の値が変更された時
     const updateDesign = () => {
         if (!currentDesignTarget) return;
         const st = window.layerSettings[currentDesignTarget];
 
-        st.opacity = parseFloat(document.getElementById('dp-opacity').value);
-        document.getElementById('dp-opacity-val').innerText = st.opacity;
+        if(document.getElementById('dp-opacity').style.display !== 'none') {
+            st.opacity = parseFloat(document.getElementById('dp-opacity').value);
+            document.getElementById('dp-opacity-val').innerText = st.opacity;
+        }
 
-        const isTextTarget = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'lunar'].includes(currentDesignTarget);
+        const isTextTarget = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'wafuText', 'gregorianText', 'dailyRainText', 'guideTime', 'guideTide', 'guideRain', 'lunarMansion', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar'].includes(currentDesignTarget);
         if (isTextTarget) {
             st.fontFamily = document.getElementById('dp-font').value;
             st.fontSize = parseFloat(document.getElementById('dp-size').value);
-            st.offsetRadius = parseFloat(document.getElementById('dp-offset').value);
+            if(st.offsetRadius !== undefined) st.offsetRadius = parseFloat(document.getElementById('dp-offset').value);
             
             if (currentDesignTarget !== 'lunar') {
                 st.fill = document.getElementById('dp-color').value;
@@ -291,10 +342,25 @@ function initUI() {
             }
         }
 
+        const isShapeTarget = ['baseSvg', 'lunarShadow', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTide', 'guideRain'].includes(currentDesignTarget);
+        if(isShapeTarget) {
+            if(st.fill !== undefined) {
+                st.fill = document.getElementById('dp-shape-fill').value;
+            }
+            if(currentDesignTarget === 'baseSvg') {
+                st.stroke = document.getElementById('dp-shape-stroke-orig').checked ? "" : document.getElementById('dp-shape-stroke').value;
+            } else {
+                if(st.stroke !== undefined) st.stroke = document.getElementById('dp-shape-stroke').value;
+                if(st.strokeWidth !== undefined) st.strokeWidth = parseFloat(document.getElementById('dp-shape-stroke-width').value);
+                if(st.shapeStroke !== undefined) st.shapeStroke = document.getElementById('dp-shape-stroke').value;
+                if(st.shapeStrokeWidth !== undefined) st.shapeStrokeWidth = parseFloat(document.getElementById('dp-shape-stroke-width').value);
+            }
+            document.getElementById('dp-shape-stroke-width-val').innerText = document.getElementById('dp-shape-stroke-width').value;
+        }
+
         if (currentDesignTarget === 'lunar') {
             const phase = document.getElementById('dp-lunar-phase').value;
             const pst = st.phases[phase];
-            
             pst.fill = document.getElementById('dp-color').value;
             st.fontWeight = document.getElementById('dp-bold').checked ? "bold" : "normal";
             pst.shape = document.getElementById('dp-shape').value;
@@ -304,8 +370,10 @@ function initUI() {
             document.getElementById('dp-shape-stroke-width-val').innerText = pst.shapeStrokeWidth;
         }
 
+        window.saveLayerSettings();
+        
+        // 再描画の振り分け
         if (currentDesignTarget === 'baseSvg') {
-            st.stroke = document.getElementById('dp-shape-stroke-orig').checked ? "" : document.getElementById('dp-shape-stroke').value;
             const bgGroup = document.getElementById('bg-group');
             if(bgGroup) {
                 bgGroup.style.opacity = st.opacity;
@@ -315,42 +383,23 @@ function initUI() {
                 });
             }
         }
-
-        if (currentDesignTarget === 'lunarShadow') {
-            st.fill = document.getElementById('dp-shape-fill').value;
-            const shadowPath = document.querySelector('.layer-lunar-shadow path');
-            if(shadowPath) {
-                shadowPath.setAttribute("fill", st.fill);
-                shadowPath.setAttribute("opacity", st.opacity);
-            }
-        }
-
-        if (currentDesignTarget === 'dateLines') {
-            st.stroke = document.getElementById('dp-shape-stroke').value;
-            st.strokeWidth = parseFloat(document.getElementById('dp-shape-stroke-width').value);
-            document.getElementById('dp-shape-stroke-width-val').innerText = st.strokeWidth;
-        }
-
-        window.saveLayerSettings();
-        
-        // 即座に再描画
-        if (currentDesignTarget === 'dateLines') {
-            if (typeof drawDynamicLines === 'function') drawDynamicLines();
-        } else if (isTextTarget && window.lastKoyomiStartDate) {
+        else if (currentDesignTarget === 'dateLines') { if (typeof drawDynamicLines === 'function') drawDynamicLines(); }
+        else if (currentDesignTarget === 'tideGraph' || currentDesignTarget === 'guideTide') { if (window.lastCycleStartTimeMs) drawTideGraph(window.lastCycleStartTimeMs); }
+        else if (currentDesignTarget === 'rainGraph' || currentDesignTarget === 'guideRain') { if (window.lastCycleStartTimeMs) drawRainfallGraph(window.lastCycleStartTimeMs); }
+        else if (currentDesignTarget === 'lunarShadow') { if (window.lastCycleStartTimeMs) drawLunarShadow(window.lastCycleStartTimeMs); }
+        else if (currentDesignTarget === 'lunarMansion') { if (window.lastCycleStartTimeMs) drawLunarMansions(window.lastCycleStartTimeMs); }
+        else if (currentDesignTarget === 'guideTime') { drawTimeLabels(); }
+        else if (currentDesignTarget === 'dailyRainBg' || currentDesignTarget === 'dailyRainText') { if (window.lastKoyomiStartDate) drawDailyRainStats(window.lastKoyomiStartDate); }
+        else if (window.lastKoyomiStartDate) {
             if (typeof drawKoyomiEvents === 'function') drawKoyomiEvents(window.lastKoyomiStartDate);
         }
     };
 
-    // すべての入力要素にイベントリスナーを登録
     ['dp-lunar-phase', 'dp-font', 'dp-size', 'dp-color', 'dp-bold', 'dp-stroke-color', 'dp-stroke-width', 'dp-shape', 'dp-shape-fill-trans', 'dp-shape-fill', 'dp-shape-stroke-orig', 'dp-shape-stroke', 'dp-shape-stroke-width', 'dp-opacity', 'dp-offset'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
-            // セレクトボックスの切り替え時は再描画だけでなくパネルのロードも行う
-            if (id === 'dp-lunar-phase') {
-                el.addEventListener('change', loadPanelData);
-            } else {
-                el.addEventListener('input', updateDesign);
-            }
+            if (id === 'dp-lunar-phase') el.addEventListener('change', loadPanelData);
+            else el.addEventListener('input', updateDesign);
         }
     });
 
@@ -494,21 +543,17 @@ function initUI() {
         if(!document.getElementById("toggle-rain-graph")?.checked) addHiddenRule(".layer-rain-graph");
         if(!document.getElementById("toggle-daily-rain-bg")?.checked) addHiddenRule(".layer-daily-rain-bg");
         if(!document.getElementById("toggle-daily-rain-text")?.checked) addHiddenRule(".layer-daily-rain-text");
-        
-        // ▼ 30分割線のクラス
         if(!document.getElementById("toggle-date-lines")?.checked) addHiddenRule("#lines-layer");
-        
         if(!document.getElementById("toggle-guide-time")?.checked) addHiddenRule(".layer-guide-time");
         if(!document.getElementById("toggle-guide-tide")?.checked) addHiddenRule(".layer-guide-tide");
         if(!document.getElementById("toggle-guide-rain")?.checked) addHiddenRule(".layer-guide-rain");
         if(!document.getElementById("toggle-date-gregorian")?.checked) addHiddenRule(".layer-date-gregorian");
         if(!document.getElementById("toggle-date-lunar")?.checked) addHiddenRule(".layer-date-lunar");
         if(!document.getElementById("toggle-date-weekday")?.checked) addHiddenRule(".layer-date-weekday");
-        
-        // ▼ 節気と候を分離
+        if(!document.getElementById("toggle-wafu-text")?.checked) addHiddenRule(".layer-wafu-text");
+        if(!document.getElementById("toggle-gregorian-text")?.checked) addHiddenRule(".layer-gregorian-text");
         if(!document.getElementById("toggle-sekki")?.checked) addHiddenRule(".layer-sekki");
         if(!document.getElementById("toggle-kou")?.checked) addHiddenRule(".layer-kou");
-        
         if(!document.getElementById("toggle-zassetsu")?.checked) addHiddenRule(".layer-zassetsu");
         if(!document.getElementById("toggle-holiday")?.checked) addHiddenRule(".layer-holiday");
         if(!document.getElementById("toggle-event-important")?.checked) addHiddenRule(".layer-event-important");
