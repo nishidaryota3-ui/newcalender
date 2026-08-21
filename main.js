@@ -4,7 +4,6 @@ window.defaultLayerSettings = {
     canvasBg: { fill: "#f5f5f0" },
     baseSvg: { stroke: "", opacity: 0.8 }, 
     lunarShadow: { fill: "#000000", opacity: 0.03 },
-    // ★ 新規追加：輝度放射線の初期設定
     luminescenceRay: { stroke: "#d4af37", strokeWidth: 0.8, opacity: 0.5 },
     dateLines: { stroke: "#555555", strokeWidth: 1.5, opacity: 1 },
     lunarMansion: { 
@@ -188,7 +187,6 @@ async function updateCalendarCycle() {
     document.getElementById('cycleDisplay').innerHTML = `${y}年 ${m}月 <span style="font-size:10px;">▼</span><br><span style="font-size:11px; color:#8b949e;">新月: ${m}月${d}日〜</span>`;
 
     drawLunarShadow(cycleStartTimeMs);
-    // ★ 新規追加：輝度放射線の描画トリガー
     if (typeof drawLuminescenceRay === 'function') drawLuminescenceRay(cycleStartTimeMs);
 
     drawDynamicLines();
@@ -262,7 +260,7 @@ loadLocalCSV().then(() => {
 
             const layerIds = [
                 "layer-shadow",               
-                "layer-luminescence-ray", // ★ 新規追加：輝度放射線のレイヤー
+                "layer-luminescence-ray", 
                 "layer-lines",                
                 "layer-data",                 
                 "layer-tide-wave",            
