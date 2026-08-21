@@ -5,6 +5,8 @@ window.defaultLayerSettings = {
     canvasBg: { fill: "#f5f5f0" },
     baseSvg: { stroke: "", opacity: 0.8 }, 
     lunarShadow: { fill: "#000000", opacity: 0.03 },
+    // ★ 新規追加：天文学的ピンの初期設定
+    astroPins: { fill: "#d4af37", stroke: "#d4af37", strokeWidth: 1.2, opacity: 1, scale: 1 },
     dateLines: { stroke: "#555555", strokeWidth: 1.5, opacity: 1 },
     lunarMansion: { 
         strokeWidth: 0.5, opacity: 0.5, fontFamily: "'Shippori Mincho', 'YuMincho', serif", fontSize: 9,
@@ -187,6 +189,10 @@ async function updateCalendarCycle() {
     document.getElementById('cycleDisplay').innerHTML = `${y}年 ${m}月 <span style="font-size:10px;">▼</span><br><span style="font-size:11px; color:#8b949e;">新月: ${m}月${d}日〜</span>`;
 
     drawLunarShadow(cycleStartTimeMs);
+    
+    // ★ 追加：天文学的ピンの描画
+    if (typeof drawAstronomicalPins === 'function') drawAstronomicalPins(cycleStartTimeMs);
+    
     drawDynamicLines();
     drawTideGraph(cycleStartTimeMs);
     drawDailyRainStats(startDate);
@@ -261,6 +267,7 @@ loadLocalCSV().then(() => {
             // ★ Z-index（重ね順）を完全に制御するためのレイヤー群（下から順に描画される）
             const layerIds = [
                 "layer-shadow",               // 月相シャドウ
+                "layer-astronomical-pins",    // ★ 追加：天文学的ピン (朔望)
                 "layer-lines",                // 30分割線
                 "layer-data",                 // ペイント塗り
                 "layer-tide-wave",            // 潮汐波形 (波のみ)
