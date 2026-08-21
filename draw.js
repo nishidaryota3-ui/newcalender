@@ -31,6 +31,13 @@ function drawLunarMansions(cycleStartTimeMs) {
     let currentMansionIndex = -1;
     let mansionStartAngle = 0;
 
+    const getMansionColor = (idx) => {
+        if (idx < 7) return st.colorEast;
+        if (idx < 14) return st.colorNorth;
+        if (idx < 21) return st.colorWest;
+        return st.colorSouth;
+    };
+
     for (let i = 0; i <= totalHours * resolution; i++) {
         const t = i / resolution;
         const timeMs = cycleStartTimeMs + t * 3600000;
@@ -40,7 +47,7 @@ function drawLunarMansions(cycleStartTimeMs) {
 
         if (index !== currentMansionIndex) {
             if (currentMansionIndex !== -1) {
-                drawConstellationMark(mansionStartAngle, angle, currentMansionIndex, rBase + 15, st);
+                drawConstellationMark(mansionStartAngle, angle, currentMansionIndex, rBase + 15, st, getMansionColor(currentMansionIndex));
             }
             const p1 = polarToCartesian(cx, cy, rBase, angle);
             const p2 = polarToCartesian(cx, cy, rMax, angle);
@@ -49,7 +56,7 @@ function drawLunarMansions(cycleStartTimeMs) {
             line.setAttribute("y1", p1.y);
             line.setAttribute("x2", p2.x);
             line.setAttribute("y2", p2.y);
-            line.setAttribute("stroke", mansions[index].color);
+            line.setAttribute("stroke", getMansionColor(index));
             line.setAttribute("stroke-width", st.strokeWidth);
             line.setAttribute("opacity", st.opacity);
             lunarMansionLayer.appendChild(line);
@@ -59,10 +66,10 @@ function drawLunarMansions(cycleStartTimeMs) {
         }
     }
     const finalAngle = startAngle + 360;
-    drawConstellationMark(mansionStartAngle, finalAngle, currentMansionIndex, rBase + 15, st);
+    drawConstellationMark(mansionStartAngle, finalAngle, currentMansionIndex, rBase + 15, st, getMansionColor(currentMansionIndex));
 }
 
-function drawConstellationMark(startAng, endAng, index, rCenter, st) {
+function drawConstellationMark(startAng, endAng, index, rCenter, st, color) {
     if(endAng < startAng) endAng += 360;
     const midAngle = startAng + (endAng - startAng) / 2;
     const mansion = mansions[index];
@@ -74,7 +81,7 @@ function drawConstellationMark(startAng, endAng, index, rCenter, st) {
     text.setAttribute("y", ptText.y);
     text.setAttribute("text-anchor", "middle");
     text.setAttribute("dominant-baseline", "central");
-    text.setAttribute("fill", mansion.color);
+    text.setAttribute("fill", color);
     text.setAttribute("font-size", st.fontSize + "px");
     text.setAttribute("font-family", st.fontFamily);
     text.setAttribute("opacity", st.opacity);
@@ -96,7 +103,7 @@ function drawConstellationMark(startAng, endAng, index, rCenter, st) {
         circle.setAttribute("cx", pt.x);
         circle.setAttribute("cy", pt.y);
         circle.setAttribute("r", rand() > 0.8 ? "1.5" : "0.8");
-        circle.setAttribute("fill", mansion.color);
+        circle.setAttribute("fill", color);
         circle.setAttribute("opacity", st.opacity);
         g.appendChild(circle);
     }
@@ -107,7 +114,7 @@ function drawConstellationMark(startAng, endAng, index, rCenter, st) {
         line.setAttribute("y1", stars[i].y);
         line.setAttribute("x2", stars[i+1].x);
         line.setAttribute("y2", stars[i+1].y);
-        line.setAttribute("stroke", mansion.color);
+        line.setAttribute("stroke", color);
         line.setAttribute("stroke-width", "0.3");
         line.setAttribute("opacity", st.opacity);
         g.appendChild(line);
@@ -139,7 +146,9 @@ function drawDailyRainStats(startDate) {
             const rain = localRainData[dateStr];
             const startAngle = (currentStartSegment + i * 4) * 3;
             const endAngle = startAngle + 12;
-            let computedOpacity = Math.min(rain / 150, 1) * 0.3 + 0.05;
+            
+            // ★密度(density)によるスケーリングを適用
+            let computedOpacity = Math.min(rain / 150, 1) * (stBg.density || 0.35) + 0.05;
 
             const startIn = polarToCartesian(cx, cy, rMin, endAngle);
             const endIn = polarToCartesian(cx, cy, rMin, startAngle);
@@ -610,6 +619,11 @@ function drawKoyomiEvents(startDate) {
     const stH = window.layerSettings.holiday;
     const stI = window.layerSettings.important;
 
+    // ★ 曜日(英語/日本語)の切替
+    const daysStr = stW.lang === 'ja' 
+        ? ["日", "月", "火", "水", "木", "金", "土"]
+        : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
     const r24 = (R[23] + R[24]) / 2;
     const r25 = (R[24] + R[25]) / 2;
     const r26 = (R[25] + R[26]) / 2;
@@ -626,7 +640,6 @@ function drawKoyomiEvents(startDate) {
     const r30M_text = r30In + (r30Out - r30In) * 0.50;
     const r30L_text = r30In + (r30Out - r30In) * 0.18;
 
-    const daysStr = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     let startWafu = "";
     let startGregorianMonth = startDate.getMonth() + 1;
     let endGregorianMonth = new Date(startDate.getTime() + 29 * 86400000).getMonth() + 1;
@@ -843,7 +856,9 @@ function drawKoyomiEvents(startDate) {
             const pst = stL.phases[phaseKey];
             const rLun = (r30In + r30Out)/2 + stL.offsetRadius;
             const ptLunar = polarToCartesian(cx, cy, rLun, baseAngle + 10.5);
-            const lunarRadius = (r30Out - r30In) * 0.4;
+            
+            // ★ スケール(倍率)の適用
+            const lunarRadius = ((r30Out - r30In) * 0.4) * (pst.scale || 1);
 
             if (pst.shape !== "none") {
                 const shapeG = document.createElementNS(svgNS, "g");
@@ -1001,7 +1016,6 @@ function drawKoyomiEvents(startDate) {
         ? wafuList[startGregorianMonth - 1] 
         : `${wafuList[startGregorianMonth - 1]} ／ ${wafuList[endGregorianMonth - 1]}`;
     
-    // 次の行へのY方向の間隔を確保するため、フォントサイズに基づくベースの隙間に offsetRadius を加算
     tspanNew.setAttribute("x", cx + 860);
     tspanNew.setAttribute("dy", (stWafu.fontSize * 0.9) + stGreText.offsetRadius);
     tspanNew.setAttribute("fill", stGreText.fill);
