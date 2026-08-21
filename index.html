@@ -6,7 +6,6 @@
     <title>Polar Calendar - 分割・精密ペイント版</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        /* UI全体のフォントをゴシック体に統一 */
         .panel-ui, #layer-panel, #palette, #status-bar, button, input, select {
             font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif !important;
         }
@@ -30,7 +29,6 @@
         </div>
         
         <div id="layer-panel-content">
-            <!-- テーマ管理 UI -->
             <div style="background:rgba(0,0,0,0.3); padding:10px; border-radius:6px; margin-bottom:15px; border:1px solid rgba(212,175,55,0.3);">
                 <div style="font-size:12px; color:#d4af37; margin-bottom:5px; font-weight:bold;">テーマ (プリセット) 管理</div>
                 <div style="display:flex; gap:5px; margin-bottom:8px;">
@@ -45,7 +43,6 @@
                 </div>
             </div>
 
-            <!-- キャンバス背景色 -->
             <div class="layer-item" style="border-bottom:1px dashed rgba(255,255,255,0.2); padding-bottom:10px; margin-bottom:10px;">
                 <label>キャンバス全体 背景色</label><button class="layer-settings-btn" data-target="canvasBg" title="デザイン設定">⚙️</button>
             </div>
@@ -53,7 +50,8 @@
             <!-- ベース・図形 -->
             <div class="layer-item"><input type="checkbox" id="toggle-base-svg" checked><label for="toggle-base-svg">ベース図形</label><button class="layer-settings-btn" data-target="baseSvg" title="デザイン設定">⚙️</button></div>
             <div class="layer-item"><input type="checkbox" id="toggle-lunar-shadow" checked><label for="toggle-lunar-shadow">月相シャドウ (ハート型)</label><button class="layer-settings-btn" data-target="lunarShadow" title="デザイン設定">⚙️</button></div>
-            <!-- ★ 新規追加：天文学的ピン -->
+            
+            <!-- 天文学的ピン -->
             <div class="layer-item"><input type="checkbox" id="toggle-astro-pins" checked><label for="toggle-astro-pins">天文学的ピン (朔望)</label><button class="layer-settings-btn" data-target="astroPins" title="デザイン設定">⚙️</button></div>
             
             <div class="layer-item"><input type="checkbox" id="toggle-layer-lunar" checked><label for="toggle-layer-lunar">二十七宿 (一番外周)</label><button class="layer-settings-btn" data-target="lunarMansion" title="デザイン設定">⚙️</button></div>
@@ -95,7 +93,6 @@
             <div class="layer-item layer-indent"><input type="checkbox" id="toggle-event-church" checked><label for="toggle-event-church">教会行事</label><button class="layer-settings-btn" data-target="eventChurch" title="デザイン設定">⚙️</button></div>
             <div class="layer-item layer-indent"><input type="checkbox" id="toggle-event-sonota" checked><label for="toggle-event-sonota">その他</label><button class="layer-settings-btn" data-target="eventSonota" title="デザイン設定">⚙️</button></div>
 
-            <!-- マスターリセット -->
             <div style="margin-top:20px; text-align:center;">
                 <button id="reset-all-settings" style="background:rgba(255,100,100,0.1); border:1px solid rgba(255,100,100,0.5); color:#ff8888; border-radius:4px; padding:6px 12px; font-size:12px; cursor:pointer; width:100%; transition:0.2s;">⚠️ 全デザイン設定を初期化</button>
             </div>
