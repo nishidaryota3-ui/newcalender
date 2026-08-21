@@ -1,6 +1,5 @@
 // main.js (司令塔・初期化モジュール)
 
-// ▼▼ 究極のテーマ管理用：全要素を網羅したデザイン設定データの定義 ▼▼
 window.defaultLayerSettings = {
     canvasBg: { fill: "#f5f5f0" },
     baseSvg: { stroke: "", opacity: 0.8 }, 
@@ -198,12 +197,18 @@ async function updateCalendarCycle() {
     globalRotation = -currentStartSegment * 3;
     masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
 
+    // ★ ベースSVGの色の復元処理を修正（オリジナルを記憶している場合のみ復元）
     const stBase = window.layerSettings.baseSvg;
     if (bgGroup) {
         bgGroup.style.opacity = stBase.opacity;
         Array.from(bgGroup.querySelectorAll('*')).forEach(el => {
-            if (stBase.stroke) el.setAttribute('stroke', stBase.stroke);
-            else el.removeAttribute('stroke');
+            if (stBase.stroke !== "") {
+                el.setAttribute('stroke', stBase.stroke);
+            } else {
+                const orig = el.getAttribute('data-orig-stroke');
+                if (orig) el.setAttribute('stroke', orig);
+                else el.removeAttribute('stroke');
+            }
         });
     }
 
@@ -238,27 +243,35 @@ loadLocalCSV().then(() => {
             bgGroup = document.createElementNS(svgNS, "g");
             bgGroup.setAttribute("id", "bg-group");
             
-            while (svg.firstChild) bgGroup.appendChild(svg.firstChild);
+            // ★ SVG読み込み時に元のstrokeカラーを要素に記憶（バックアップ）させる
+            while (svg.firstChild) {
+                const child = svg.firstChild;
+                if (child.nodeType === 1) { 
+                    if (child.getAttribute('stroke')) child.setAttribute('data-orig-stroke', child.getAttribute('stroke'));
+                    child.querySelectorAll('*').forEach(el => {
+                        if (el.getAttribute('stroke')) el.setAttribute('data-orig-stroke', el.getAttribute('stroke'));
+                    });
+                }
+                bgGroup.appendChild(child);
+            }
             masterGroup.appendChild(bgGroup);
             svg.appendChild(masterGroup);
 
-            // ★ Z-index（重ね順）を完璧に制御するためのレイヤー群（下から順に追加）
             const layerIds = [
-                "layer-shadow",               // 月相シャドウ
-                "layer-lines",                // 30分割線
-                "layer-data",                 // ペイント塗り
-                "layer-tide-wave",            // 潮汐波形 (波のみ)
-                "layer-rain-graph",           // 毎時降水量 (棒のみ)
-                "layer-daily-rain-bg",        // 日別総降水量 (背景)
-                "layer-lunar-mansion",        // 二十七宿
-                "layer-solar-dates",          // カレンダー文字群
-                "layer-outer-season",         // 節気・候
-                // ▼▼ 最前面（一番上）に表示されるガイドレイヤー群 ▼▼
-                "layer-guide-tide",           // 潮位ガイド目盛り
-                "layer-guide-rain",           // 降水量ガイド目盛り
-                "layer-daily-rain-text",      // 日別総降水量 (数値)
-                "layer-guide-time",           // 時間ラベル
-                "layer-wafu-text"             // 右上 月名
+                "layer-shadow",               
+                "layer-lines",                
+                "layer-data",                 
+                "layer-tide-wave",            
+                "layer-rain-graph",           
+                "layer-daily-rain-bg",        
+                "layer-lunar-mansion",        
+                "layer-solar-dates",          
+                "layer-outer-season",         
+                "layer-guide-tide",           
+                "layer-guide-rain",           
+                "layer-daily-rain-text",      
+                "layer-guide-time",           
+                "layer-month-names" // ★ IDを独立した名前に変更
             ];
 
             const defs = document.createElementNS(svgNS, "defs");
