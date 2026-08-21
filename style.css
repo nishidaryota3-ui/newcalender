@@ -15,12 +15,10 @@ body {
     width: 100vw;
     height: 100vh;
     position: relative;
-    /* ▼ ここを手のひらから、精密な十字カーソルに変更 ▼ */
     cursor: crosshair;
 }
 
 .calendar-container.is-dragging {
-    /* ドラッグして移動している最中だけ、握った手に変わる */
     cursor: grabbing !important;
 }
 
@@ -103,10 +101,10 @@ body {
     letter-spacing: 1px;
 }
 
-/* ▼▼ 追加：レイヤーパネルの装飾 ▼▼ */
+/* ▼▼ レイヤーパネルの装飾 ▼▼ */
 #layer-panel {
     position: fixed;
-    bottom: 30px; /* 右下に配置してPhotoshop風に */
+    bottom: 30px;
     right: 30px;
     background: rgba(25, 30, 40, 0.85);
     backdrop-filter: blur(10px);
@@ -118,9 +116,16 @@ body {
     z-index: 100;
     display: flex;
     flex-direction: column;
-    gap: 15px;
-    width: 150px;
+    gap: 8px; /* 項目同士の隙間を少し詰める */
+    width: 200px;
+    max-height: 75vh; /* 画面に収まらない場合はスクロールさせる */
+    overflow-y: auto;
 }
+
+/* スクロールバーのデザイン */
+#layer-panel::-webkit-scrollbar { width: 6px; }
+#layer-panel::-webkit-scrollbar-track { background: transparent; }
+#layer-panel::-webkit-scrollbar-thumb { background: rgba(212, 175, 55, 0.5); border-radius: 3px; }
 
 .layer-panel-title {
     font-size: 14px;
@@ -128,25 +133,41 @@ body {
     border-bottom: 1px solid rgba(212, 175, 55, 0.3);
     padding-bottom: 5px;
     margin-bottom: 5px;
+    position: sticky;
+    top: 0;
+    background: inherit;
+    z-index: 2;
+}
+
+.layer-group-title {
+    font-size: 11px;
+    color: #8b949e;
+    border-bottom: 1px solid rgba(212, 175, 55, 0.2);
+    padding-bottom: 2px;
+    margin-top: 6px;
 }
 
 .layer-item {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 13px;
+    font-size: 12px;
     cursor: pointer;
+}
+
+.layer-indent {
+    margin-left: 12px; /* 階層化して見やすく字下げ */
 }
 
 .layer-item input[type="checkbox"] {
     cursor: pointer;
-    accent-color: #d4af37; /* チェックボックスの色をゴールドに */
-    width: 16px;
-    height: 16px;
+    accent-color: #d4af37;
+    width: 14px;
+    height: 14px;
 }
 
 .layer-item label {
     cursor: pointer;
-    user-select: none; /* テキスト選択を防いでクリックしやすく */
+    user-select: none;
 }
 /* ▲▲ 追加ここまで ▲▲ */
