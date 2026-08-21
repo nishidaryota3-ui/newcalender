@@ -205,12 +205,16 @@ function initUI() {
         if(!document.getElementById("toggle-date-weekday")?.checked) addHiddenRule(".layer-date-weekday");
         if(!document.getElementById("toggle-sekki-kou")?.checked) addHiddenRule(".layer-sekki-kou");
 
-        // 年中行事
-        if(!document.getElementById("toggle-event-shinto")?.checked) addHiddenRule(".layer-event-shinto");
-        if(!document.getElementById("toggle-event-buddhism")?.checked) addHiddenRule(".layer-event-buddhism");
-        if(!document.getElementById("toggle-event-church")?.checked) addHiddenRule(".layer-event-church");
-        if(!document.getElementById("toggle-event-islam")?.checked) addHiddenRule(".layer-event-islam");
-        if(!document.getElementById("toggle-event-sonota")?.checked) addHiddenRule(".layer-event-sonota");
+        // 特等席 (階層30)
+        if(!document.getElementById("toggle-zassetsu")?.checked) addHiddenRule(".layer-zassetsu");
+        if(!document.getElementById("toggle-holiday")?.checked) addHiddenRule(".layer-holiday");
+        if(!document.getElementById("toggle-event-important")?.checked) addHiddenRule(".layer-event-important");
+
+        // 年中行事 (tspanを用いた魔法のレイヤー制御)
+        if(!document.getElementById("toggle-event-shinto")?.checked) addHiddenRule("tspan.layer-event-shinto");
+        if(!document.getElementById("toggle-event-buddhism")?.checked) addHiddenRule("tspan.layer-event-buddhism");
+        if(!document.getElementById("toggle-event-church")?.checked) addHiddenRule("tspan.layer-event-church");
+        if(!document.getElementById("toggle-event-sonota")?.checked) addHiddenRule("tspan.layer-event-sonota");
 
         styleBlock.innerHTML = css;
     };
