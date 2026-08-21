@@ -55,7 +55,6 @@ function initUI() {
     designPanel.className = 'panel-ui';
     designPanel.style = "display:none; position:fixed; top:100px; left:50%; background:rgba(25,30,40,0.95); padding:0 20px 20px 20px; border-radius:12px; border:1px solid rgba(212,175,55,0.5); color:#fff; z-index:200; box-shadow:0 10px 40px rgba(0,0,0,0.8); min-width:320px; backdrop-filter:blur(10px);";
     designPanel.innerHTML = `
-        <!-- ドラッグ可能なヘッダー -->
         <div id="dp-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid rgba(212,175,55,0.3); padding:12px 0 10px 0; cursor:grab; user-select:none;">
             <div id="dp-title" style="color:#d4af37; font-weight:bold; font-size:15px;">デザイン設定</div>
             <div style="display:flex; gap:10px; align-items:center;">
@@ -93,6 +92,12 @@ function initUI() {
                 <label id="dp-row-size" style="display:flex; justify-content:space-between; align-items:center;">文字サイズ:
                     <input type="number" id="dp-size" style="width:60px; background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px;" step="0.5">
                 </label>
+                <label id="dp-row-lang" style="display:none; justify-content:space-between; align-items:center;">表示言語:
+                    <select id="dp-lang" style="background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px; width:120px;">
+                        <option value="en">英語 (Sun-Sat)</option>
+                        <option value="ja">日本語 (日-土)</option>
+                    </select>
+                </label>
                 <label id="dp-row-color" style="display:flex; justify-content:space-between; align-items:center;">文字色 (Fill):
                     <input type="color" id="dp-color" style="background:none; border:none; width:30px; height:30px; cursor:pointer;">
                 </label>
@@ -108,6 +113,14 @@ function initUI() {
                 </label>
             </div>
 
+            <!-- 二十七宿 個別カラーグループ -->
+            <div id="dp-group-mansion-colors" style="display:none; flex-direction:column; gap:12px; margin-top:5px; padding-top:10px; border-top:1px dashed rgba(255,255,255,0.2);">
+                <label style="display:flex; justify-content:space-between; align-items:center;">東方青龍 (角〜箕): <input type="color" id="dp-color-east" style="background:none; border:none; width:30px; height:30px; cursor:pointer;"></label>
+                <label style="display:flex; justify-content:space-between; align-items:center;">北方玄武 (斗〜壁): <input type="color" id="dp-color-north" style="background:none; border:none; width:30px; height:30px; cursor:pointer;"></label>
+                <label style="display:flex; justify-content:space-between; align-items:center;">西方白虎 (奎〜参): <input type="color" id="dp-color-west" style="background:none; border:none; width:30px; height:30px; cursor:pointer;"></label>
+                <label style="display:flex; justify-content:space-between; align-items:center;">南方朱雀 (井〜軫): <input type="color" id="dp-color-south" style="background:none; border:none; width:30px; height:30px; cursor:pointer;"></label>
+            </div>
+
             <!-- 図形・線 設定グループ -->
             <div id="dp-group-shape" style="display:none; flex-direction:column; gap:12px; margin-top:5px; padding-top:10px; border-top:1px dashed rgba(255,255,255,0.2);">
                 <label id="dp-row-shape-type" style="display:flex; justify-content:space-between; align-items:center;">背景図形:
@@ -118,6 +131,14 @@ function initUI() {
                         <option value="triangle">三角</option>
                         <option value="star">星</option>
                     </select>
+                </label>
+                <label id="dp-row-shape-scale" style="display:none; justify-content:space-between; align-items:center;">図形のサイズ (倍率):
+                    <input type="range" id="dp-shape-scale" min="0.5" max="2" step="0.1" style="width:100px; accent-color:#d4af37;">
+                    <span id="dp-shape-scale-val" style="width:30px; text-align:right;">1</span>
+                </label>
+                <label id="dp-row-density" style="display:none; justify-content:space-between; align-items:center;">グラデーション濃度:
+                    <input type="range" id="dp-density" min="0.1" max="1" step="0.05" style="width:100px; accent-color:#d4af37;">
+                    <span id="dp-density-val" style="width:30px; text-align:right;">0.35</span>
                 </label>
                 <label id="dp-row-shape-fill" style="display:flex; justify-content:space-between; align-items:center;">塗りつぶし色:
                     <div style="display:flex; align-items:center; gap:5px;">
@@ -159,13 +180,10 @@ function initUI() {
     dpHeader.addEventListener('mousedown', (e) => {
         if(e.target.id === 'dp-close' || e.target.id === 'dp-reset') return;
         isDraggingPanel = true;
-        // transform が適用されている場合を考慮して絶対座標を計算
         const rect = designPanel.getBoundingClientRect();
         dpStartX = e.clientX - rect.left;
         dpStartY = e.clientY - rect.top;
         dpHeader.style.cursor = 'grabbing';
-        
-        // drag開始時にtranslateを解除し、現在の座標で固定する
         designPanel.style.transform = 'none';
         designPanel.style.left = rect.left + 'px';
         designPanel.style.top = rect.top + 'px';
@@ -183,10 +201,45 @@ function initUI() {
         if(dpHeader) dpHeader.style.cursor = 'grab';
     });
 
-    // パネル開閉・リセットロジック
+    // ▼ テーマ（プリセット）管理ロジック
+    const updateThemeSelect = () => {
+        const select = document.getElementById('theme-select');
+        select.innerHTML = '<option value="default">デフォルト設定</option>';
+        for(let name in window.savedThemes) {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            select.appendChild(opt);
+        }
+    };
+    updateThemeSelect();
+
+    document.getElementById('btn-theme-save').onclick = () => {
+        const name = document.getElementById('theme-name-input').value.trim();
+        if(!name) return alert("保存するテーマ名を入力してください");
+        window.savedThemes[name] = JSON.parse(JSON.stringify(window.layerSettings));
+        localStorage.setItem('polarCalendarThemesV1', JSON.stringify(window.savedThemes));
+        updateThemeSelect();
+        document.getElementById('theme-select').value = name;
+        document.getElementById('theme-name-input').value = "";
+        alert(`テーマ「${name}」を保存しました！`);
+    };
+
+    document.getElementById('btn-theme-load').onclick = () => {
+        const name = document.getElementById('theme-select').value;
+        if(name === 'default') {
+            window.layerSettings = JSON.parse(JSON.stringify(window.defaultLayerSettings));
+        } else if(window.savedThemes[name]) {
+            window.layerSettings = JSON.parse(JSON.stringify(window.savedThemes[name]));
+        }
+        window.saveLayerSettings();
+        location.reload(); // 確実に全要素へ適用するためリロード
+    };
+
+    // ▼ パネル開閉・リセットロジック
     let currentDesignTarget = null;
     const targetNames = {
-        baseSvg: "ベース図形 (定規)", lunarShadow: "月相シャドウ", dateLines: "日付区切り線 (30等分)", lunarMansion: "二十七宿",
+        canvasBg: "キャンバス背景", baseSvg: "ベース図形 (定規)", lunarShadow: "月相シャドウ", dateLines: "日付区切り線 (30等分)", lunarMansion: "二十七宿",
         tideGraph: "潮汐波形", rainGraph: "毎時降水量 (棒線)", dailyRainBg: "日別総降水量 (背景)", dailyRainText: "日別総降水量 (数値)",
         guideTime: "時間ガイド (0/6/12/18)", guideTide: "潮位ガイド (ft)", guideRain: "降水量ガイド (mm)",
         gregorian: "新暦日付", weekday: "曜日", lunar: "旧暦 (月相対応)", sekki: "24節気", kou: "72候",
@@ -200,23 +253,21 @@ function initUI() {
         if (!st) return;
 
         // 全要素非表示リセット
-        ['dp-row-lunar-phase', 'dp-group-text', 'dp-group-shape', 'dp-row-shape-type', 'dp-row-shape-fill', 'dp-row-shape-stroke', 'dp-row-shape-stroke-width', 'dp-shape-stroke-orig', 'dp-shape-stroke-orig-text', 'dp-row-offset'].forEach(id => {
+        ['dp-row-lunar-phase', 'dp-group-text', 'dp-group-shape', 'dp-row-shape-type', 'dp-row-shape-fill', 'dp-row-shape-stroke', 'dp-row-shape-stroke-width', 'dp-shape-stroke-orig', 'dp-shape-stroke-orig-text', 'dp-row-offset', 'dp-row-lang', 'dp-row-density', 'dp-row-shape-scale', 'dp-group-mansion-colors'].forEach(id => {
             document.getElementById(id).style.display = 'none';
         });
 
-        // 透明度の反映
         if (st.opacity !== undefined) {
             document.getElementById('dp-opacity').value = st.opacity;
             document.getElementById('dp-opacity-val').innerText = st.opacity;
         }
 
         const isTextTarget = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'wafuText', 'gregorianText', 'dailyRainText', 'guideTime', 'guideTide', 'guideRain', 'lunarMansion', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar'].includes(currentDesignTarget);
-        const isShapeTarget = ['baseSvg', 'lunarShadow', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTide', 'guideRain'].includes(currentDesignTarget);
+        const isShapeTarget = ['baseSvg', 'lunarShadow', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTide', 'guideRain', 'canvasBg'].includes(currentDesignTarget);
 
         if (isTextTarget) {
             document.getElementById('dp-group-text').style.display = 'flex';
             if(st.offsetRadius !== undefined) document.getElementById('dp-row-offset').style.display = 'flex';
-
             document.getElementById('dp-font').value = st.fontFamily || "Arial";
             document.getElementById('dp-size').value = st.fontSize || 10;
             if(st.offsetRadius !== undefined) document.getElementById('dp-offset').value = st.offsetRadius;
@@ -230,17 +281,34 @@ function initUI() {
             }
         }
 
+        // 特別なUIの表示切替
+        if (currentDesignTarget === 'weekday') {
+            document.getElementById('dp-row-lang').style.display = 'flex';
+            document.getElementById('dp-lang').value = st.lang || 'en';
+        }
+        if (currentDesignTarget === 'dailyRainBg') {
+            document.getElementById('dp-row-density').style.display = 'flex';
+            document.getElementById('dp-density').value = st.density || 0.35;
+            document.getElementById('dp-density-val').innerText = st.density || 0.35;
+        }
+        if (currentDesignTarget === 'lunarMansion') {
+            document.getElementById('dp-group-mansion-colors').style.display = 'flex';
+            document.getElementById('dp-color-east').value = st.colorEast || "#888888";
+            document.getElementById('dp-color-south').value = st.colorSouth || "#888888";
+            document.getElementById('dp-color-west').value = st.colorWest || "#888888";
+            document.getElementById('dp-color-north').value = st.colorNorth || "#888888";
+        }
+
         if (isShapeTarget) {
             document.getElementById('dp-group-shape').style.display = 'flex';
-            document.getElementById('dp-row-shape-stroke').style.display = 'flex';
-            document.getElementById('dp-row-shape-stroke-width').style.display = 'flex';
-            
+            if (currentDesignTarget !== 'canvasBg') {
+                document.getElementById('dp-row-shape-stroke').style.display = 'flex';
+                document.getElementById('dp-row-shape-stroke-width').style.display = 'flex';
+            }
             if(st.fill !== undefined) {
                 document.getElementById('dp-row-shape-fill').style.display = 'flex';
                 document.getElementById('dp-shape-fill-trans').checked = false; 
                 document.getElementById('dp-shape-fill').value = st.fill;
-            } else {
-                document.getElementById('dp-row-shape-fill').style.display = 'none';
             }
 
             if(st.stroke !== undefined || st.shapeStroke !== undefined) {
@@ -262,7 +330,7 @@ function initUI() {
         if (currentDesignTarget === 'lunar') {
             document.getElementById('dp-row-lunar-phase').style.display = 'flex';
             document.getElementById('dp-group-shape').style.display = 'flex';
-            ['dp-row-shape-type', 'dp-row-shape-fill', 'dp-row-shape-stroke', 'dp-row-shape-stroke-width'].forEach(id => document.getElementById(id).style.display = 'flex');
+            ['dp-row-shape-type', 'dp-row-shape-scale', 'dp-row-shape-fill', 'dp-row-shape-stroke', 'dp-row-shape-stroke-width'].forEach(id => document.getElementById(id).style.display = 'flex');
 
             const phase = document.getElementById('dp-lunar-phase').value;
             const pst = st.phases[phase];
@@ -270,12 +338,13 @@ function initUI() {
             document.getElementById('dp-color').value = pst.fill;
             document.getElementById('dp-bold').checked = (st.fontWeight === "bold");
             document.getElementById('dp-shape').value = pst.shape;
+            document.getElementById('dp-shape-scale').value = pst.scale || 1;
+            document.getElementById('dp-shape-scale-val').innerText = pst.scale || 1;
             
             const isTrans = (pst.bgFill === "transparent" || pst.bgFill === "none");
             document.getElementById('dp-shape-fill-trans').checked = isTrans;
             document.getElementById('dp-shape-fill-trans-text').innerText = "透明";
             document.getElementById('dp-shape-fill').value = isTrans ? "#000000" : pst.bgFill;
-            
             document.getElementById('dp-shape-stroke').value = pst.shapeStroke;
             document.getElementById('dp-shape-stroke-width').value = pst.shapeStrokeWidth;
             document.getElementById('dp-shape-stroke-width-val').innerText = pst.shapeStrokeWidth;
@@ -284,7 +353,7 @@ function initUI() {
 
     document.getElementById('dp-close').onclick = () => { designPanel.style.display = 'none'; };
     
-    // ▼ 個別リセット
+    // 個別リセット
     document.getElementById('dp-reset').onclick = () => {
         if (confirm(`「${targetNames[currentDesignTarget]}」のデザイン設定を初期状態に戻しますか？`)) {
             window.layerSettings[currentDesignTarget] = JSON.parse(JSON.stringify(window.defaultLayerSettings[currentDesignTarget]));
@@ -294,9 +363,9 @@ function initUI() {
         }
     };
     
-    // ▼ マスターリセット
+    // マスターリセット
     document.getElementById('reset-all-settings').onclick = () => {
-        if (confirm('すべてのデザイン設定を完全に初期化しますか？\n（カレンダーの塗りデータは消えません）')) {
+        if (confirm('⚠️ すべてのデザイン設定を完全に初期化しますか？\n（カレンダーの塗りデータや保存したテーマは消えません）')) {
             window.layerSettings = JSON.parse(JSON.stringify(window.defaultLayerSettings));
             window.saveLayerSettings();
             location.reload();
@@ -308,7 +377,6 @@ function initUI() {
             currentDesignTarget = e.target.getAttribute('data-target');
             document.getElementById('dp-title').innerText = `${targetNames[currentDesignTarget]} の設定`;
             
-            // 初回表示時のみ中央寄りにセット（ドラッグで動かせるように）
             designPanel.style.transform = 'translate(-50%, -50%)';
             designPanel.style.left = '50%';
             designPanel.style.top = '50%';
@@ -342,20 +410,38 @@ function initUI() {
             }
         }
 
+        if (currentDesignTarget === 'weekday') {
+            st.lang = document.getElementById('dp-lang').value;
+        }
+        if (currentDesignTarget === 'dailyRainBg') {
+            st.density = parseFloat(document.getElementById('dp-density').value);
+            document.getElementById('dp-density-val').innerText = st.density;
+        }
+        if (currentDesignTarget === 'lunarMansion') {
+            st.colorEast = document.getElementById('dp-color-east').value;
+            st.colorSouth = document.getElementById('dp-color-south').value;
+            st.colorWest = document.getElementById('dp-color-west').value;
+            st.colorNorth = document.getElementById('dp-color-north').value;
+        }
+        if (currentDesignTarget === 'canvasBg') {
+            st.fill = document.getElementById('dp-shape-fill').value;
+            document.body.style.backgroundColor = st.fill;
+        }
+
         const isShapeTarget = ['baseSvg', 'lunarShadow', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTide', 'guideRain'].includes(currentDesignTarget);
         if(isShapeTarget) {
-            if(st.fill !== undefined) {
-                st.fill = document.getElementById('dp-shape-fill').value;
-            }
+            if(st.fill !== undefined) st.fill = document.getElementById('dp-shape-fill').value;
             if(currentDesignTarget === 'baseSvg') {
                 st.stroke = document.getElementById('dp-shape-stroke-orig').checked ? "" : document.getElementById('dp-shape-stroke').value;
-            } else {
+            } else if (currentDesignTarget !== 'canvasBg') {
                 if(st.stroke !== undefined) st.stroke = document.getElementById('dp-shape-stroke').value;
                 if(st.strokeWidth !== undefined) st.strokeWidth = parseFloat(document.getElementById('dp-shape-stroke-width').value);
                 if(st.shapeStroke !== undefined) st.shapeStroke = document.getElementById('dp-shape-stroke').value;
                 if(st.shapeStrokeWidth !== undefined) st.shapeStrokeWidth = parseFloat(document.getElementById('dp-shape-stroke-width').value);
             }
-            document.getElementById('dp-shape-stroke-width-val').innerText = document.getElementById('dp-shape-stroke-width').value;
+            if(document.getElementById('dp-shape-stroke-width-val')) {
+                document.getElementById('dp-shape-stroke-width-val').innerText = document.getElementById('dp-shape-stroke-width').value;
+            }
         }
 
         if (currentDesignTarget === 'lunar') {
@@ -364,6 +450,8 @@ function initUI() {
             pst.fill = document.getElementById('dp-color').value;
             st.fontWeight = document.getElementById('dp-bold').checked ? "bold" : "normal";
             pst.shape = document.getElementById('dp-shape').value;
+            pst.scale = parseFloat(document.getElementById('dp-shape-scale').value);
+            document.getElementById('dp-shape-scale-val').innerText = pst.scale;
             pst.bgFill = document.getElementById('dp-shape-fill-trans').checked ? "transparent" : document.getElementById('dp-shape-fill').value;
             pst.shapeStroke = document.getElementById('dp-shape-stroke').value;
             pst.shapeStrokeWidth = parseFloat(document.getElementById('dp-shape-stroke-width').value);
@@ -383,6 +471,7 @@ function initUI() {
                 });
             }
         }
+        else if (currentDesignTarget === 'canvasBg') { /* Nothing needed, handled above */ }
         else if (currentDesignTarget === 'dateLines') { if (typeof drawDynamicLines === 'function') drawDynamicLines(); }
         else if (currentDesignTarget === 'tideGraph' || currentDesignTarget === 'guideTide') { if (window.lastCycleStartTimeMs) drawTideGraph(window.lastCycleStartTimeMs); }
         else if (currentDesignTarget === 'rainGraph' || currentDesignTarget === 'guideRain') { if (window.lastCycleStartTimeMs) drawRainfallGraph(window.lastCycleStartTimeMs); }
@@ -395,7 +484,7 @@ function initUI() {
         }
     };
 
-    ['dp-lunar-phase', 'dp-font', 'dp-size', 'dp-color', 'dp-bold', 'dp-stroke-color', 'dp-stroke-width', 'dp-shape', 'dp-shape-fill-trans', 'dp-shape-fill', 'dp-shape-stroke-orig', 'dp-shape-stroke', 'dp-shape-stroke-width', 'dp-opacity', 'dp-offset'].forEach(id => {
+    ['dp-lunar-phase', 'dp-font', 'dp-size', 'dp-color', 'dp-bold', 'dp-stroke-color', 'dp-stroke-width', 'dp-shape', 'dp-shape-scale', 'dp-lang', 'dp-density', 'dp-color-east', 'dp-color-south', 'dp-color-west', 'dp-color-north', 'dp-shape-fill-trans', 'dp-shape-fill', 'dp-shape-stroke-orig', 'dp-shape-stroke', 'dp-shape-stroke-width', 'dp-opacity', 'dp-offset'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
             if (id === 'dp-lunar-phase') el.addEventListener('change', loadPanelData);
