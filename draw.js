@@ -8,7 +8,7 @@ function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
     };
 }
 
-// ★ 新規追加：天文学的ピン (朔望)
+// ★ 天文学的ピン (朔望) - 塗りつぶし反転＆半径オフセット対応版
 function drawAstronomicalPins(cycleStartTime) {
     const layer = document.getElementById("layer-astronomical-pins");
     if(!layer) return;
@@ -18,8 +18,8 @@ function drawAstronomicalPins(cycleStartTime) {
     const st = window.layerSettings.astroPins;
     if(!st || st.opacity === 0) return;
 
-    // 階層1の線上（一番内側の円）にピンを打つ
-    const rMin = concentricRings[0];
+    // ★ スライダーの値（radiusOffset）を足して、配置する半径を自在に変更
+    const rMin = concentricRings[0] + (st.radiusOffset || 0);
     const startAngle = currentStartSegment * 3;
     
     let prevDiff = null;
@@ -66,7 +66,7 @@ function drawAstronomicalPins(cycleStartTime) {
                     g.setAttribute("transform", `translate(${pt.x}, ${pt.y}) rotate(${angle})`);
                     g.setAttribute("opacity", st.opacity);
                     
-                    const R = 3.5 * (st.scale || 1); // ピンの半径
+                    const R = 3.5 * (st.scale || 1); // ピンの半径（倍率対応）
                     
                     // ベースとなる円（縁取り）
                     const circle = document.createElementNS(svgNS, "circle");
@@ -78,11 +78,11 @@ function drawAstronomicalPins(cycleStartTime) {
                     circle.setAttribute("stroke-width", st.strokeWidth);
                     
                     if (t.key === 'new') {
-                        // 新月：白丸（塗りなし）
+                        // ★ 新月：黒丸（塗りつぶし）
+                        circle.setAttribute("fill", st.fill);
                         g.appendChild(circle);
                     } else if (t.key === 'full') {
-                        // 満月：黒丸（塗りつぶし）
-                        circle.setAttribute("fill", st.fill);
+                        // ★ 満月：白抜き（線のみ）
                         g.appendChild(circle);
                     } else if (t.key === 'first') {
                         // 上弦：右半月
@@ -1001,7 +1001,9 @@ function drawKoyomiEvents(startDate) {
             if (stL.fontWeight === "bold") textLunar.setAttribute("font-weight", "bold");
             textLunar.setAttribute("opacity", stL.opacity);
             textLunar.setAttribute("transform", `rotate(${baseAngle + 10.5}, ${ptLunar.x}, ${ptLunar.y})`);
-            textLunar.textContent = phaseKey === "newMoon" ? "新月" : lunarDay;
+            
+            // ★ 文字は「新月」や「満月」ではなく、確実に「数字（十五など）」を維持します
+            textLunar.textContent = lunarDay;
             lunarGroup.appendChild(textLunar);
 
             if (i === 0) {
