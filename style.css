@@ -116,10 +116,12 @@ body {
     z-index: 100;
     display: flex;
     flex-direction: column;
-    gap: 8px; /* 項目同士の隙間を少し詰める */
+    gap: 8px;
     width: 200px;
-    max-height: 75vh; /* 画面に収まらない場合はスクロールさせる */
+    max-height: 75vh;
     overflow-y: auto;
+    /* ▼ パネル内のフォントを美しいゴシック体に変更 ▼ */
+    font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
 }
 
 /* スクロールバーのデザイン */
@@ -137,6 +139,8 @@ body {
     top: 0;
     background: inherit;
     z-index: 2;
+    /* ▼ 見出しを中央寄せに変更 ▼ */
+    text-align: center;
 }
 
 .layer-group-title {
@@ -156,7 +160,7 @@ body {
 }
 
 .layer-indent {
-    margin-left: 12px; /* 階層化して見やすく字下げ */
+    margin-left: 12px;
 }
 
 .layer-item input[type="checkbox"] {
