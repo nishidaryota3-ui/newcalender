@@ -1,4 +1,5 @@
 // ui.js (UI構築・イベントモジュール)
+
 function initUI() {
     const oldPalette = document.getElementById('palette');
     if (oldPalette) oldPalette.remove();
@@ -170,16 +171,52 @@ function initUI() {
     
     setTool('pointer', 'pan');
 
-    // ▼▼ 追加：レイヤーパネルのイベントリスナー ▼▼
-    const toggleLunar = document.getElementById('toggle-layer-lunar');
-    if (toggleLunar) {
-        toggleLunar.addEventListener('change', (e) => {
-            // lunarMansionLayer は main.js で定義されている SVG グループ要素
-            if (lunarMansionLayer) {
-                lunarMansionLayer.style.display = e.target.checked ? "" : "none";
-            }
-        });
+    // ▼▼ 追加：レイヤーパネルの動的CSSスタイル制御 ▼▼
+    // JavaScriptで消すのではなく、CSSの「display: none !important」をリアルタイムで生成して適用します。
+    // これにより、カレンダーが再描画されても非表示設定が維持されます。
+    let styleBlock = document.getElementById("layer-style-block");
+    if (!styleBlock) {
+        styleBlock = document.createElement("style");
+        styleBlock.id = "layer-style-block";
+        document.head.appendChild(styleBlock);
     }
+
+    const updateLayerVisibility = () => {
+        let css = "";
+        const addHiddenRule = (selector) => { css += `${selector} { display: none !important; }\n`; };
+
+        // ベース・図形
+        if(!document.getElementById("toggle-base-svg")?.checked) addHiddenRule("#bg-group");
+        if(!document.getElementById("toggle-lunar-shadow")?.checked) addHiddenRule(".layer-lunar-shadow");
+        if(!document.getElementById("toggle-layer-lunar")?.checked) addHiddenRule("#lunar-mansion-layer");
+        
+        // グラフ・データ
+        if(!document.getElementById("toggle-tide-graph")?.checked) addHiddenRule(".layer-tide-graph");
+        if(!document.getElementById("toggle-rain-graph")?.checked) addHiddenRule(".layer-rain-graph");
+        if(!document.getElementById("toggle-daily-rain-bg")?.checked) addHiddenRule(".layer-daily-rain-bg");
+        if(!document.getElementById("toggle-daily-rain-text")?.checked) addHiddenRule(".layer-daily-rain-text");
+
+        // 目盛り・ガイド
+        if(!document.getElementById("toggle-guide-time")?.checked) addHiddenRule(".layer-guide-time");
+        if(!document.getElementById("toggle-guide-tide")?.checked) addHiddenRule(".layer-guide-tide");
+        if(!document.getElementById("toggle-guide-rain")?.checked) addHiddenRule(".layer-guide-rain");
+
+        // 日付・暦
+        if(!document.getElementById("toggle-date-gregorian")?.checked) addHiddenRule(".layer-date-gregorian");
+        if(!document.getElementById("toggle-date-lunar")?.checked) addHiddenRule(".layer-date-lunar");
+        if(!document.getElementById("toggle-date-weekday")?.checked) addHiddenRule(".layer-date-weekday");
+        if(!document.getElementById("toggle-koyomi-events")?.checked) addHiddenRule(".layer-koyomi-events");
+
+        styleBlock.innerHTML = css;
+    };
+
+    // パネル内のすべてのチェックボックスにイベントリスナーを一括登録
+    document.querySelectorAll("#layer-panel input[type='checkbox']").forEach(cb => {
+        cb.addEventListener("change", updateLayerVisibility);
+    });
+
+    // 初期化時にも一度実行して現在のチェック状態を反映
+    updateLayerVisibility();
     // ▲▲ 追加ここまで ▲▲
 }
 
