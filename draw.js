@@ -571,11 +571,19 @@ function drawKoyomiEvents(startDate) {
     if(textPathDefs) textPathDefs.innerHTML = "";
 
     const gregorianGroup = document.createElementNS(svgNS, "g");
+    gregorianGroup.setAttribute("class", "layer-date-gregorian");
     const weekdayGroup = document.createElementNS(svgNS, "g");
+    weekdayGroup.setAttribute("class", "layer-date-weekday");
     const lunarGroup = document.createElementNS(svgNS, "g");
+    lunarGroup.setAttribute("class", "layer-date-lunar");
+
     const zassetsuGroup = document.createElementNS(svgNS, "g");
+    zassetsuGroup.setAttribute("class", "layer-zassetsu");
     const holidayGroup = document.createElementNS(svgNS, "g");
+    holidayGroup.setAttribute("class", "layer-holiday");
     const importantGroup = document.createElementNS(svgNS, "g");
+    importantGroup.setAttribute("class", "layer-event-important");
+
     const eventMixGroup = document.createElementNS(svgNS, "g");
 
     if(dateLayer) {
@@ -614,6 +622,7 @@ function drawKoyomiEvents(startDate) {
     const r30Lower = r30In + (r30Out - r30In) * 0.25; 
     const r30Upper = r30In + (r30Out - r30In) * 0.75; 
     
+    // ★ ここで階層30の順番（U:上段, M:中段, L:下段）を制御
     const r30U_text = r30In + (r30Out - r30In) * 0.82; 
     const r30M_text = r30In + (r30Out - r30In) * 0.50; 
     const r30L_text = r30In + (r30Out - r30In) * 0.18; 
@@ -696,6 +705,7 @@ function drawKoyomiEvents(startDate) {
             targetGroup.appendChild(textObj);
         };
 
+        // ★ 上から 祝日(U)、雑節(M)、行事(L) に割り当て
         const holidayText = [dbRow[8], dbRow[14]].filter(Boolean).join(' ／ ');
         drawSingleText(`${arcIdBase}_30U_text`, holidayText, stH, r30U_text + stH.offsetRadius, holidayGroup);
         drawSingleText(`${arcIdBase}_30M_text`, dbRow[7], stZ, r30M_text + stZ.offsetRadius, zassetsuGroup);
@@ -776,6 +786,7 @@ function drawKoyomiEvents(startDate) {
 
         const ptDate = polarToCartesian(cx, cy, r30Upper + stG.offsetRadius, baseAngle + 1.5);
         const textDate = document.createElementNS(svgNS, "text");
+        textDate.setAttribute("class", "layer-date-gregorian");
         textDate.setAttribute("x", ptDate.x);
         textDate.setAttribute("y", ptDate.y);
         textDate.setAttribute("text-anchor", "middle");
@@ -797,6 +808,7 @@ function drawKoyomiEvents(startDate) {
 
         const ptDay = polarToCartesian(cx, cy, r30Lower + stW.offsetRadius, baseAngle + 1.5);
         const textDay = document.createElementNS(svgNS, "text");
+        textDay.setAttribute("class", "layer-date-weekday");
         textDay.setAttribute("x", ptDay.x);
         textDay.setAttribute("y", ptDay.y);
         textDay.setAttribute("text-anchor", "middle");
@@ -834,6 +846,7 @@ function drawKoyomiEvents(startDate) {
 
             if (pst.shape !== "none") {
                 const shapeG = document.createElementNS(svgNS, "g");
+                shapeG.setAttribute("class", "layer-date-lunar");
                 shapeG.setAttribute("transform", `rotate(${baseAngle + 10.5}, ${ptLunar.x}, ${ptLunar.y})`);
 
                 let shapeEl = null;
@@ -880,6 +893,7 @@ function drawKoyomiEvents(startDate) {
             }
 
             const textLunar = document.createElementNS(svgNS, "text");
+            textLunar.setAttribute("class", "layer-date-lunar");
             textLunar.setAttribute("x", ptLunar.x);
             textLunar.setAttribute("y", ptLunar.y);
             textLunar.setAttribute("text-anchor", "middle");
@@ -951,6 +965,7 @@ function drawKoyomiEvents(startDate) {
     
     if(wafuTextLayer) {
         const tspanOld = document.createElementNS(svgNS, "text");
+        tspanOld.setAttribute("class", "layer-wafu-text");
         tspanOld.setAttribute("x", cx + 860);
         tspanOld.setAttribute("y", cy - 850 + stWafu.offsetRadius);
         tspanOld.setAttribute("text-anchor", "end");
@@ -969,6 +984,7 @@ function drawKoyomiEvents(startDate) {
         wafuTextLayer.appendChild(tspanOld);
         
         const tspanNew = document.createElementNS(svgNS, "text");
+        tspanNew.setAttribute("class", "layer-gregorian-text");
         const wafuList = ['睦月','如月','弥生','卯月','皐月','水無月','文月','葉月','長月','神無月','霜月','師走'];
         const newWafuStr = startGregorianMonth === endGregorianMonth 
             ? wafuList[startGregorianMonth - 1] 
