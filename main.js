@@ -1,12 +1,13 @@
 // main.js (司令塔・初期化モジュール)
 
-// ▼▼ 究極のテーマ管理用：全要素を網羅したデザイン設定データ ▼▼
 window.defaultLayerSettings = {
     canvasBg: { fill: "#f5f5f0" },
     baseSvg: { stroke: "", opacity: 0.8 }, 
     lunarShadow: { fill: "#000000", opacity: 0.03 },
-    // ★ 新規追加：天文学的ピンの初期設定
-    astroPins: { fill: "#d4af37", stroke: "#d4af37", strokeWidth: 1.2, opacity: 1, scale: 1 },
+    
+    // ★ 天文学的ピンの初期設定 (radiusOffsetを追加)
+    astroPins: { fill: "#d4af37", stroke: "#d4af37", strokeWidth: 1.2, opacity: 1, scale: 1, radiusOffset: 0 },
+    
     dateLines: { stroke: "#555555", strokeWidth: 1.5, opacity: 1 },
     lunarMansion: { 
         strokeWidth: 0.5, opacity: 0.5, fontFamily: "'Shippori Mincho', 'YuMincho', serif", fontSize: 9,
@@ -190,7 +191,6 @@ async function updateCalendarCycle() {
 
     drawLunarShadow(cycleStartTimeMs);
     
-    // ★ 追加：天文学的ピンの描画
     if (typeof drawAstronomicalPins === 'function') drawAstronomicalPins(cycleStartTimeMs);
     
     drawDynamicLines();
@@ -204,7 +204,6 @@ async function updateCalendarCycle() {
     globalRotation = -currentStartSegment * 3;
     masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
 
-    // ベースSVGの色の復元処理
     const stBase = window.layerSettings.baseSvg;
     if (bgGroup) {
         bgGroup.style.opacity = stBase.opacity;
@@ -250,7 +249,6 @@ loadLocalCSV().then(() => {
             bgGroup = document.createElementNS(svgNS, "g");
             bgGroup.setAttribute("id", "bg-group");
             
-            // ★ SVG読み込み時に元のstrokeカラーを要素に記憶（バックアップ）させる
             while (svg.firstChild) {
                 const child = svg.firstChild;
                 if (child.nodeType === 1) { 
@@ -264,24 +262,22 @@ loadLocalCSV().then(() => {
             masterGroup.appendChild(bgGroup);
             svg.appendChild(masterGroup);
 
-            // ★ Z-index（重ね順）を完全に制御するためのレイヤー群（下から順に描画される）
             const layerIds = [
-                "layer-shadow",               // 月相シャドウ
-                "layer-astronomical-pins",    // ★ 追加：天文学的ピン (朔望)
-                "layer-lines",                // 30分割線
-                "layer-data",                 // ペイント塗り
-                "layer-tide-wave",            // 潮汐波形 (波のみ)
-                "layer-rain-graph",           // 毎時降水量 (棒のみ)
-                "layer-daily-rain-bg",        // 日別総降水量 (背景)
-                "layer-lunar-mansion",        // 二十七宿
-                "layer-solar-dates",          // カレンダー文字群
-                "layer-outer-season",         // 節気・候
-                // ▼▼ 最前面（一番上）に表示されるガイドレイヤー群 ▼▼
-                "layer-guide-tide",           // 潮位ガイド目盛り
-                "layer-guide-rain",           // 降水量ガイド目盛り
-                "layer-daily-rain-text",      // 日別総降水量 (数値)
-                "layer-guide-time",           // 時間ラベル
-                "layer-wafu-text"             // 右上 月名
+                "layer-shadow",               
+                "layer-astronomical-pins",    
+                "layer-lines",                
+                "layer-data",                 
+                "layer-tide-wave",            
+                "layer-rain-graph",           
+                "layer-daily-rain-bg",        
+                "layer-lunar-mansion",        
+                "layer-solar-dates",          
+                "layer-outer-season",         
+                "layer-guide-tide",           
+                "layer-guide-rain",           
+                "layer-daily-rain-text",      
+                "layer-guide-time",           
+                "layer-wafu-text"             
             ];
 
             const defs = document.createElementNS(svgNS, "defs");
