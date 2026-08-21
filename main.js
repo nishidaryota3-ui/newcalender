@@ -1,6 +1,6 @@
 // main.js (司令塔・初期化モジュール)
 
-// ▼▼ 全要素を網羅したデザイン設定データの定義 ▼▼
+// ▼▼ 究極のテーマ管理用：全要素を網羅したデザイン設定データの定義 ▼▼
 window.defaultLayerSettings = {
     canvasBg: { fill: "#f5f5f0" },
     baseSvg: { stroke: "", opacity: 0.8 }, 
@@ -23,8 +23,8 @@ window.defaultLayerSettings = {
     kou: { fontFamily: "'Shippori Mincho', serif", fontSize: 14, fill: "#2c3e50", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     wafuText: { fontFamily: "'Shippori Mincho', serif", fontSize: 70, fill: "#d4af37", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     gregorianText: { fontFamily: "'Shippori Mincho', serif", fontSize: 40, fill: "#b0b0b0", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
-    zassetsu: { fontFamily: "'Shippori Mincho', serif", fontSize: 6, fill: "#727171", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     holiday: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#d25b4e", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
+    zassetsu: { fontFamily: "'Shippori Mincho', serif", fontSize: 6, fill: "#727171", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     important: { fontFamily: "'Shippori Mincho', serif", fontSize: 6, fill: "#2c3e50", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     eventShinto: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#1e3a8a", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     eventBuddhism: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#3f3d56", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
@@ -244,33 +244,31 @@ loadLocalCSV().then(() => {
 
             // ★ Z-index（重ね順）を完璧に制御するためのレイヤー群（下から順に追加）
             const layerIds = [
-                { id: "layer-shadow", varName: "shadowLayer" },               // 月相シャドウ
-                { id: "layer-lines", varName: "linesLayer" },                 // 30分割線
-                { id: "layer-data", varName: "dataLayer" },                   // ペイント塗り
-                { id: "layer-tide-wave", varName: "tideLayer" },              // 潮汐波形 (波のみ)
-                { id: "layer-rain-graph", varName: "rainfallLayer" },         // 毎時降水量 (棒のみ)
-                { id: "layer-daily-rain-bg" },                                // 日別総降水量 (背景)
-                { id: "layer-lunar-mansion", varName: "lunarMansionLayer" },  // 二十七宿
-                { id: "layer-solar-dates" },                                  // カレンダー文字群
-                { id: "layer-outer-season", varName: "outerSeasonLayer" },    // 節気・候
+                "layer-shadow",               // 月相シャドウ
+                "layer-lines",                // 30分割線
+                "layer-data",                 // ペイント塗り
+                "layer-tide-wave",            // 潮汐波形 (波のみ)
+                "layer-rain-graph",           // 毎時降水量 (棒のみ)
+                "layer-daily-rain-bg",        // 日別総降水量 (背景)
+                "layer-lunar-mansion",        // 二十七宿
+                "layer-solar-dates",          // カレンダー文字群
+                "layer-outer-season",         // 節気・候
                 // ▼▼ 最前面（一番上）に表示されるガイドレイヤー群 ▼▼
-                { id: "layer-guide-tide" },                                   // 潮位ガイド目盛り
-                { id: "layer-guide-rain" },                                   // 降水量ガイド目盛り
-                { id: "layer-daily-rain-text" },                              // 日別総降水量 (数値)
-                { id: "layer-guide-time" },                                   // 時間ラベル
-                { id: "layer-wafu-text" }                                     // 右上 月名
+                "layer-guide-tide",           // 潮位ガイド目盛り
+                "layer-guide-rain",           // 降水量ガイド目盛り
+                "layer-daily-rain-text",      // 日別総降水量 (数値)
+                "layer-guide-time",           // 時間ラベル
+                "layer-wafu-text"             // 右上 月名
             ];
 
-            textPathDefs = document.createElementNS(svgNS, "defs");
-            masterGroup.appendChild(textPathDefs);
+            const defs = document.createElementNS(svgNS, "defs");
+            defs.setAttribute("id", "text-path-defs");
+            masterGroup.appendChild(defs);
             
-            layerIds.forEach(def => {
+            layerIds.forEach(id => {
                 const g = document.createElementNS(svgNS, "g");
-                g.setAttribute("id", def.id);
+                g.setAttribute("id", id);
                 masterGroup.appendChild(g);
-                if (def.varName) {
-                    window[def.varName] = g;
-                }
             });
             
             updateCalendarCycle();
