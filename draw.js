@@ -1,6 +1,5 @@
 // draw.js (SVG描画モジュール) - 軽量・最適化版
 
-// ★ 緊急復旧：astronomy.jsの上書きで消えてしまったデータ・関数を安全網として復元
 if (typeof window.mansions === 'undefined') {
     window.mansions = [
         { name: "角" }, { name: "亢" }, { name: "氐" }, { name: "房" }, { name: "心" }, { name: "尾" }, { name: "箕" },
@@ -27,10 +26,9 @@ function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
     };
 }
 
-// この月が29日か30日かを判定する関数
 function computeMonthDays(startDate) {
-    window.currentMonthDays = 30; // デフォルトは大の月（30日）
-    for (let i = 15; i < 30; i++) { // 月の後半だけをチェック
+    window.currentMonthDays = 30; 
+    for (let i = 15; i < 30; i++) { 
         const loopDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
         const dateStr = formatDateStr(loopDate);
         const dbRow = koyomiDatabase[dateStr];
@@ -43,7 +41,6 @@ function computeMonthDays(startDate) {
     }
 }
 
-// 天文学的ピン (朔望) - 【データ】日数に応じて寸止め
 function drawAstronomicalPins(cycleStartTime) {
     const layer = document.getElementById("layer-astronomical-pins");
     if(!layer) return;
@@ -58,7 +55,6 @@ function drawAstronomicalPins(cycleStartTime) {
     
     let prevDiff = null;
     
-    // currentMonthDaysの分だけスキャンする（はみ出した次の新月は無視される）
     for (let i = 0; i <= window.currentMonthDays * 24; i++) {
         const timeMs = cycleStartTime + i * 3600000;
         let diff = (getLunarLongitude(timeMs) - getSolarLongitude(timeMs) + 360) % 360;
@@ -132,7 +128,6 @@ function drawAstronomicalPins(cycleStartTime) {
     }
 }
 
-// 二十七宿 - 【器】常に30日分（720時間）描き切る
 function drawLunarMansions(cycleStartTimeMs) {
     const layer = document.getElementById("layer-lunar-mansion");
     if(layer) layer.innerHTML = "";
@@ -145,12 +140,14 @@ function drawLunarMansions(cycleStartTimeMs) {
     const totalHours = 720; 
     const startAngle = currentStartSegment * 3;
 
+    // ★ 背景リングの色と透明度を適用
     const trackBg = document.createElementNS(svgNS, "circle");
     trackBg.setAttribute("cx", cx);
     trackBg.setAttribute("cy", cy);
     trackBg.setAttribute("r", rBase + 15);
     trackBg.setAttribute("fill", "none");
-    trackBg.setAttribute("stroke", "rgba(255, 255, 255, 0.05)");
+    trackBg.setAttribute("stroke", st.bgRingColor || "#ffffff");
+    trackBg.setAttribute("opacity", st.bgRingOpacity !== undefined ? st.bgRingOpacity : 0.05);
     trackBg.setAttribute("stroke-width", "30");
     if(layer) layer.appendChild(trackBg);
 
@@ -220,6 +217,9 @@ function drawConstellationMark(startAng, endAng, index, rCenter, st, color) {
     const starCount = Math.floor(rand() * 3) + 3;
     const stars = [];
 
+    // ★ 星の大きさを設定から取得
+    const starSize = st.starSize !== undefined ? st.starSize : 1.5;
+
     for(let i=0; i<starCount; i++) {
         const sAngle = midAngle + (rand() - 0.5) * 8;
         const sR = rCenter + (rand() - 0.5) * 15;
@@ -228,7 +228,7 @@ function drawConstellationMark(startAng, endAng, index, rCenter, st, color) {
         const circle = document.createElementNS(svgNS, "circle");
         circle.setAttribute("cx", pt.x);
         circle.setAttribute("cy", pt.y);
-        circle.setAttribute("r", rand() > 0.8 ? "1.5" : "0.8");
+        circle.setAttribute("r", rand() > 0.8 ? starSize : starSize * 0.5);
         circle.setAttribute("fill", color);
         circle.setAttribute("opacity", st.opacity);
         g.appendChild(circle);
@@ -241,7 +241,8 @@ function drawConstellationMark(startAng, endAng, index, rCenter, st, color) {
         line.setAttribute("x2", stars[i+1].x);
         line.setAttribute("y2", stars[i+1].y);
         line.setAttribute("stroke", color);
-        line.setAttribute("stroke-width", "0.3");
+        // ★ 星座線の太さを設定から取得（既存の設定項目 'strokeWidth' を流用するか固定か。今回はそのまま0.3ベース＋設定値で調整も可ですが、ご要望通り自由に調整できる用 st.strokeWidth を適用するか独立させます。ここでは枠線と同じ strokeWidth を適用します）
+        line.setAttribute("stroke-width", st.strokeWidth * 0.6); // 枠線より少し細くする
         line.setAttribute("opacity", st.opacity);
         g.appendChild(line);
     }
@@ -249,7 +250,6 @@ function drawConstellationMark(startAng, endAng, index, rCenter, st, color) {
     if(layer) layer.appendChild(g);
 }
 
-// 降水量背景 - 【データ】日数に応じて寸止め
 function drawDailyRainStats(startDate) {
     const bgLayer = document.getElementById("layer-daily-rain-bg");
     const textLayer = document.getElementById("layer-daily-rain-text");
@@ -321,7 +321,7 @@ function drawDailyRainStats(startDate) {
     }
 }
 
-// 潮汐波形 - 【データ】日数に応じて寸止め
+// 潮汐波形 
 function drawTideGraph(cycleStartTimeMs) {
     const waveLayer = document.getElementById("layer-tide-wave");
     const guideLayer = document.getElementById("layer-guide-tide");
@@ -331,7 +331,10 @@ function drawTideGraph(cycleStartTimeMs) {
     if (concentricRings.length < 23) return;
 
     const stGraph = window.layerSettings.tideGraph;
-    const stGuide = window.layerSettings.guideTide;
+    // ★ 潮位の線と文字を分離して読み込み
+    const stLine = window.layerSettings.guideTideLine;
+    const stText = window.layerSettings.guideTideText;
+
     const rMin = concentricRings[16];
     const rMax = concentricRings[22];
     const cycleEndMs = cycleStartTimeMs + window.currentMonthDays * 24 * 60 * 60 * 1000; 
@@ -385,31 +388,34 @@ function drawTideGraph(cycleStartTimeMs) {
         circle.setAttribute("cy", cy);
         circle.setAttribute("r", r);
         circle.setAttribute("fill", "none");
-        circle.setAttribute("stroke", stGuide.shapeStroke);
-        circle.setAttribute("stroke-width", stGuide.shapeStrokeWidth);
+        // ★ 分離された線（stLine）の設定を適用
+        circle.setAttribute("stroke", stLine.stroke);
+        circle.setAttribute("stroke-width", stLine.strokeWidth);
         circle.setAttribute("stroke-dasharray", "4,4");
-        circle.setAttribute("opacity", stGuide.opacity);
+        circle.setAttribute("opacity", stLine.opacity);
         if(guideLayer) guideLayer.appendChild(circle);
 
         for(let i = 0; i < 6; i++) {
             const labelAngle = currentStartSegment * 3 + (i * 60);
-            const labelPt = polarToCartesian(cx, cy, r + stGuide.offsetRadius, labelAngle);
+            const labelPt = polarToCartesian(cx, cy, r + stText.offsetRadius, labelAngle);
             const text = document.createElementNS(svgNS, "text");
             text.setAttribute("x", labelPt.x);
             text.setAttribute("y", labelPt.y);
             text.setAttribute("text-anchor", "middle");
             text.setAttribute("dominant-baseline", "central");
-            text.setAttribute("fill", stGuide.fill);
-            text.setAttribute("font-size", stGuide.fontSize + "px");
-            text.setAttribute("font-family", stGuide.fontFamily);
-            if(stGuide.fontWeight === "bold") text.setAttribute("font-weight", "bold");
-            text.setAttribute("opacity", stGuide.opacity);
+            
+            // ★ 分離された文字（stText）の設定を適用
+            text.setAttribute("fill", stText.fill);
+            text.setAttribute("font-size", stText.fontSize + "px");
+            text.setAttribute("font-family", stText.fontFamily);
+            if(stText.fontWeight === "bold") text.setAttribute("font-weight", "bold");
+            text.setAttribute("opacity", stText.opacity);
             text.setAttribute("transform", `rotate(${labelAngle}, ${labelPt.x}, ${labelPt.y})`);
             text.textContent = ft + "ft";
             
-            if(stGuide.strokeWidth > 0) {
-                text.setAttribute("stroke", stGuide.stroke);
-                text.setAttribute("stroke-width", stGuide.strokeWidth);
+            if(stText.strokeWidth > 0) {
+                text.setAttribute("stroke", stText.stroke);
+                text.setAttribute("stroke-width", stText.strokeWidth);
                 text.setAttribute("stroke-linejoin", "round");
                 text.setAttribute("paint-order", "stroke fill");
             }
@@ -420,7 +426,7 @@ function drawTideGraph(cycleStartTimeMs) {
     if(waveLayer) waveLayer.appendChild(waveGroup);
 }
 
-// 降水量棒グラフ - 【データ】日数に応じて寸止め
+// 降水量棒グラフ
 function drawRainfallGraph(cycleStartTimeMs) {
     const rainLayer = document.getElementById("layer-rain-graph");
     const guideLayer = document.getElementById("layer-guide-rain");
@@ -430,7 +436,10 @@ function drawRainfallGraph(cycleStartTimeMs) {
     if (concentricRings.length < 23) return;
 
     const stGraph = window.layerSettings.rainGraph;
-    const stGuide = window.layerSettings.guideRain;
+    // ★ 降水量の線と文字を分離して読み込み
+    const stLine = window.layerSettings.guideRainLine;
+    const stText = window.layerSettings.guideRainText;
+
     const rMin = concentricRings[16];
     const rMax = concentricRings[22];
     const maxRain = 30;
@@ -442,9 +451,10 @@ function drawRainfallGraph(cycleStartTimeMs) {
     circle.setAttribute("cy", cy);
     circle.setAttribute("r", rMax);
     circle.setAttribute("fill", "none");
-    circle.setAttribute("stroke", stGuide.shapeStroke);
-    circle.setAttribute("stroke-width", stGuide.shapeStrokeWidth);
-    circle.setAttribute("opacity", stGuide.opacity);
+    // ★ 分離された線（stLine）の設定を適用
+    circle.setAttribute("stroke", stLine.stroke);
+    circle.setAttribute("stroke-width", stLine.strokeWidth);
+    circle.setAttribute("opacity", stLine.opacity);
     if(guideLayer) guideLayer.appendChild(circle);
 
     const startAngle = currentStartSegment * 3;
@@ -470,8 +480,8 @@ function drawRainfallGraph(cycleStartTimeMs) {
     }
 
     const labelsToDraw = [
-        { relAngle: 96, isRightSide: false },
-        { relAngle: 288, isRightSide: true }
+        { relAngle: 96 },
+        { relAngle: 288 }
     ];
 
     labelsToDraw.forEach(target => {
@@ -486,32 +496,34 @@ function drawRainfallGraph(cycleStartTimeMs) {
             tick.setAttribute("y1", p1.y);
             tick.setAttribute("x2", p2.x);
             tick.setAttribute("y2", p2.y);
-            tick.setAttribute("stroke", stGuide.shapeStroke);
-            tick.setAttribute("stroke-width", stGuide.shapeStrokeWidth);
-            tick.setAttribute("opacity", stGuide.opacity);
+            tick.setAttribute("stroke", stLine.stroke);
+            tick.setAttribute("stroke-width", stLine.strokeWidth);
+            tick.setAttribute("opacity", stLine.opacity);
             if(guideLayer) guideLayer.appendChild(tick);
             
-            const ptLabel = polarToCartesian(cx, cy, r + stGuide.offsetRadius, labelAngle);
+            const ptLabel = polarToCartesian(cx, cy, r + stText.offsetRadius, labelAngle);
             const text = document.createElementNS(svgNS, "text");
             text.setAttribute("x", ptLabel.x);
             text.setAttribute("y", ptLabel.y);
             text.setAttribute("text-anchor", "middle");
             text.setAttribute("dominant-baseline", "central");
-            text.setAttribute("fill", stGuide.fill);
-            text.setAttribute("font-size", stGuide.fontSize + "px");
-            text.setAttribute("font-family", stGuide.fontFamily);
-            text.setAttribute("opacity", stGuide.opacity);
-            if(stGuide.fontWeight === "bold") text.setAttribute("font-weight", "bold");
             
-            if(stGuide.strokeWidth > 0) {
-                text.setAttribute("stroke", stGuide.stroke);
-                text.setAttribute("stroke-width", stGuide.strokeWidth);
+            // ★ 分離された文字（stText）の設定を適用
+            text.setAttribute("fill", stText.fill);
+            text.setAttribute("font-size", stText.fontSize + "px");
+            text.setAttribute("font-family", stText.fontFamily);
+            text.setAttribute("opacity", stText.opacity);
+            if(stText.fontWeight === "bold") text.setAttribute("font-weight", "bold");
+            
+            if(stText.strokeWidth > 0) {
+                text.setAttribute("stroke", stText.stroke);
+                text.setAttribute("stroke-width", stText.strokeWidth);
                 text.setAttribute("stroke-linejoin", "round");
                 text.setAttribute("paint-order", "stroke fill");
             }
             
-            let textRot = labelAngle + 180;
-            if (target.isRightSide) { textRot = labelAngle; }
+            // ★【完全解決】常に外周から読めるように、左右問わず +180度 に統一
+            let textRot = labelAngle + 180; 
             text.setAttribute("transform", `rotate(${textRot}, ${ptLabel.x}, ${ptLabel.y})`);
             text.textContent = val + "mm";
             if(guideLayer) guideLayer.appendChild(text);
@@ -521,7 +533,6 @@ function drawRainfallGraph(cycleStartTimeMs) {
     if(rainLayer) rainLayer.appendChild(rainGroup);
 }
 
-// 時間ガイド - 【器】常に30日分描き切る
 function drawTimeLabels() {
     const timeLayer = document.getElementById("layer-guide-time");
     if(timeLayer) timeLayer.innerHTML = "";
@@ -559,7 +570,6 @@ function drawTimeLabels() {
     }
 }
 
-// 月相シャドウ - 【器】常に30日分描き切る
 function drawLunarShadow(cycleStartTime) {
     const shadowLayer = document.getElementById("layer-shadow");
     if(shadowLayer) shadowLayer.innerHTML = "";
@@ -602,7 +612,6 @@ function drawLunarShadow(cycleStartTime) {
     if(shadowLayer) shadowLayer.appendChild(shadowPath);
 }
 
-// 放射状の区切り線 - 【器】常に30日分描き切る
 function drawDynamicLines() {
     const linesLayer = document.getElementById("layer-lines");
     if(linesLayer) linesLayer.innerHTML = "";
@@ -674,22 +683,6 @@ function drawCell(rIn, rOut, startAngle, endAngle, color) {
     if(dataLayer) dataLayer.appendChild(path);
 }
 
-function getRingInfo(distance) {
-    if (concentricRings.length === 0) return null;
-    for (let i = 0; i < concentricRings.length - 1; i++) {
-        if (distance > concentricRings[i] && distance <= concentricRings[i+1]) {
-            return {
-                layerId: `layer_${i}`,
-                name: `階層 ${i+1}`,
-                rIn: concentricRings[i],
-                rOut: concentricRings[i+1]
-            };
-        }
-    }
-    return null;
-}
-
-// 暦の文字群 - 【データ】日数に応じて寸止め
 function drawKoyomiEvents(startDate) {
     window.lastKoyomiStartDate = startDate;
     window.lastCycleStartTimeMs = startDate.getTime();
@@ -962,7 +955,6 @@ function drawKoyomiEvents(startDate) {
             const lunarMatch = dbRow[1].match(/旧暦.*?月(.+?)日/);
             const rawLunarDay = lunarMatch ? lunarMatch[1] : "";
             
-            // ★ 文字数の多い漢数字をスマートな一文字に置換 (二十 -> 廿, 三十 -> 丗)
             const lunarDay = rawLunarDay.replace("三十", "丗").replace("二十", "廿");
             
             let phaseKey = "normal";
@@ -1038,7 +1030,7 @@ function drawKoyomiEvents(startDate) {
             textLunar.setAttribute("opacity", stL.opacity);
             textLunar.setAttribute("transform", `rotate(${baseAngle + 10.5}, ${ptLunar.x}, ${ptLunar.y})`);
             
-            textLunar.textContent = lunarDay; // ★ 「廿」「丗」にスマート変換されたテキストを描画
+            textLunar.textContent = lunarDay; 
             lunarGroup.appendChild(textLunar);
 
             if (i === 0) {
