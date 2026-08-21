@@ -8,6 +8,105 @@ function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
     };
 }
 
+// ★ 新規追加：天文学的ピン (朔望)
+function drawAstronomicalPins(cycleStartTime) {
+    const layer = document.getElementById("layer-astronomical-pins");
+    if(!layer) return;
+    layer.innerHTML = "";
+    if (concentricRings.length < 30) return;
+
+    const st = window.layerSettings.astroPins;
+    if(!st || st.opacity === 0) return;
+
+    // 階層1の線上（一番内側の円）にピンを打つ
+    const rMin = concentricRings[0];
+    const startAngle = currentStartSegment * 3;
+    
+    let prevDiff = null;
+    
+    // 1時間ごとに月の黄経差をチェックし、特定の角度をまたぐ瞬間を探す
+    for (let i = 0; i <= 720; i++) {
+        const timeMs = cycleStartTime + i * 3600000;
+        let diff = (getLunarLongitude(timeMs) - getSolarLongitude(timeMs) + 360) % 360;
+        
+        if (prevDiff !== null) {
+            // チェックする4つの天文学的瞬間 (0=新月, 90=上弦, 180=満月, 270=下弦)
+            const targets = [
+                {val: 0, key: 'new'}, 
+                {val: 90, key: 'first'}, 
+                {val: 180, key: 'full'}, 
+                {val: 270, key: 'last'}
+            ];
+            
+            for(let t of targets) {
+                let cross = false;
+                let fraction = 0;
+                
+                // 359度から0度へリセットされる瞬間の処理
+                if (t.val === 0) {
+                    if (prevDiff > 300 && diff < 60) {
+                        cross = true;
+                        fraction = (360 - prevDiff) / ((360 - prevDiff) + diff);
+                    }
+                } else {
+                    if (prevDiff <= t.val && diff >= t.val) {
+                        cross = true;
+                        fraction = (t.val - prevDiff) / (diff - prevDiff);
+                    }
+                }
+                
+                if (cross) {
+                    // 交差した正確な時間を計算
+                    const exactI = i - 1 + fraction;
+                    const angle = startAngle + exactI * 0.5;
+                    const pt = polarToCartesian(cx, cy, rMin, angle);
+                    
+                    // 回転させて図形を配置するためのグループを作成
+                    const g = document.createElementNS(svgNS, "g");
+                    g.setAttribute("transform", `translate(${pt.x}, ${pt.y}) rotate(${angle})`);
+                    g.setAttribute("opacity", st.opacity);
+                    
+                    const R = 3.5 * (st.scale || 1); // ピンの半径
+                    
+                    // ベースとなる円（縁取り）
+                    const circle = document.createElementNS(svgNS, "circle");
+                    circle.setAttribute("cx", 0);
+                    circle.setAttribute("cy", 0);
+                    circle.setAttribute("r", R);
+                    circle.setAttribute("fill", "none");
+                    circle.setAttribute("stroke", st.stroke);
+                    circle.setAttribute("stroke-width", st.strokeWidth);
+                    
+                    if (t.key === 'new') {
+                        // 新月：白丸（塗りなし）
+                        g.appendChild(circle);
+                    } else if (t.key === 'full') {
+                        // 満月：黒丸（塗りつぶし）
+                        circle.setAttribute("fill", st.fill);
+                        g.appendChild(circle);
+                    } else if (t.key === 'first') {
+                        // 上弦：右半月
+                        const path = document.createElementNS(svgNS, "path");
+                        path.setAttribute("d", `M 0,-${R} A ${R},${R} 0 0,1 0,${R} Z`);
+                        path.setAttribute("fill", st.fill);
+                        g.appendChild(path);
+                        g.appendChild(circle);
+                    } else if (t.key === 'last') {
+                        // 下弦：左半月
+                        const path = document.createElementNS(svgNS, "path");
+                        path.setAttribute("d", `M 0,-${R} A ${R},${R} 0 0,0 0,${R} Z`);
+                        path.setAttribute("fill", st.fill);
+                        g.appendChild(path);
+                        g.appendChild(circle);
+                    }
+                    layer.appendChild(g);
+                }
+            }
+        }
+        prevDiff = diff;
+    }
+}
+
 function drawLunarMansions(cycleStartTimeMs) {
     const layer = document.getElementById("layer-lunar-mansion");
     if(layer) layer.innerHTML = "";
@@ -622,7 +721,6 @@ function drawKoyomiEvents(startDate) {
     const r30Lower = r30In + (r30Out - r30In) * 0.25; 
     const r30Upper = r30In + (r30Out - r30In) * 0.75; 
     
-    // ★ ここで階層30の順番（U:上段, M:中段, L:下段）を制御
     const r30U_text = r30In + (r30Out - r30In) * 0.82; 
     const r30M_text = r30In + (r30Out - r30In) * 0.50; 
     const r30L_text = r30In + (r30Out - r30In) * 0.18; 
@@ -705,7 +803,6 @@ function drawKoyomiEvents(startDate) {
             targetGroup.appendChild(textObj);
         };
 
-        // ★ 上から 祝日(U)、雑節(M)、行事(L) に割り当て
         const holidayText = [dbRow[8], dbRow[14]].filter(Boolean).join(' ／ ');
         drawSingleText(`${arcIdBase}_30U_text`, holidayText, stH, r30U_text + stH.offsetRadius, holidayGroup);
         drawSingleText(`${arcIdBase}_30M_text`, dbRow[7], stZ, r30M_text + stZ.offsetRadius, zassetsuGroup);
