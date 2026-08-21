@@ -1,32 +1,46 @@
 // main.js (司令塔・初期化モジュール)
 
-// ▼▼ 追加：デザイン設定データの定義と保存機能 ▼▼
+// ▼▼ 進化したデザイン設定データの定義 ▼▼
 const defaultLayerSettings = {
+    baseSvg: { stroke: "", opacity: 0.8 }, // stroke空文字ならオリジナルの色を維持
+    lunarShadow: { fill: "#000000", opacity: 0.03 },
+    dateLines: { stroke: "#555555", strokeWidth: 1.5, opacity: 1 },
     gregorian: { fontFamily: "'Shippori Mincho', serif", fontSize: 9, fill: "#727171", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     weekday: { fontFamily: "'Shippori Mincho', serif", fontSize: 6, fill: "#b0b0b0", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
-    lunar: { fontFamily: "'Shippori Mincho', serif", fontSize: 11, fill: "#2c3e50", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     sekki: { fontFamily: "'Shippori Mincho', serif", fontSize: 19, fill: "#2c3e50", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     kou: { fontFamily: "'Shippori Mincho', serif", fontSize: 14, fill: "#2c3e50", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     zassetsu: { fontFamily: "'Shippori Mincho', serif", fontSize: 6, fill: "#727171", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     holiday: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#d25b4e", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
-    important: { fontFamily: "'Shippori Mincho', serif", fontSize: 6, fill: "#2c3e50", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 }
+    important: { fontFamily: "'Shippori Mincho', serif", fontSize: 6, fill: "#2c3e50", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
+    
+    // ▼ 旧暦（月相ごとに図形や色を細かく設定）
+    lunar: {
+        fontFamily: "'Shippori Mincho', serif", fontSize: 11, fontWeight: "normal", opacity: 1, offsetRadius: 0,
+        phases: {
+            normal:       { shape: "none", fill: "#2c3e50", bgFill: "transparent", shapeStroke: "#555555", shapeStrokeWidth: 0 },
+            newMoon:      { shape: "circle", fill: "#d4af37", bgFill: "transparent", shapeStroke: "#d4af37", shapeStrokeWidth: 1.2 }, // 一日
+            firstQuarter: { shape: "none", fill: "#2c3e50", bgFill: "transparent", shapeStroke: "#555555", shapeStrokeWidth: 0 }, // 八日
+            fullMoon:     { shape: "none", fill: "#2c3e50", bgFill: "transparent", shapeStroke: "#555555", shapeStrokeWidth: 0 }, // 十五日
+            lastQuarter:  { shape: "none", fill: "#2c3e50", bgFill: "transparent", shapeStroke: "#555555", shapeStrokeWidth: 0 }  // 二十三日
+        }
+    }
 };
 
-// LocalStorageから過去の設定を読み込む（なければデフォルトを適用）
-window.layerSettings = JSON.parse(localStorage.getItem('polarCalendarSettingsV1')) || JSON.parse(JSON.stringify(defaultLayerSettings));
+// 過去の設定データと競合しないよう保存キーをV2に更新
+window.layerSettings = JSON.parse(localStorage.getItem('polarCalendarSettingsV2')) || JSON.parse(JSON.stringify(defaultLayerSettings));
 
-// 念のため、アップデート等で設定項目が足りない場合の補完処理
+// 補完処理
 for (let key in defaultLayerSettings) {
     if (!window.layerSettings[key]) {
-        window.layerSettings[key] = { ...defaultLayerSettings[key] };
+        window.layerSettings[key] = JSON.parse(JSON.stringify(defaultLayerSettings[key]));
     }
 }
 
-// いつでも設定を保存できる魔法の関数
 window.saveLayerSettings = () => {
-    localStorage.setItem('polarCalendarSettingsV1', JSON.stringify(window.layerSettings));
+    localStorage.setItem('polarCalendarSettingsV2', JSON.stringify(window.layerSettings));
 };
 // ▲▲ 追加ここまで ▲▲
+
 
 let koyomiDatabase = {};
 const KOYOMI_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRqoX31YV0YAO3Mq4WatmLhjP7uUSF6dPMy3D2H3ktEFDFg1X1gJmoIXkul9JpS4aLgK9Ze3SSbV9BZ/pub?gid=0&single=true&output=csv';
@@ -169,6 +183,16 @@ async function updateCalendarCycle() {
     globalRotation = -currentStartSegment * 3;
     masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
 
+    // ベースSVGの上書き（ここでも適用）
+    const stBase = window.layerSettings.baseSvg;
+    if (bgGroup) {
+        bgGroup.style.opacity = stBase.opacity;
+        Array.from(bgGroup.querySelectorAll('*')).forEach(el => {
+            if (stBase.stroke) el.setAttribute('stroke', stBase.stroke);
+            else el.removeAttribute('stroke');
+        });
+    }
+
     fetchMeteoData(cycleStartTimeMs).then(() => {
         drawRainfallGraph(cycleStartTimeMs);
     });
@@ -199,7 +223,6 @@ loadLocalCSV().then(() => {
             masterGroup.setAttribute("id", "master-group");
             bgGroup = document.createElementNS(svgNS, "g");
             bgGroup.setAttribute("id", "bg-group");
-            bgGroup.setAttribute("opacity", "0.8");
             
             while (svg.firstChild) bgGroup.appendChild(svg.firstChild);
             masterGroup.appendChild(bgGroup);
@@ -219,7 +242,7 @@ loadLocalCSV().then(() => {
             masterGroup.appendChild(textPathDefs);
             masterGroup.appendChild(dataLayer);
             masterGroup.appendChild(shadowLayer);
-            masterGroup.appendChild(linesLayer);
+            masterGroup.appendChild(linesLayer); // 30分割線のレイヤー
             masterGroup.appendChild(tideLayer);
             masterGroup.appendChild(rainfallLayer);
             masterGroup.appendChild(lunarMansionLayer);
