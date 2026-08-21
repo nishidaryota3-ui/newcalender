@@ -1,8 +1,34 @@
 // main.js (司令塔・初期化モジュール)
 
-// ▼ 暦データベースを格納するオブジェクト
+// ▼▼ 追加：デザイン設定データの定義と保存機能 ▼▼
+const defaultLayerSettings = {
+    gregorian: { fontFamily: "'Shippori Mincho', serif", fontSize: 9, fill: "#727171", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
+    weekday: { fontFamily: "'Shippori Mincho', serif", fontSize: 6, fill: "#b0b0b0", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
+    lunar: { fontFamily: "'Shippori Mincho', serif", fontSize: 11, fill: "#2c3e50", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
+    sekki: { fontFamily: "'Shippori Mincho', serif", fontSize: 19, fill: "#2c3e50", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
+    kou: { fontFamily: "'Shippori Mincho', serif", fontSize: 14, fill: "#2c3e50", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
+    zassetsu: { fontFamily: "'Shippori Mincho', serif", fontSize: 6, fill: "#727171", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
+    holiday: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#d25b4e", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
+    important: { fontFamily: "'Shippori Mincho', serif", fontSize: 6, fill: "#2c3e50", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 }
+};
+
+// LocalStorageから過去の設定を読み込む（なければデフォルトを適用）
+window.layerSettings = JSON.parse(localStorage.getItem('polarCalendarSettingsV1')) || JSON.parse(JSON.stringify(defaultLayerSettings));
+
+// 念のため、アップデート等で設定項目が足りない場合の補完処理
+for (let key in defaultLayerSettings) {
+    if (!window.layerSettings[key]) {
+        window.layerSettings[key] = { ...defaultLayerSettings[key] };
+    }
+}
+
+// いつでも設定を保存できる魔法の関数
+window.saveLayerSettings = () => {
+    localStorage.setItem('polarCalendarSettingsV1', JSON.stringify(window.layerSettings));
+};
+// ▲▲ 追加ここまで ▲▲
+
 let koyomiDatabase = {};
-// ▼ スプレッドシート「暦データベース」のCSV公開URL
 const KOYOMI_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRqoX31YV0YAO3Mq4WatmLhjP7uUSF6dPMy3D2H3ktEFDFg1X1gJmoIXkul9JpS4aLgK9Ze3SSbV9BZ/pub?gid=0&single=true&output=csv';
 
 function formatDateStr(dateObj) {
@@ -15,15 +41,13 @@ function formatDateStr(dateObj) {
 async function fetchMeteoData(startDateMs) {
     loader.style.display = 'flex';
     const dStart = new Date(startDateMs);
-    const dEnd = new Date(startDateMs + 30 * 86400000); 
+    const dEnd = new Date(startDateMs + 30 * 86400000);
     const startStr = formatDateStr(dStart);
     const endStr = formatDateStr(dEnd);
-    
     apiRainData = new Array(720).fill(null);
     const isHistorical = dEnd.getTime() < Date.now() - (5 * 86400000);
-    const rainApiUrl = isHistorical 
-        ? `https://archive-api.open-meteo.com/v1/archive?latitude=${PALAU_LAT}&longitude=${PALAU_LON}&hourly=precipitation&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`
-        : `https://api.open-meteo.com/v1/forecast?latitude=${PALAU_LAT}&longitude=${PALAU_LON}&hourly=precipitation&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`;
+    const rainApiUrl = isHistorical ? `https://archive-api.open-meteo.com/v1/archive?latitude=${PALAU_LAT}&longitude=${PALAU_LON}&hourly=precipitation&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`
+                                     : `https://api.open-meteo.com/v1/forecast?latitude=${PALAU_LAT}&longitude=${PALAU_LON}&hourly=precipitation&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`;
 
     try {
         const rainRes = await fetch(rainApiUrl);
@@ -38,17 +62,14 @@ async function fetchMeteoData(startDateMs) {
 }
 
 async function loadLocalCSV() {
-    // 暦データベース (Google Sheets CSV) の読み込み
     try {
         const res = await fetch(KOYOMI_CSV_URL);
         if (res.ok) {
             const text = await res.text();
             const lines = text.split('\n');
             for (let i = 1; i < lines.length; i++) {
-                // セル内にカンマがある場合も考慮した安全なCSV分割
                 const row = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').trim());
                 if (row[0]) {
-                    // 日付キーを 'YYYY-MM-DD' 形式に統一して保存
                     let dateKey = row[0].replace(/\//g, '-');
                     const parts = dateKey.split('-');
                     if(parts.length === 3) {
@@ -70,7 +91,7 @@ async function loadLocalCSV() {
                 if (parts.length >= 2) {
                     const date = parts[0].trim().replace(/\//g, '-');
                     const rain = parseFloat(parts[1].trim());
-                    if (date && !isNaN(rain)) localRainData[date] = rain; 
+                    if (date && !isNaN(rain)) localRainData[date] = rain;
                 }
             }
         }
@@ -95,7 +116,7 @@ async function loadLocalCSV() {
                     let timeStrRaw = parts[1].trim();
                     if(timeStrRaw.length > 5) timeStrRaw = timeStrRaw.substring(0, 5);
                     const timeParts = timeStrRaw.split(':');
-                    if(timeParts.length < 2) continue; 
+                    if(timeParts.length < 2) continue;
                     const h = timeParts[0].padStart(2, '0');
                     const min = timeParts[1].padStart(2, '0');
                     const timeMs = new Date(`${dateStr}T${h}:${min}:00`).getTime();
@@ -109,111 +130,103 @@ async function loadLocalCSV() {
 }
 
 async function updateCalendarCycle() {
-  const totalElapsedDays = currentCycle * synodicMonth;
-  const estimatedStartTimeMs = baseDate.getTime() + totalElapsedDays * 24 * 60 * 60 * 1000;
-  let startDate = new Date(estimatedStartTimeMs);
+    const totalElapsedDays = currentCycle * synodicMonth;
+    const estimatedStartTimeMs = baseDate.getTime() + totalElapsedDays * 24 * 60 * 60 * 1000;
+    let startDate = new Date(estimatedStartTimeMs);
 
-  // ▼暦データベースから「真の新月日（旧暦の一日）」を探して補正する▼
-  for (let offset = -3; offset <= 3; offset++) {
-      const checkDate = new Date(estimatedStartTimeMs + offset * 86400000);
-      const dateStr = formatDateStr(checkDate);
-      const dbRow = koyomiDatabase[dateStr];
-      if (dbRow && dbRow[1]) {
-          const lunarMatch = dbRow[1].match(/旧暦.*?月(.+?)日/);
-          if (lunarMatch && lunarMatch[1] === "一") {
-              // 深夜0:00:00に揃えた正確な新月日
-              startDate = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate());
-              break;
-          }
-      }
-  }
+    for (let offset = -3; offset <= 3; offset++) {
+        const checkDate = new Date(estimatedStartTimeMs + offset * 86400000);
+        const dateStr = formatDateStr(checkDate);
+        const dbRow = koyomiDatabase[dateStr];
+        if (dbRow && dbRow[1]) {
+            const lunarMatch = dbRow[1].match(/旧暦.*?月(.+?)日/);
+            if (lunarMatch && lunarMatch[1] === "一") {
+                startDate = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate());
+                break;
+            }
+        }
+    }
 
-  const cycleStartTimeMs = startDate.getTime();
-  const diffDaysExact = (cycleStartTimeMs - baseDate.getTime()) / 86400000;
-  
-  // ズレを補正した正確な日数から角度を再計算
-  currentStartSegment = Math.round((diffDaysExact % 30) / 0.25) % 120;
-  if (currentStartSegment < 0) currentStartSegment += 120;
-  
-  const y = startDate.getFullYear();
-  const m = startDate.getMonth() + 1;
-  const d = startDate.getDate();
-  document.getElementById('cycleDisplay').innerHTML = `${y}年 ${m}月 <span style="font-size:10px;">▼</span><br><span style="font-size:11px; color:#8b949e;">新月: ${m}月${d}日〜</span>`;
+    const cycleStartTimeMs = startDate.getTime();
+    const diffDaysExact = (cycleStartTimeMs - baseDate.getTime()) / 86400000;
+    currentStartSegment = Math.round((diffDaysExact % 30) / 0.25) % 120;
+    if (currentStartSegment < 0) currentStartSegment += 120;
 
-  // --- ★修正箇所：天気を「待たずに」カレンダーを先に一瞬で描画する ---
-  drawLunarShadow(cycleStartTimeMs);  
-  drawDynamicLines(); 
-  drawTideGraph(cycleStartTimeMs);    
-  drawDailyRainStats(startDate);
-  drawLunarMansions(cycleStartTimeMs);
-  renderSavedData();
-  drawTimeLabels(); 
-  drawKoyomiEvents(startDate); 
+    const y = startDate.getFullYear();
+    const m = startDate.getMonth() + 1;
+    const d = startDate.getDate();
+    document.getElementById('cycleDisplay').innerHTML = `${y}年 ${m}月 <span style="font-size:10px;">▼</span><br><span style="font-size:11px; color:#8b949e;">新月: ${m}月${d}日〜</span>`;
 
-  globalRotation = -currentStartSegment * 3;
-  masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
+    drawLunarShadow(cycleStartTimeMs);
+    drawDynamicLines();
+    drawTideGraph(cycleStartTimeMs);
+    drawDailyRainStats(startDate);
+    drawLunarMansions(cycleStartTimeMs);
+    renderSavedData();
+    drawTimeLabels();
+    drawKoyomiEvents(startDate);
 
-  // 天気は裏側でこっそり取得し、エラーになっても無視する。取得できたら雨グラフを描く。
-  fetchMeteoData(cycleStartTimeMs).then(() => {
-      drawRainfallGraph(cycleStartTimeMs);
-  });
+    globalRotation = -currentStartSegment * 3;
+    masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
+
+    fetchMeteoData(cycleStartTimeMs).then(() => {
+        drawRainfallGraph(cycleStartTimeMs);
+    });
 }
 
-// アプリの起動処理
 initUI();
-
 loadLocalCSV().then(() => {
     fetch('calendar.svg')
-      .then(response => response.text())
-      .then(svgCode => {
-        container.innerHTML = svgCode;
-        svg = container.querySelector('svg');
-        svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
-        svg.querySelectorAll('*[fill="#fff"]').forEach(el => el.setAttribute('fill', 'none'));
-        svg.querySelectorAll('text, rect').forEach(el => el.remove());
-
-        const radii = [];
-        svg.querySelectorAll('circle').forEach(c => {
-          const r = parseFloat(c.getAttribute('r'));
-          const cx_val = parseFloat(c.getAttribute('cx'));
-          const cy_val = parseFloat(c.getAttribute('cy'));
-          if (r && Math.abs(cx_val - cx) < 1 && Math.abs(cy_val - cy) < 1) radii.push(r);
-        });
-        concentricRings = [...new Set(radii)].sort((a, b) => a - b);
-
-        masterGroup = document.createElementNS(svgNS, "g");
-        masterGroup.setAttribute("id", "master-group");
-        bgGroup = document.createElementNS(svgNS, "g");
-        bgGroup.setAttribute("id", "bg-group");
-        bgGroup.setAttribute("opacity", "0.8");
-        while (svg.firstChild) bgGroup.appendChild(svg.firstChild);
-        
-        masterGroup.appendChild(bgGroup);
-        svg.appendChild(masterGroup);
-
-        textPathDefs = document.createElementNS(svgNS, "defs");
-        dataLayer = document.createElementNS(svgNS, "g");       
-        shadowLayer = document.createElementNS(svgNS, "g");     
-        linesLayer = document.createElementNS(svgNS, "g");      
-        tideLayer = document.createElementNS(svgNS, "g");       
-        rainfallLayer = document.createElementNS(svgNS, "g");   
-        
-        lunarMansionLayer = document.createElementNS(svgNS, "g");
-        lunarMansionLayer.setAttribute("id", "lunar-mansion-layer");
-        outerSeasonLayer = document.createElementNS(svgNS, "g");
-        outerSeasonLayer.setAttribute("id", "outer-season-layer");
-
-        masterGroup.appendChild(textPathDefs);
-        masterGroup.appendChild(dataLayer);
-        masterGroup.appendChild(shadowLayer);
-        masterGroup.appendChild(linesLayer);
-        masterGroup.appendChild(tideLayer);
-        masterGroup.appendChild(rainfallLayer);
-        masterGroup.appendChild(lunarMansionLayer);
-        masterGroup.appendChild(outerSeasonLayer);
-
-        updateCalendarCycle();
-        initInteractions();
-      })
-      .catch(err => console.error("SVG読み込みエラー:", err));
+        .then(response => response.text())
+        .then(svgCode => {
+            container.innerHTML = svgCode;
+            svg = container.querySelector('svg');
+            svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+            
+            svg.querySelectorAll('*[fill="#fff"]').forEach(el => el.setAttribute('fill', 'none'));
+            svg.querySelectorAll('text, rect').forEach(el => el.remove());
+            
+            const radii = [];
+            svg.querySelectorAll('circle').forEach(c => {
+                const r = parseFloat(c.getAttribute('r'));
+                const cx_val = parseFloat(c.getAttribute('cx'));
+                const cy_val = parseFloat(c.getAttribute('cy'));
+                if (r && Math.abs(cx_val - cx) < 1 && Math.abs(cy_val - cy) < 1) radii.push(r);
+            });
+            concentricRings = [...new Set(radii)].sort((a, b) => a - b);
+            
+            masterGroup = document.createElementNS(svgNS, "g");
+            masterGroup.setAttribute("id", "master-group");
+            bgGroup = document.createElementNS(svgNS, "g");
+            bgGroup.setAttribute("id", "bg-group");
+            bgGroup.setAttribute("opacity", "0.8");
+            
+            while (svg.firstChild) bgGroup.appendChild(svg.firstChild);
+            masterGroup.appendChild(bgGroup);
+            svg.appendChild(masterGroup);
+            
+            textPathDefs = document.createElementNS(svgNS, "defs");
+            dataLayer = document.createElementNS(svgNS, "g");
+            shadowLayer = document.createElementNS(svgNS, "g");
+            linesLayer = document.createElementNS(svgNS, "g");
+            tideLayer = document.createElementNS(svgNS, "g");
+            rainfallLayer = document.createElementNS(svgNS, "g");
+            lunarMansionLayer = document.createElementNS(svgNS, "g");
+            lunarMansionLayer.setAttribute("id", "lunar-mansion-layer");
+            outerSeasonLayer = document.createElementNS(svgNS, "g");
+            outerSeasonLayer.setAttribute("id", "outer-season-layer");
+            
+            masterGroup.appendChild(textPathDefs);
+            masterGroup.appendChild(dataLayer);
+            masterGroup.appendChild(shadowLayer);
+            masterGroup.appendChild(linesLayer);
+            masterGroup.appendChild(tideLayer);
+            masterGroup.appendChild(rainfallLayer);
+            masterGroup.appendChild(lunarMansionLayer);
+            masterGroup.appendChild(outerSeasonLayer);
+            
+            updateCalendarCycle();
+            initInteractions();
+        })
+        .catch(err => console.error("SVG読み込みエラー:", err));
 });
