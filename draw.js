@@ -416,6 +416,7 @@ function drawLunarShadow(cycleStartTime) {
 
     if (concentricRings.length < 30) return;
 
+    const st = window.layerSettings.lunarShadow; // ★ パネルの透明度と色を適用
     const rMin = concentricRings[0];
     const rMax = concentricRings[concentricRings.length - 2];
     const maxArea = rMax * rMax - rMin * rMin;
@@ -447,13 +448,16 @@ function drawLunarShadow(cycleStartTime) {
 
     const shadowPath = document.createElementNS(svgNS, "path");
     shadowPath.setAttribute("d", pathD);
-    shadowPath.setAttribute("fill", "rgba(0, 0, 0, 0.03)");
+    shadowPath.setAttribute("fill", st.fill);
+    shadowPath.setAttribute("opacity", st.opacity);
     shadowLayer.appendChild(shadowPath);
 }
 
 function drawDynamicLines() {
     linesLayer.innerHTML = "";
+    linesLayer.setAttribute("id", "lines-layer");
     
+    const st = window.layerSettings.dateLines; // ★ 日付区切り線のパネル設定
     const rMin = concentricRings[0];
     const rMax = concentricRings[concentricRings.length - 1];
 
@@ -462,8 +466,9 @@ function drawDynamicLines() {
     ringDateInner.setAttribute("cy", cy);
     ringDateInner.setAttribute("r", concentricRings[concentricRings.length - 2]);
     ringDateInner.setAttribute("fill", "none");
-    ringDateInner.setAttribute("stroke", "#555555");
-    ringDateInner.setAttribute("stroke-width", "1.5");
+    ringDateInner.setAttribute("stroke", st.stroke);
+    ringDateInner.setAttribute("stroke-width", st.strokeWidth);
+    ringDateInner.setAttribute("opacity", st.opacity);
     linesLayer.appendChild(ringDateInner);
 
     for (let i = 0; i < 30; i++) {
@@ -476,8 +481,9 @@ function drawDynamicLines() {
         line.setAttribute("y1", ptInner.y);
         line.setAttribute("x2", ptOuter.x);
         line.setAttribute("y2", ptOuter.y);
-        line.setAttribute("stroke", "#555555");
-        line.setAttribute("stroke-width", "1.5");
+        line.setAttribute("stroke", st.stroke);
+        line.setAttribute("stroke-width", st.strokeWidth);
+        line.setAttribute("opacity", st.opacity);
         linesLayer.appendChild(line);
     }
 }
@@ -546,8 +552,6 @@ function drawKoyomiEvents(startDate) {
     outerSeasonLayer.innerHTML = "";
     textPathDefs.innerHTML = "";
 
-    const sekkiKouGroup = document.createElementNS(svgNS, "g");
-    sekkiKouGroup.setAttribute("class", "layer-sekki-kou");
     const gregorianGroup = document.createElementNS(svgNS, "g");
     gregorianGroup.setAttribute("class", "layer-date-gregorian");
     const weekdayGroup = document.createElementNS(svgNS, "g");
@@ -564,7 +568,6 @@ function drawKoyomiEvents(startDate) {
 
     const eventMixGroup = document.createElementNS(svgNS, "g");
 
-    dateLayer.appendChild(sekkiKouGroup);
     dateLayer.appendChild(gregorianGroup);
     dateLayer.appendChild(weekdayGroup);
     dateLayer.appendChild(lunarGroup);
@@ -573,12 +576,9 @@ function drawKoyomiEvents(startDate) {
     dateLayer.appendChild(importantGroup);
     dateLayer.appendChild(eventMixGroup);
 
-    outerSeasonLayer.setAttribute("class", "layer-sekki-kou");
-
     const R = concentricRings;
     if(R.length < 30) return;
 
-    // ▼▼ 追加：各レイヤーのデザイン設定を取得 ▼▼
     const stG = window.layerSettings.gregorian;
     const stW = window.layerSettings.weekday;
     const stL = window.layerSettings.lunar;
@@ -646,12 +646,11 @@ function drawKoyomiEvents(startDate) {
         createArc(`${arcIdBase}_28`, r28, angStart, angEnd);
         createArc(`${arcIdBase}_29`, r29, angStart, angEnd);
         
-        // ★半径オフセットを反映したパスを生成
         createArc(`${arcIdBase}_30L_text`, r30L_text + stI.offsetRadius, angStart, angEnd);
         createArc(`${arcIdBase}_30M_text`, r30M_text + stH.offsetRadius, angStart, angEnd);
         createArc(`${arcIdBase}_30U_text`, r30U_text + stZ.offsetRadius, angStart, angEnd);
 
-        // --- ▼ 階層30（特等席）の3段配置（動的スタイル適用） ---
+        // --- ▼ 階層30（特等席）の3段配置 ---
         const drawSingleText = (pathId, textContent, styleConfig, rVal, targetGroup) => {
             if (!textContent) return;
             const textObj = document.createElementNS(svgNS, "text");
@@ -661,7 +660,6 @@ function drawKoyomiEvents(startDate) {
             if (styleConfig.fontWeight === "bold") textObj.setAttribute("font-weight", "bold");
             textObj.setAttribute("opacity", styleConfig.opacity);
             
-            // ★縁取り（paint-orderマジック）
             if (styleConfig.strokeWidth > 0) {
                 textObj.setAttribute("stroke", styleConfig.stroke);
                 textObj.setAttribute("stroke-width", styleConfig.strokeWidth);
@@ -689,7 +687,7 @@ function drawKoyomiEvents(startDate) {
         drawSingleText(`${arcIdBase}_30M_text`, holidayText, stH, r30M_text + stH.offsetRadius, holidayGroup);
         drawSingleText(`${arcIdBase}_30L_text`, dbRow[9], stI, r30L_text + stI.offsetRadius, importantGroup);
 
-        // --- ▼ 階層24〜29（年中行事）のデータ駆動（再描画）配置 ---
+        // --- ▼ 階層24〜29（年中行事） ---
         let dailyEvents = [];
         const pushEvents = (cellData, colorCode) => {
             if (!cellData) return;
@@ -718,10 +716,7 @@ function drawKoyomiEvents(startDate) {
         }
 
         const availableR = [r29, r28, r27, r26, r25, r24];
-        const availableIds = [
-            `${arcIdBase}_29`, `${arcIdBase}_28`, `${arcIdBase}_27`,
-            `${arcIdBase}_26`, `${arcIdBase}_25`, `${arcIdBase}_24`
-        ];
+        const availableIds = [`${arcIdBase}_29`, `${arcIdBase}_28`, `${arcIdBase}_27`, `${arcIdBase}_26`, `${arcIdBase}_25`, `${arcIdBase}_24`];
 
         tracks.forEach((trackEvents, tIdx) => {
             if (trackEvents.length === 0) return;
@@ -757,7 +752,7 @@ function drawKoyomiEvents(startDate) {
             eventMixGroup.appendChild(textObj);
         });
 
-        // --- ▼ 新暦・曜日・旧暦の描画（動的スタイル適用） ---
+        // --- ▼ 新暦・曜日・旧暦 ---
         const ptDate = polarToCartesian(cx, cy, r30Upper + stG.offsetRadius, baseAngle + 1.5);
         const textDate = document.createElementNS(svgNS, "text");
         textDate.setAttribute("x", ptDate.x);
@@ -803,20 +798,66 @@ function drawKoyomiEvents(startDate) {
         if (dbRow[1]) {
             const lunarMatch = dbRow[1].match(/旧暦.*?月(.+?)日/);
             const lunarDay = lunarMatch ? lunarMatch[1] : "";
-            const isNewMoon = lunarDay === "一";
+            
+            // ★ 月相の判定
+            let phaseKey = "normal";
+            if (lunarDay === "一") phaseKey = "newMoon";
+            else if (lunarDay === "八") phaseKey = "firstQuarter";
+            else if (lunarDay === "十五") phaseKey = "fullMoon";
+            else if (lunarDay === "二十三") phaseKey = "lastQuarter";
+
+            const pst = stL.phases[phaseKey];
 
             const rLun = (r30In + r30Out)/2 + stL.offsetRadius;
             const ptLunar = polarToCartesian(cx, cy, rLun, baseAngle + 10.5);
             const lunarRadius = (r30Out - r30In) * 0.4;
 
-            const circle = document.createElementNS(svgNS, "circle");
-            circle.setAttribute("cx", ptLunar.x);
-            circle.setAttribute("cy", ptLunar.y);
-            circle.setAttribute("r", lunarRadius);
-            circle.setAttribute("fill", "none");
-            circle.setAttribute("stroke", isNewMoon ? "#d4af37" : "#555555");
-            circle.setAttribute("stroke-width", isNewMoon ? "1.2" : "0.8");
-            lunarGroup.appendChild(circle);
+            // ★ 図形の描画（グループ化して向きを整える）
+            if (pst.shape !== "none") {
+                const shapeG = document.createElementNS(svgNS, "g");
+                shapeG.setAttribute("transform", `rotate(${baseAngle + 10.5}, ${ptLunar.x}, ${ptLunar.y})`);
+
+                let shapeEl = null;
+                if (pst.shape === "circle") {
+                    shapeEl = document.createElementNS(svgNS, "circle");
+                    shapeEl.setAttribute("cx", ptLunar.x);
+                    shapeEl.setAttribute("cy", ptLunar.y);
+                    shapeEl.setAttribute("r", lunarRadius);
+                } else if (pst.shape === "rect") {
+                    shapeEl = document.createElementNS(svgNS, "rect");
+                    const size = lunarRadius * 1.8;
+                    shapeEl.setAttribute("x", ptLunar.x - size/2);
+                    shapeEl.setAttribute("y", ptLunar.y - size/2);
+                    shapeEl.setAttribute("width", size);
+                    shapeEl.setAttribute("height", size);
+                    shapeEl.setAttribute("rx", 2);
+                } else if (pst.shape === "triangle") {
+                    shapeEl = document.createElementNS(svgNS, "polygon");
+                    const p1 = polarToCartesian(ptLunar.x, ptLunar.y, lunarRadius*1.1, 0);
+                    const p2 = polarToCartesian(ptLunar.x, ptLunar.y, lunarRadius*1.1, 120);
+                    const p3 = polarToCartesian(ptLunar.x, ptLunar.y, lunarRadius*1.1, 240);
+                    shapeEl.setAttribute("points", `${p1.x},${p1.y} ${p2.x},${p2.y} ${p3.x},${p3.y}`);
+                } else if (pst.shape === "star") {
+                    shapeEl = document.createElementNS(svgNS, "polygon");
+                    let pts = "";
+                    for(let k=0; k<10; k++) {
+                        const radius = k%2 === 0 ? lunarRadius*1.2 : lunarRadius*0.5;
+                        const p = polarToCartesian(ptLunar.x, ptLunar.y, radius, k * 36);
+                        pts += `${p.x},${p.y} `;
+                    }
+                    shapeEl.setAttribute("points", pts.trim());
+                }
+
+                if (shapeEl) {
+                    shapeEl.setAttribute("fill", pst.bgFill);
+                    if (pst.shapeStrokeWidth > 0) {
+                        shapeEl.setAttribute("stroke", pst.shapeStroke);
+                        shapeEl.setAttribute("stroke-width", pst.shapeStrokeWidth);
+                    }
+                    shapeG.appendChild(shapeEl);
+                    lunarGroup.appendChild(shapeG);
+                }
+            }
 
             const textLunar = document.createElementNS(svgNS, "text");
             textLunar.setAttribute("x", ptLunar.x);
@@ -824,20 +865,13 @@ function drawKoyomiEvents(startDate) {
             textLunar.setAttribute("text-anchor", "middle");
             textLunar.setAttribute("dominant-baseline", "central");
             
-            // 新月のゴールド色は維持するか、パネルの色に従うか（新月の特別感を残すためゴールド優先）
-            textLunar.setAttribute("fill", isNewMoon ? "#d4af37" : stL.fill);
+            textLunar.setAttribute("fill", pst.fill);
             textLunar.setAttribute("font-size", lunarDay.length > 1 ? (stL.fontSize * 0.7) + "px" : stL.fontSize + "px");
             textLunar.setAttribute("font-family", stL.fontFamily);
-            if (stL.fontWeight === "bold" || isNewMoon) textLunar.setAttribute("font-weight", "bold");
+            if (stL.fontWeight === "bold") textLunar.setAttribute("font-weight", "bold");
             textLunar.setAttribute("opacity", stL.opacity);
-            if (stL.strokeWidth > 0) {
-                textLunar.setAttribute("stroke", stL.stroke);
-                textLunar.setAttribute("stroke-width", stL.strokeWidth);
-                textLunar.setAttribute("stroke-linejoin", "round");
-                textLunar.setAttribute("paint-order", "stroke fill");
-            }
             textLunar.setAttribute("transform", `rotate(${baseAngle + 10.5}, ${ptLunar.x}, ${ptLunar.y})`);
-            textLunar.textContent = isNewMoon ? "新月" : lunarDay;
+            textLunar.textContent = phaseKey === "newMoon" ? "新月" : lunarDay;
             lunarGroup.appendChild(textLunar);
 
             if (i === 0) {
@@ -846,15 +880,15 @@ function drawKoyomiEvents(startDate) {
             }
         }
 
-        // --- ▼ 24節気・72候 (動的スタイル適用) ---
-        if (dbRow[2] || dbRow[3]) {
-            const isSekki = !!dbRow[2];
-            const eventName = dbRow[2] || dbRow[3];
-            const stOut = isSekki ? window.layerSettings.sekki : window.layerSettings.kou;
+        // --- ▼ 24節気・72候 (完全に分離して描画) ---
+        const drawOuterText = (eventName, isSekki, classStr, stOut, angleOffset) => {
+            if (!eventName) return;
+            const lineAngle = baseAngle + angleOffset;
+            const p1 = polarToCartesian(cx, cy, r30Out, lineAngle);
+            const p2 = polarToCartesian(cx, cy, r30Out + (isSekki ? 12 : 8), lineAngle);
             
-            const p1 = polarToCartesian(cx, cy, r30Out, baseAngle);
-            const p2 = polarToCartesian(cx, cy, r30Out + (isSekki ? 12 : 8), baseAngle);
             const outLine = document.createElementNS(svgNS, "line");
+            outLine.setAttribute("class", classStr);
             outLine.setAttribute("x1", p1.x);
             outLine.setAttribute("y1", p1.y);
             outLine.setAttribute("x2", p2.x);
@@ -864,8 +898,9 @@ function drawKoyomiEvents(startDate) {
             outerSeasonLayer.appendChild(outLine);
 
             const rText = r30Out + (isSekki ? 45 : 20) + stOut.offsetRadius;
-            const ptTextOut = polarToCartesian(cx, cy, rText, baseAngle);
+            const ptTextOut = polarToCartesian(cx, cy, rText, lineAngle);
             const outText = document.createElementNS(svgNS, "text");
+            outText.setAttribute("class", classStr);
             outText.setAttribute("fill", stOut.fill);
             outText.setAttribute("font-size", stOut.fontSize + "px");
             outText.setAttribute("font-family", stOut.fontFamily);
@@ -879,11 +914,21 @@ function drawKoyomiEvents(startDate) {
             }
             outText.setAttribute("dominant-baseline", "middle");
             outText.setAttribute("text-anchor", "start");
-            outText.setAttribute("transform", `rotate(${baseAngle}, ${ptTextOut.x}, ${ptTextOut.y})`);
+            outText.setAttribute("transform", `rotate(${lineAngle}, ${ptTextOut.x}, ${ptTextOut.y})`);
             outText.setAttribute("x", ptTextOut.x);
             outText.setAttribute("y", ptTextOut.y);
             outText.textContent = eventName;
             outerSeasonLayer.appendChild(outText);
+        };
+
+        // 節気を先に描画（ズレなし）
+        if (dbRow[2]) {
+            drawOuterText(dbRow[2], true, "layer-sekki", window.layerSettings.sekki, 0);
+        }
+        // 候を描画（節気と重なる日なら、引き出し線を1.5度ずらして見やすくする）
+        if (dbRow[3]) {
+            const shift = dbRow[2] ? 1.5 : 0; 
+            drawOuterText(dbRow[3], false, "layer-kou", window.layerSettings.kou, shift);
         }
     }
 
