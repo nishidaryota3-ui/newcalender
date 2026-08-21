@@ -9,7 +9,8 @@ function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
 }
 
 function drawLunarMansions(cycleStartTimeMs) {
-    lunarMansionLayer.innerHTML = "";
+    const layer = document.getElementById("layer-lunar-mansion");
+    if(layer) layer.innerHTML = "";
     if (concentricRings.length === 0) return;
 
     const st = window.layerSettings.lunarMansion;
@@ -26,7 +27,7 @@ function drawLunarMansions(cycleStartTimeMs) {
     trackBg.setAttribute("fill", "none");
     trackBg.setAttribute("stroke", "rgba(255, 255, 255, 0.05)");
     trackBg.setAttribute("stroke-width", "30");
-    lunarMansionLayer.appendChild(trackBg);
+    if(layer) layer.appendChild(trackBg);
 
     let currentMansionIndex = -1;
     let mansionStartAngle = 0;
@@ -59,7 +60,7 @@ function drawLunarMansions(cycleStartTimeMs) {
             line.setAttribute("stroke", getMansionColor(index));
             line.setAttribute("stroke-width", st.strokeWidth);
             line.setAttribute("opacity", st.opacity);
-            lunarMansionLayer.appendChild(line);
+            if(layer) layer.appendChild(line);
 
             currentMansionIndex = index;
             mansionStartAngle = angle;
@@ -119,12 +120,13 @@ function drawConstellationMark(startAng, endAng, index, rCenter, st, color) {
         line.setAttribute("opacity", st.opacity);
         g.appendChild(line);
     }
-    lunarMansionLayer.appendChild(g);
+    const layer = document.getElementById("layer-lunar-mansion");
+    if(layer) layer.appendChild(g);
 }
 
 function drawDailyRainStats(startDate) {
-    let bgLayer = document.getElementById("layer-daily-rain-bg");
-    let textLayer = document.getElementById("layer-daily-rain-text");
+    const bgLayer = document.getElementById("layer-daily-rain-bg");
+    const textLayer = document.getElementById("layer-daily-rain-text");
     if(bgLayer) bgLayer.innerHTML = "";
     if(textLayer) textLayer.innerHTML = "";
 
@@ -194,9 +196,10 @@ function drawDailyRainStats(startDate) {
 }
 
 function drawTideGraph(cycleStartTimeMs) {
-    if(tideLayer) tideLayer.innerHTML = "";
-    let guideGroup = document.getElementById("layer-guide-tide");
-    if(guideGroup) guideGroup.innerHTML = "";
+    const waveLayer = document.getElementById("layer-tide-wave");
+    const guideLayer = document.getElementById("layer-guide-tide");
+    if(waveLayer) waveLayer.innerHTML = "";
+    if(guideLayer) guideLayer.innerHTML = "";
     
     if (concentricRings.length < 23) return;
 
@@ -259,7 +262,7 @@ function drawTideGraph(cycleStartTimeMs) {
         circle.setAttribute("stroke-width", stGuide.shapeStrokeWidth);
         circle.setAttribute("stroke-dasharray", "4,4");
         circle.setAttribute("opacity", stGuide.opacity);
-        if(guideGroup) guideGroup.appendChild(circle);
+        if(guideLayer) guideLayer.appendChild(circle);
 
         for(let i = 0; i < 6; i++) {
             const labelAngle = currentStartSegment * 3 + (i * 60);
@@ -283,17 +286,18 @@ function drawTideGraph(cycleStartTimeMs) {
                 text.setAttribute("stroke-linejoin", "round");
                 text.setAttribute("paint-order", "stroke fill");
             }
-            if(guideGroup) guideGroup.appendChild(text);
+            if(guideLayer) guideLayer.appendChild(text);
         }
     });
 
-    if(tideLayer) tideLayer.appendChild(waveGroup);
+    if(waveLayer) waveLayer.appendChild(waveGroup);
 }
 
 function drawRainfallGraph(cycleStartTimeMs) {
-    if(rainfallLayer) rainfallLayer.innerHTML = "";
-    let guideGroup = document.getElementById("layer-guide-rain");
-    if(guideGroup) guideGroup.innerHTML = "";
+    const rainLayer = document.getElementById("layer-rain-graph");
+    const guideLayer = document.getElementById("layer-guide-rain");
+    if(rainLayer) rainLayer.innerHTML = "";
+    if(guideLayer) guideLayer.innerHTML = "";
     
     if (concentricRings.length < 23) return;
 
@@ -313,7 +317,7 @@ function drawRainfallGraph(cycleStartTimeMs) {
     circle.setAttribute("stroke", stGuide.shapeStroke);
     circle.setAttribute("stroke-width", stGuide.shapeStrokeWidth);
     circle.setAttribute("opacity", stGuide.opacity);
-    if(guideGroup) guideGroup.appendChild(circle);
+    if(guideLayer) guideLayer.appendChild(circle);
 
     const startAngle = currentStartSegment * 3;
     for (let h = 0; h < 720; h++) {
@@ -357,7 +361,7 @@ function drawRainfallGraph(cycleStartTimeMs) {
             tick.setAttribute("stroke", stGuide.shapeStroke);
             tick.setAttribute("stroke-width", stGuide.shapeStrokeWidth);
             tick.setAttribute("opacity", stGuide.opacity);
-            if(guideGroup) guideGroup.appendChild(tick);
+            if(guideLayer) guideLayer.appendChild(tick);
             
             const ptLabel = polarToCartesian(cx, cy, r + stGuide.offsetRadius, labelAngle);
             const text = document.createElementNS(svgNS, "text");
@@ -382,15 +386,15 @@ function drawRainfallGraph(cycleStartTimeMs) {
             if (target.isRightSide) { textRot = labelAngle; }
             text.setAttribute("transform", `rotate(${textRot}, ${ptLabel.x}, ${ptLabel.y})`);
             text.textContent = val + "mm";
-            if(guideGroup) guideGroup.appendChild(text);
+            if(guideLayer) guideLayer.appendChild(text);
         });
     });
 
-    if(rainfallLayer) rainfallLayer.appendChild(rainGroup);
+    if(rainLayer) rainLayer.appendChild(rainGroup);
 }
 
 function drawTimeLabels() {
-    let timeLayer = document.getElementById("layer-guide-time");
+    const timeLayer = document.getElementById("layer-guide-time");
     if(timeLayer) timeLayer.innerHTML = "";
     
     if (concentricRings.length < 20) return;
@@ -427,6 +431,7 @@ function drawTimeLabels() {
 }
 
 function drawLunarShadow(cycleStartTime) {
+    const shadowLayer = document.getElementById("layer-shadow");
     if(shadowLayer) shadowLayer.innerHTML = "";
     if (concentricRings.length < 30) return;
 
@@ -468,6 +473,7 @@ function drawLunarShadow(cycleStartTime) {
 }
 
 function drawDynamicLines() {
+    const linesLayer = document.getElementById("layer-lines");
     if(linesLayer) linesLayer.innerHTML = "";
     const st = window.layerSettings.dateLines;
     const rMin = concentricRings[0];
@@ -501,6 +507,7 @@ function drawDynamicLines() {
 }
 
 function renderSavedData() {
+    const dataLayer = document.getElementById("layer-data");
     if(dataLayer) dataLayer.innerHTML = "";
     const cyclePrefix = `c${currentCycle}_`;
     for (const key in calendarData) {
@@ -532,6 +539,7 @@ function drawCell(rIn, rOut, startAngle, endAngle, color) {
     path.setAttribute("d", d);
     path.setAttribute("fill", color);
     path.setAttribute("opacity", "0.6");
+    const dataLayer = document.getElementById("layer-data");
     if(dataLayer) dataLayer.appendChild(path);
 }
 
@@ -554,25 +562,20 @@ function drawKoyomiEvents(startDate) {
     window.lastKoyomiStartDate = startDate;
     window.lastCycleStartTimeMs = startDate.getTime();
 
-    let dateLayer = document.getElementById("layer-solar-dates");
+    const dateLayer = document.getElementById("layer-solar-dates");
+    const outerSeasonLayer = document.getElementById("layer-outer-season");
+    const textPathDefs = document.getElementById("text-path-defs");
+    
     if(dateLayer) dateLayer.innerHTML = "";
     if(outerSeasonLayer) outerSeasonLayer.innerHTML = "";
     if(textPathDefs) textPathDefs.innerHTML = "";
 
     const gregorianGroup = document.createElementNS(svgNS, "g");
-    gregorianGroup.setAttribute("class", "layer-date-gregorian");
     const weekdayGroup = document.createElementNS(svgNS, "g");
-    weekdayGroup.setAttribute("class", "layer-date-weekday");
     const lunarGroup = document.createElementNS(svgNS, "g");
-    lunarGroup.setAttribute("class", "layer-date-lunar");
-
     const zassetsuGroup = document.createElementNS(svgNS, "g");
-    zassetsuGroup.setAttribute("class", "layer-zassetsu");
     const holidayGroup = document.createElementNS(svgNS, "g");
-    holidayGroup.setAttribute("class", "layer-holiday");
     const importantGroup = document.createElementNS(svgNS, "g");
-    importantGroup.setAttribute("class", "layer-event-important");
-
     const eventMixGroup = document.createElementNS(svgNS, "g");
 
     if(dateLayer) {
@@ -595,7 +598,6 @@ function drawKoyomiEvents(startDate) {
     const stH = window.layerSettings.holiday;
     const stI = window.layerSettings.important;
 
-    // 曜日(英語/日本語)の切替
     const daysStr = stW.lang === 'ja' 
         ? ["日", "月", "火", "水", "木", "金", "土"]
         : ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -612,9 +614,9 @@ function drawKoyomiEvents(startDate) {
     const r30Lower = r30In + (r30Out - r30In) * 0.25; 
     const r30Upper = r30In + (r30Out - r30In) * 0.75; 
     
-    const r30U_text = r30In + (r30Out - r30In) * 0.82; // 上段
-    const r30M_text = r30In + (r30Out - r30In) * 0.50; // 中段
-    const r30L_text = r30In + (r30Out - r30In) * 0.18; // 下段
+    const r30U_text = r30In + (r30Out - r30In) * 0.82; 
+    const r30M_text = r30In + (r30Out - r30In) * 0.50; 
+    const r30L_text = r30In + (r30Out - r30In) * 0.18; 
 
     let startWafu = "";
     let startGregorianMonth = startDate.getMonth() + 1;
@@ -659,7 +661,6 @@ function drawKoyomiEvents(startDate) {
         createArc(`${arcIdBase}_28`, r28, angStart, angEnd);
         createArc(`${arcIdBase}_29`, r29, angStart, angEnd);
         
-        // ★ 階層30 順番変更の適用 (U=祝日, M=雑節, L=行事)
         createArc(`${arcIdBase}_30U_text`, r30U_text + stH.offsetRadius, angStart, angEnd);
         createArc(`${arcIdBase}_30M_text`, r30M_text + stZ.offsetRadius, angStart, angEnd);
         createArc(`${arcIdBase}_30L_text`, r30L_text + stI.offsetRadius, angStart, angEnd);
@@ -695,15 +696,11 @@ function drawKoyomiEvents(startDate) {
             targetGroup.appendChild(textObj);
         };
 
-        // 祝日 (U=上段)
         const holidayText = [dbRow[8], dbRow[14]].filter(Boolean).join(' ／ ');
         drawSingleText(`${arcIdBase}_30U_text`, holidayText, stH, r30U_text + stH.offsetRadius, holidayGroup);
-        // 雑節 (M=中段)
         drawSingleText(`${arcIdBase}_30M_text`, dbRow[7], stZ, r30M_text + stZ.offsetRadius, zassetsuGroup);
-        // 行事 (L=下段)
         drawSingleText(`${arcIdBase}_30L_text`, dbRow[9], stI, r30L_text + stI.offsetRadius, importantGroup);
 
-        // --- ▼ 階層24〜29（年中行事） ---
         let dailyEvents = [];
         const pushEvents = (cellData, styleConfig) => {
             if (!cellData) return;
@@ -777,10 +774,8 @@ function drawKoyomiEvents(startDate) {
             eventMixGroup.appendChild(textObj);
         });
 
-        // --- ▼ 新暦・曜日・旧暦 ---
         const ptDate = polarToCartesian(cx, cy, r30Upper + stG.offsetRadius, baseAngle + 1.5);
         const textDate = document.createElementNS(svgNS, "text");
-        textDate.setAttribute("class", "layer-date-gregorian");
         textDate.setAttribute("x", ptDate.x);
         textDate.setAttribute("y", ptDate.y);
         textDate.setAttribute("text-anchor", "middle");
@@ -802,7 +797,6 @@ function drawKoyomiEvents(startDate) {
 
         const ptDay = polarToCartesian(cx, cy, r30Lower + stW.offsetRadius, baseAngle + 1.5);
         const textDay = document.createElementNS(svgNS, "text");
-        textDay.setAttribute("class", "layer-date-weekday");
         textDay.setAttribute("x", ptDay.x);
         textDay.setAttribute("y", ptDay.y);
         textDay.setAttribute("text-anchor", "middle");
@@ -840,7 +834,6 @@ function drawKoyomiEvents(startDate) {
 
             if (pst.shape !== "none") {
                 const shapeG = document.createElementNS(svgNS, "g");
-                shapeG.setAttribute("class", "layer-date-lunar");
                 shapeG.setAttribute("transform", `rotate(${baseAngle + 10.5}, ${ptLunar.x}, ${ptLunar.y})`);
 
                 let shapeEl = null;
@@ -887,7 +880,6 @@ function drawKoyomiEvents(startDate) {
             }
 
             const textLunar = document.createElementNS(svgNS, "text");
-            textLunar.setAttribute("class", "layer-date-lunar");
             textLunar.setAttribute("x", ptLunar.x);
             textLunar.setAttribute("y", ptLunar.y);
             textLunar.setAttribute("text-anchor", "middle");
@@ -907,7 +899,6 @@ function drawKoyomiEvents(startDate) {
             }
         }
 
-        // --- ▼ 24節気・72候 ---
         const drawOuterText = (eventName, isSekki, classStr, stOut, angleOffset) => {
             if (!eventName) return;
             const lineAngle = baseAngle + angleOffset;
@@ -952,16 +943,14 @@ function drawKoyomiEvents(startDate) {
         if (dbRow[3]) drawOuterText(dbRow[3], false, "layer-kou", window.layerSettings.kou, dbRow[2] ? 1.5 : 0);
     }
 
-    // --- ▼ 右上 月名 (旧暦・新暦) ---
     const stWafu = window.layerSettings.wafuText;
     const stGreText = window.layerSettings.gregorianText;
 
-    let wafuTextLayer = document.getElementById("layer-wafu-text");
+    const wafuTextLayer = document.getElementById("layer-wafu-text");
     if(wafuTextLayer) wafuTextLayer.innerHTML = "";
     
     if(wafuTextLayer) {
         const tspanOld = document.createElementNS(svgNS, "text");
-        tspanOld.setAttribute("class", "layer-wafu-text");
         tspanOld.setAttribute("x", cx + 860);
         tspanOld.setAttribute("y", cy - 850 + stWafu.offsetRadius);
         tspanOld.setAttribute("text-anchor", "end");
@@ -980,7 +969,6 @@ function drawKoyomiEvents(startDate) {
         wafuTextLayer.appendChild(tspanOld);
         
         const tspanNew = document.createElementNS(svgNS, "text");
-        tspanNew.setAttribute("class", "layer-gregorian-text");
         const wafuList = ['睦月','如月','弥生','卯月','皐月','水無月','文月','葉月','長月','神無月','霜月','師走'];
         const newWafuStr = startGregorianMonth === endGregorianMonth 
             ? wafuList[startGregorianMonth - 1] 
