@@ -49,6 +49,130 @@ function initUI() {
     paletteDiv.style = "position:fixed; top:134px; left:74px; background:rgba(25,30,40,0.9); padding:10px; border-radius:8px; z-index:99; border: 1px solid rgba(255,255,255,0.1); display:none; grid-template-columns:repeat(4, 1fr); gap:6px; width:120px; box-sizing:border-box;";
     document.body.appendChild(paletteDiv);
 
+    // ▼▼ 追加：デザイン設定パネルのDOM構築 ▼▼
+    const designPanel = document.createElement('div');
+    designPanel.id = 'design-panel';
+    designPanel.className = 'panel-ui';
+    designPanel.style = "display:none; position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); background:rgba(25,30,40,0.95); padding:20px; border-radius:12px; border:1px solid rgba(212,175,55,0.5); color:#fff; z-index:200; box-shadow:0 10px 40px rgba(0,0,0,0.5); min-width:260px; backdrop-filter:blur(10px);";
+    designPanel.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid rgba(212,175,55,0.3); padding-bottom:10px;">
+            <div id="dp-title" style="color:#d4af37; font-weight:bold; font-size:15px;">デザイン設定</div>
+            <button id="dp-close" style="background:none; border:none; color:#fff; cursor:pointer; font-size:18px;">×</button>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:12px; font-size:13px;">
+            <label style="display:flex; justify-content:space-between; align-items:center;">フォント: 
+                <select id="dp-font" style="background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px; width:140px;">
+                    <option value="'Shippori Mincho', serif">明朝体 (Shippori)</option>
+                    <option value="'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif">ゴシック体</option>
+                    <option value="Arial, sans-serif">Arial</option>
+                </select>
+            </label>
+            <label style="display:flex; justify-content:space-between; align-items:center;">サイズ: 
+                <input type="number" id="dp-size" style="width:60px; background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px;" step="0.5">
+            </label>
+            <label style="display:flex; justify-content:space-between; align-items:center;">文字色: 
+                <input type="color" id="dp-color" style="background:none; border:none; width:30px; height:30px; cursor:pointer;">
+            </label>
+            <label style="display:flex; align-items:center; gap:8px;">
+                <input type="checkbox" id="dp-bold" style="accent-color:#d4af37; width:16px; height:16px;"> 太字にする
+            </label>
+            <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin:5px 0;">
+            <label style="display:flex; justify-content:space-between; align-items:center;">縁取り色: 
+                <input type="color" id="dp-stroke-color" style="background:none; border:none; width:30px; height:30px; cursor:pointer;">
+            </label>
+            <label style="display:flex; justify-content:space-between; align-items:center;">縁取り太さ: 
+                <input type="range" id="dp-stroke-width" min="0" max="5" step="0.1" style="width:100px; accent-color:#d4af37;">
+                <span id="dp-stroke-val" style="width:30px; text-align:right;">0</span>
+            </label>
+            <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin:5px 0;">
+            <label style="display:flex; justify-content:space-between; align-items:center;">透明度: 
+                <input type="range" id="dp-opacity" min="0" max="1" step="0.05" style="width:100px; accent-color:#d4af37;">
+                <span id="dp-opacity-val" style="width:30px; text-align:right;">1</span>
+            </label>
+            <label style="display:flex; justify-content:space-between; align-items:center;">位置 (半径オフセット): 
+                <input type="number" id="dp-offset" style="width:60px; background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px;" step="1">
+            </label>
+        </div>
+    `;
+    document.body.appendChild(designPanel);
+
+    // 設定パネルの制御ロジック
+    let currentDesignTarget = null;
+    const dpTitle = document.getElementById('dp-title');
+    const dpFont = document.getElementById('dp-font');
+    const dpSize = document.getElementById('dp-size');
+    const dpColor = document.getElementById('dp-color');
+    const dpBold = document.getElementById('dp-bold');
+    const dpStrokeColor = document.getElementById('dp-stroke-color');
+    const dpStrokeWidth = document.getElementById('dp-stroke-width');
+    const dpStrokeVal = document.getElementById('dp-stroke-val');
+    const dpOpacity = document.getElementById('dp-opacity');
+    const dpOpacityVal = document.getElementById('dp-opacity-val');
+    const dpOffset = document.getElementById('dp-offset');
+
+    document.getElementById('dp-close').onclick = () => { designPanel.style.display = 'none'; };
+
+    const targetNames = {
+        gregorian: "新暦日付",
+        weekday: "曜日",
+        lunar: "旧暦",
+        sekki: "24節気",
+        kou: "72候",
+        zassetsu: "雑節",
+        holiday: "祝日",
+        important: "重要年中行事"
+    };
+
+    // レイヤーパネル内の「⚙️」ボタンが押された時の処理
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('layer-settings-btn')) {
+            currentDesignTarget = e.target.getAttribute('data-target');
+            dpTitle.innerText = `${targetNames[currentDesignTarget]} の設定`;
+            const st = window.layerSettings[currentDesignTarget];
+            
+            dpFont.value = st.fontFamily;
+            dpSize.value = st.fontSize;
+            dpColor.value = st.fill;
+            dpBold.checked = st.fontWeight === "bold";
+            dpStrokeColor.value = st.stroke;
+            dpStrokeWidth.value = st.strokeWidth;
+            dpStrokeVal.innerText = st.strokeWidth;
+            dpOpacity.value = st.opacity;
+            dpOpacityVal.innerText = st.opacity;
+            dpOffset.value = st.offsetRadius;
+            
+            designPanel.style.display = 'block';
+        }
+    });
+
+    // パネル内のスライダーやカラーピッカーが変更された時のリアルタイム反映処理
+    const updateDesign = () => {
+        if (!currentDesignTarget) return;
+        const st = window.layerSettings[currentDesignTarget];
+        st.fontFamily = dpFont.value;
+        st.fontSize = parseFloat(dpSize.value);
+        st.fill = dpColor.value;
+        st.fontWeight = dpBold.checked ? "bold" : "normal";
+        st.stroke = dpStrokeColor.value;
+        st.strokeWidth = parseFloat(dpStrokeWidth.value);
+        st.opacity = parseFloat(dpOpacity.value);
+        st.offsetRadius = parseFloat(dpOffset.value);
+        
+        dpStrokeVal.innerText = st.strokeWidth;
+        dpOpacityVal.innerText = st.opacity;
+
+        // 設定を保存して、即座に再描画
+        window.saveLayerSettings();
+        if (typeof drawKoyomiEvents === 'function' && window.lastKoyomiStartDate) {
+            drawKoyomiEvents(window.lastKoyomiStartDate);
+        }
+    };
+
+    [dpFont, dpSize, dpColor, dpBold, dpStrokeColor, dpStrokeWidth, dpOpacity, dpOffset].forEach(el => {
+        el.addEventListener('input', updateDesign);
+    });
+    // ▲▲ 追加ここまで ▲▲
+
     document.getElementById('prevBtn').onclick = () => { currentCycle--; updateCalendarCycle(); };
     document.getElementById('nextBtn').onclick = () => { currentCycle++; updateCalendarCycle(); };
     document.getElementById('printBtn').onclick = () => window.print();
@@ -171,7 +295,6 @@ function initUI() {
     
     setTool('pointer', 'pan');
 
-    // ▼▼ 追加：レイヤーパネルの動的CSSスタイル制御 ▼▼
     let styleBlock = document.getElementById("layer-style-block");
     if (!styleBlock) {
         styleBlock = document.createElement("style");
@@ -183,51 +306,36 @@ function initUI() {
         let css = "";
         const addHiddenRule = (selector) => { css += `${selector} { display: none !important; }\n`; };
 
-        // ベース・図形
         if(!document.getElementById("toggle-base-svg")?.checked) addHiddenRule("#bg-group");
         if(!document.getElementById("toggle-lunar-shadow")?.checked) addHiddenRule(".layer-lunar-shadow");
         if(!document.getElementById("toggle-layer-lunar")?.checked) addHiddenRule("#lunar-mansion-layer");
-        
-        // グラフ・データ
         if(!document.getElementById("toggle-tide-graph")?.checked) addHiddenRule(".layer-tide-graph");
         if(!document.getElementById("toggle-rain-graph")?.checked) addHiddenRule(".layer-rain-graph");
         if(!document.getElementById("toggle-daily-rain-bg")?.checked) addHiddenRule(".layer-daily-rain-bg");
         if(!document.getElementById("toggle-daily-rain-text")?.checked) addHiddenRule(".layer-daily-rain-text");
-
-        // 目盛り・ガイド
         if(!document.getElementById("toggle-guide-time")?.checked) addHiddenRule(".layer-guide-time");
         if(!document.getElementById("toggle-guide-tide")?.checked) addHiddenRule(".layer-guide-tide");
         if(!document.getElementById("toggle-guide-rain")?.checked) addHiddenRule(".layer-guide-rain");
-
-        // 日付・暦
         if(!document.getElementById("toggle-date-gregorian")?.checked) addHiddenRule(".layer-date-gregorian");
         if(!document.getElementById("toggle-date-lunar")?.checked) addHiddenRule(".layer-date-lunar");
         if(!document.getElementById("toggle-date-weekday")?.checked) addHiddenRule(".layer-date-weekday");
         if(!document.getElementById("toggle-sekki-kou")?.checked) addHiddenRule(".layer-sekki-kou");
-
-        // 特等席 (階層30)
         if(!document.getElementById("toggle-zassetsu")?.checked) addHiddenRule(".layer-zassetsu");
         if(!document.getElementById("toggle-holiday")?.checked) addHiddenRule(".layer-holiday");
         if(!document.getElementById("toggle-event-important")?.checked) addHiddenRule(".layer-event-important");
 
-        // ★ 年中行事 (tspan) のCSS制御は削除しました（再描画で対応するため）
-
         styleBlock.innerHTML = css;
 
-        // ★ 代わりに、CSS更新後に「暦レイヤー」だけを一瞬で再描画します
         if (typeof drawKoyomiEvents === 'function' && window.lastKoyomiStartDate) {
             drawKoyomiEvents(window.lastKoyomiStartDate);
         }
     };
 
-    // パネル内のすべてのチェックボックスにイベントリスナーを一括登録
     document.querySelectorAll("#layer-panel input[type='checkbox']").forEach(cb => {
         cb.addEventListener("change", updateLayerVisibility);
     });
 
-    // 初期化時にも一度実行して現在のチェック状態を反映
     updateLayerVisibility();
-    // ▲▲ 追加ここまで ▲▲
 }
 
 function initInteractions() {
