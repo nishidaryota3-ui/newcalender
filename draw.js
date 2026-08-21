@@ -544,7 +544,6 @@ function drawKoyomiEvents(startDate) {
     outerSeasonLayer.innerHTML = "";
     textPathDefs.innerHTML = "";
 
-    // ★ さらに細分化されたグループ分け（クラス付与）
     const sekkiKouGroup = document.createElementNS(svgNS, "g");
     sekkiKouGroup.setAttribute("class", "layer-sekki-kou");
 
@@ -582,7 +581,7 @@ function drawKoyomiEvents(startDate) {
     dateLayer.appendChild(weekdayGroup);
     dateLayer.appendChild(lunarGroup);
 
-    outerSeasonLayer.setAttribute("class", "layer-sekki-kou"); // 外周の24節気用
+    outerSeasonLayer.setAttribute("class", "layer-sekki-kou");
 
     const R = concentricRings;
     if(R.length < 30) return;
@@ -636,13 +635,17 @@ function drawKoyomiEvents(startDate) {
         createArc(`${arcIdBase}_30L`, r30Lower, angStart, angEnd);
         createArc(`${arcIdBase}_30U`, r30Upper, angStart, angEnd);
 
-        const drawCurvedText = (pathId, textContent, color, fontSize, isBold = false, rVal, targetGroup) => {
+        // ★引数に `dyOffset` を追加し、上下方向の微調整ができるようにしました
+        const drawCurvedText = (pathId, textContent, color, fontSize, isBold = false, rVal, targetGroup, dyOffset = "0") => {
             if (!textContent) return;
             const textObj = document.createElementNS(svgNS, "text");
             textObj.setAttribute("fill", color);
             textObj.setAttribute("font-size", fontSize);
             textObj.setAttribute("font-family", "'Shippori Mincho', serif");
             if (isBold) textObj.setAttribute("font-weight", "bold");
+            
+            // ★ テキストを下（内側）へ押し下げるプロパティ
+            textObj.setAttribute("dy", dyOffset);
             
             const textPath = document.createElementNS(svgNS, "textPath");
             textPath.setAttribute("href", `#${pathId}`);
@@ -658,24 +661,24 @@ function drawKoyomiEvents(startDate) {
             }
 
             textObj.appendChild(textPath);
-            targetGroup.appendChild(textObj); // ★ 指定された独立グループに挿入
+            targetGroup.appendChild(textObj);
         };
 
-        // 年中行事をそれぞれのグループへ振り分け
-        drawCurvedText(`${arcIdBase}_24`, dbRow[14], "#727171", "6.5px", false, r24, eventSonotaGroup);
-        drawCurvedText(`${arcIdBase}_25`, dbRow[13], "#2c3e50", "6.5px", false, r25, eventIslamGroup);
-        drawCurvedText(`${arcIdBase}_26`, dbRow[12], "#2c3e50", "6.5px", false, r26, eventChurchGroup);
-        drawCurvedText(`${arcIdBase}_27`, dbRow[11], "#2c3e50", "6.5px", false, r27, eventBuddhismGroup);
+        // ★ 年中行事（階層24〜29）の呼び出し時に、「1.5」を渡して少しだけ下にズラします
+        drawCurvedText(`${arcIdBase}_24`, dbRow[14], "#727171", "6.5px", false, r24, eventSonotaGroup, "1.5");
+        drawCurvedText(`${arcIdBase}_25`, dbRow[13], "#2c3e50", "6.5px", false, r25, eventIslamGroup, "1.5");
+        drawCurvedText(`${arcIdBase}_26`, dbRow[12], "#2c3e50", "6.5px", false, r26, eventChurchGroup, "1.5");
+        drawCurvedText(`${arcIdBase}_27`, dbRow[11], "#2c3e50", "6.5px", false, r27, eventBuddhismGroup, "1.5");
 
         if (dbRow[10]) {
             const shintoEvents = dbRow[10].split('・');
             const shinto28 = shintoEvents.filter((_, idx) => idx % 2 === 0).join(' ｜ ');
             const shinto29 = shintoEvents.filter((_, idx) => idx % 2 !== 0).join(' ｜ ');
-            drawCurvedText(`${arcIdBase}_28`, shinto28, "#2c3e50", "6.5px", false, r28, eventShintoGroup);
-            drawCurvedText(`${arcIdBase}_29`, shinto29, "#2c3e50", "6.5px", false, r29, eventShintoGroup);
+            drawCurvedText(`${arcIdBase}_28`, shinto28, "#2c3e50", "6.5px", false, r28, eventShintoGroup, "1.5");
+            drawCurvedText(`${arcIdBase}_29`, shinto29, "#2c3e50", "6.5px", false, r29, eventShintoGroup, "1.5");
         }
 
-        // 24節気・72候・祝日などは sekkiKouGroup へ
+        // 24節気・72候などはデフォルト（0）のままなのでズレません
         drawCurvedText(`${arcIdBase}_30U`, dbRow[5], "#d25b4e", "8px", true, r30Upper, sekkiKouGroup);
         drawCurvedText(`${arcIdBase}_30L`, dbRow[4], "#555555", "7px", false, r30Lower, sekkiKouGroup);
 
