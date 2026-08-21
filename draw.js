@@ -12,6 +12,7 @@ function drawLunarMansions(cycleStartTimeMs) {
     lunarMansionLayer.innerHTML = "";
     if (concentricRings.length === 0) return;
 
+    const st = window.layerSettings.lunarMansion;
     const rBase = concentricRings[concentricRings.length - 1] + 60;
     const rMax = rBase + 30;
     const resolution = 2;
@@ -39,7 +40,7 @@ function drawLunarMansions(cycleStartTimeMs) {
 
         if (index !== currentMansionIndex) {
             if (currentMansionIndex !== -1) {
-                drawConstellationMark(mansionStartAngle, angle, currentMansionIndex, rBase + 15);
+                drawConstellationMark(mansionStartAngle, angle, currentMansionIndex, rBase + 15, st);
             }
             const p1 = polarToCartesian(cx, cy, rBase, angle);
             const p2 = polarToCartesian(cx, cy, rMax, angle);
@@ -49,8 +50,8 @@ function drawLunarMansions(cycleStartTimeMs) {
             line.setAttribute("x2", p2.x);
             line.setAttribute("y2", p2.y);
             line.setAttribute("stroke", mansions[index].color);
-            line.setAttribute("stroke-width", "0.5");
-            line.setAttribute("opacity", "0.5");
+            line.setAttribute("stroke-width", st.strokeWidth);
+            line.setAttribute("opacity", st.opacity);
             lunarMansionLayer.appendChild(line);
 
             currentMansionIndex = index;
@@ -58,10 +59,10 @@ function drawLunarMansions(cycleStartTimeMs) {
         }
     }
     const finalAngle = startAngle + 360;
-    drawConstellationMark(mansionStartAngle, finalAngle, currentMansionIndex, rBase + 15);
+    drawConstellationMark(mansionStartAngle, finalAngle, currentMansionIndex, rBase + 15, st);
 }
 
-function drawConstellationMark(startAng, endAng, index, rCenter) {
+function drawConstellationMark(startAng, endAng, index, rCenter, st) {
     if(endAng < startAng) endAng += 360;
     const midAngle = startAng + (endAng - startAng) / 2;
     const mansion = mansions[index];
@@ -74,8 +75,9 @@ function drawConstellationMark(startAng, endAng, index, rCenter) {
     text.setAttribute("text-anchor", "middle");
     text.setAttribute("dominant-baseline", "central");
     text.setAttribute("fill", mansion.color);
-    text.setAttribute("font-size", "9px");
-    text.setAttribute("font-family", "'Shippori Mincho', 'YuMincho', serif");
+    text.setAttribute("font-size", st.fontSize + "px");
+    text.setAttribute("font-family", st.fontFamily);
+    text.setAttribute("opacity", st.opacity);
     text.setAttribute("transform", `rotate(${midAngle}, ${ptText.x}, ${ptText.y})`);
     text.textContent = mansion.name;
     g.appendChild(text);
@@ -95,6 +97,7 @@ function drawConstellationMark(startAng, endAng, index, rCenter) {
         circle.setAttribute("cy", pt.y);
         circle.setAttribute("r", rand() > 0.8 ? "1.5" : "0.8");
         circle.setAttribute("fill", mansion.color);
+        circle.setAttribute("opacity", st.opacity);
         g.appendChild(circle);
     }
 
@@ -106,7 +109,7 @@ function drawConstellationMark(startAng, endAng, index, rCenter) {
         line.setAttribute("y2", stars[i+1].y);
         line.setAttribute("stroke", mansion.color);
         line.setAttribute("stroke-width", "0.3");
-        line.setAttribute("opacity", "0.7");
+        line.setAttribute("opacity", st.opacity);
         g.appendChild(line);
     }
     lunarMansionLayer.appendChild(g);
@@ -122,6 +125,9 @@ function drawDailyRainStats(startDate) {
         masterGroup.insertBefore(dailyRainLayer, tideLayer);
     }
 
+    const stBg = window.layerSettings.dailyRainBg;
+    const stText = window.layerSettings.dailyRainText;
+
     const rMin = concentricRings[16];
     const rMax = concentricRings[22];
     const layer23CenterR = (concentricRings[22] + concentricRings[23]) / 2;
@@ -133,7 +139,7 @@ function drawDailyRainStats(startDate) {
             const rain = localRainData[dateStr];
             const startAngle = (currentStartSegment + i * 4) * 3;
             const endAngle = startAngle + 12;
-            let opacity = Math.min(rain / 150, 1) * 0.3 + 0.05;
+            let computedOpacity = Math.min(rain / 150, 1) * 0.3 + 0.05;
 
             const startIn = polarToCartesian(cx, cy, rMin, endAngle);
             const endIn = polarToCartesian(cx, cy, rMin, startAngle);
@@ -143,20 +149,21 @@ function drawDailyRainStats(startDate) {
             const d = ["M", startOut.x, startOut.y, "A", rMax, rMax, 0, 0, 0, endOut.x, endOut.y, "L", endIn.x, endIn.y, "A", rMin, rMin, 0, 0, 1, startIn.x, startIn.y, "Z"].join(" ");
             const path = document.createElementNS(svgNS, "path");
             path.setAttribute("d", d);
-            path.setAttribute("fill", "rgba(14, 165, 233, " + opacity + ")");
+            path.setAttribute("fill", stBg.fill);
+            path.setAttribute("opacity", computedOpacity * stBg.opacity);
             path.setAttribute("class", "layer-daily-rain-bg");
             dailyRainLayer.appendChild(path);
 
             const angleMid = startAngle + 6;
-            const ptText = polarToCartesian(cx, cy, layer23CenterR, angleMid);
+            const ptText = polarToCartesian(cx, cy, layer23CenterR + stText.offsetRadius, angleMid);
             
             const textGroup = document.createElementNS(svgNS, "g");
             textGroup.setAttribute("class", "layer-daily-rain-text");
             textGroup.setAttribute("transform", `rotate(${angleMid + 180}, ${ptText.x}, ${ptText.y})`);
 
-            const iconColor = "rgba(14, 165, 233, 1)";
             const iconGroup = document.createElementNS(svgNS, "g");
             iconGroup.setAttribute("transform", `translate(${ptText.x - 14}, ${ptText.y - 4})`);
+            iconGroup.setAttribute("fill", stText.fill);
             iconGroup.innerHTML = iconDrop;
             textGroup.appendChild(iconGroup);
 
@@ -165,10 +172,17 @@ function drawDailyRainStats(startDate) {
             text.setAttribute("y", ptText.y);
             text.setAttribute("text-anchor", "start");
             text.setAttribute("dominant-baseline", "central");
-            text.setAttribute("fill", iconColor);
-            text.setAttribute("font-size", "8px");
-            text.setAttribute("font-weight", "bold");
-            text.setAttribute("font-family", "'Arial', sans-serif");
+            text.setAttribute("fill", stText.fill);
+            text.setAttribute("font-size", stText.fontSize + "px");
+            text.setAttribute("font-family", stText.fontFamily);
+            text.setAttribute("opacity", stText.opacity);
+            if(stText.fontWeight === "bold") text.setAttribute("font-weight", "bold");
+            if (stText.strokeWidth > 0) {
+                text.setAttribute("stroke", stText.stroke);
+                text.setAttribute("stroke-width", stText.strokeWidth);
+                text.setAttribute("stroke-linejoin", "round");
+                text.setAttribute("paint-order", "stroke fill");
+            }
             text.textContent = rain.toFixed(1) + "mm";
             textGroup.appendChild(text);
 
@@ -181,6 +195,8 @@ function drawTideGraph(cycleStartTimeMs) {
     tideLayer.innerHTML = "";
     if (concentricRings.length < 23) return;
 
+    const stGraph = window.layerSettings.tideGraph;
+    const stGuide = window.layerSettings.guideTide;
     const rMin = concentricRings[16];
     const rMax = concentricRings[22];
     const cycleEndMs = cycleStartTimeMs + 30 * 24 * 60 * 60 * 1000;
@@ -223,8 +239,9 @@ function drawTideGraph(cycleStartTimeMs) {
         const wavePath = document.createElementNS(svgNS, "path");
         wavePath.setAttribute("d", pathD);
         wavePath.setAttribute("fill", "none");
-        wavePath.setAttribute("stroke", "#3b82f6");
-        wavePath.setAttribute("stroke-width", "1.5");
+        wavePath.setAttribute("stroke", stGraph.stroke);
+        wavePath.setAttribute("stroke-width", stGraph.strokeWidth);
+        wavePath.setAttribute("opacity", stGraph.opacity);
         waveGroup.appendChild(wavePath);
     }
 
@@ -236,33 +253,34 @@ function drawTideGraph(cycleStartTimeMs) {
         circle.setAttribute("cy", cy);
         circle.setAttribute("r", r);
         circle.setAttribute("fill", "none");
-        circle.setAttribute("stroke", "rgba(114, 113, 113, 0.4)");
-        circle.setAttribute("stroke-width", "0.5");
+        circle.setAttribute("stroke", stGuide.shapeStroke);
+        circle.setAttribute("stroke-width", stGuide.shapeStrokeWidth);
         circle.setAttribute("stroke-dasharray", "4,4");
+        circle.setAttribute("opacity", stGuide.opacity);
         guideGroup.appendChild(circle);
 
         for(let i = 0; i < 6; i++) {
             const labelAngle = currentStartSegment * 3 + (i * 60);
-            const labelPt = polarToCartesian(cx, cy, r, labelAngle);
+            const labelPt = polarToCartesian(cx, cy, r + stGuide.offsetRadius, labelAngle);
             const text = document.createElementNS(svgNS, "text");
             text.setAttribute("x", labelPt.x);
             text.setAttribute("y", labelPt.y);
             text.setAttribute("text-anchor", "middle");
             text.setAttribute("dominant-baseline", "central");
-            text.setAttribute("fill", "#3b82f6");
-            text.setAttribute("font-size", "7px");
-            text.setAttribute("font-family", "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif");
-            text.setAttribute("font-weight", "bold");
+            text.setAttribute("fill", stGuide.fill);
+            text.setAttribute("font-size", stGuide.fontSize + "px");
+            text.setAttribute("font-family", stGuide.fontFamily);
+            if(stGuide.fontWeight === "bold") text.setAttribute("font-weight", "bold");
+            text.setAttribute("opacity", stGuide.opacity);
             text.setAttribute("transform", `rotate(${labelAngle}, ${labelPt.x}, ${labelPt.y})`);
             text.textContent = ft + "ft";
             
-            const halo = text.cloneNode(true);
-            halo.setAttribute("stroke", "rgba(255, 255, 255, 0.5)");
-            halo.setAttribute("stroke-width", "3");
-            halo.setAttribute("stroke-linejoin", "round");
-            halo.setAttribute("fill", "none");
-            
-            guideGroup.appendChild(halo);
+            if(stGuide.strokeWidth > 0) {
+                text.setAttribute("stroke", stGuide.stroke);
+                text.setAttribute("stroke-width", stGuide.strokeWidth);
+                text.setAttribute("stroke-linejoin", "round");
+                text.setAttribute("paint-order", "stroke fill");
+            }
             guideGroup.appendChild(text);
         }
     });
@@ -275,6 +293,8 @@ function drawRainfallGraph(cycleStartTimeMs) {
     rainfallLayer.innerHTML = "";
     if (concentricRings.length < 23) return;
 
+    const stGraph = window.layerSettings.rainGraph;
+    const stGuide = window.layerSettings.guideRain;
     const rMin = concentricRings[16];
     const rMax = concentricRings[22];
     const maxRain = 30;
@@ -289,8 +309,9 @@ function drawRainfallGraph(cycleStartTimeMs) {
     circle.setAttribute("cy", cy);
     circle.setAttribute("r", rMax);
     circle.setAttribute("fill", "none");
-    circle.setAttribute("stroke", "rgba(14, 165, 233, 0.3)");
-    circle.setAttribute("stroke-width", "1");
+    circle.setAttribute("stroke", stGuide.shapeStroke);
+    circle.setAttribute("stroke-width", stGuide.shapeStrokeWidth);
+    circle.setAttribute("opacity", stGuide.opacity);
     guideGroup.appendChild(circle);
 
     const startAngle = currentStartSegment * 3;
@@ -298,10 +319,8 @@ function drawRainfallGraph(cycleStartTimeMs) {
         let rain = apiRainData[h];
         if(rain === null || isNaN(rain) || rain <= 0) continue;
         
-        const displayRain = rain;
-        const r = rMax - (rMax - rMin) * (displayRain / maxRain);
+        const r = rMax - (rMax - rMin) * (rain / maxRain);
         const angle = startAngle + h * 0.5 + 0.25;
-        
         const p1 = polarToCartesian(cx, cy, rMax, angle);
         const p2 = polarToCartesian(cx, cy, r, angle);
         
@@ -310,9 +329,10 @@ function drawRainfallGraph(cycleStartTimeMs) {
         line.setAttribute("y1", p1.y);
         line.setAttribute("x2", p2.x);
         line.setAttribute("y2", p2.y);
-        line.setAttribute("stroke", "rgba(14, 165, 233, 0.8)");
-        line.setAttribute("stroke-width", "1.5");
+        line.setAttribute("stroke", stGraph.stroke);
+        line.setAttribute("stroke-width", stGraph.strokeWidth);
         line.setAttribute("stroke-linecap", "round");
+        line.setAttribute("opacity", stGraph.opacity);
         rainGroup.appendChild(line);
     }
 
@@ -333,33 +353,34 @@ function drawRainfallGraph(cycleStartTimeMs) {
             tick.setAttribute("y1", p1.y);
             tick.setAttribute("x2", p2.x);
             tick.setAttribute("y2", p2.y);
-            tick.setAttribute("stroke", "rgba(14, 165, 233, 0.8)");
-            tick.setAttribute("stroke-width", "1");
+            tick.setAttribute("stroke", stGuide.shapeStroke);
+            tick.setAttribute("stroke-width", stGuide.shapeStrokeWidth);
+            tick.setAttribute("opacity", stGuide.opacity);
             guideGroup.appendChild(tick);
             
-            const ptLabel = polarToCartesian(cx, cy, r, labelAngle);
+            const ptLabel = polarToCartesian(cx, cy, r + stGuide.offsetRadius, labelAngle);
             const text = document.createElementNS(svgNS, "text");
             text.setAttribute("x", ptLabel.x);
             text.setAttribute("y", ptLabel.y);
             text.setAttribute("text-anchor", "middle");
             text.setAttribute("dominant-baseline", "central");
-            text.setAttribute("fill", "rgba(14, 165, 233, 1)");
-            text.setAttribute("font-size", "7px");
-            text.setAttribute("font-family", "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif");
-            text.setAttribute("font-weight", "bold");
+            text.setAttribute("fill", stGuide.fill);
+            text.setAttribute("font-size", stGuide.fontSize + "px");
+            text.setAttribute("font-family", stGuide.fontFamily);
+            text.setAttribute("opacity", stGuide.opacity);
+            if(stGuide.fontWeight === "bold") text.setAttribute("font-weight", "bold");
+            
+            if(stGuide.strokeWidth > 0) {
+                text.setAttribute("stroke", stGuide.stroke);
+                text.setAttribute("stroke-width", stGuide.strokeWidth);
+                text.setAttribute("stroke-linejoin", "round");
+                text.setAttribute("paint-order", "stroke fill");
+            }
             
             let textRot = labelAngle + 180;
             if (target.isRightSide) { textRot = labelAngle; }
             text.setAttribute("transform", `rotate(${textRot}, ${ptLabel.x}, ${ptLabel.y})`);
             text.textContent = val + "mm";
-            
-            const halo = text.cloneNode(true);
-            halo.setAttribute("stroke", "rgba(255, 255, 255, 0.5)");
-            halo.setAttribute("stroke-width", "2.5");
-            halo.setAttribute("stroke-linejoin", "round");
-            halo.setAttribute("fill", "none");
-            
-            guideGroup.appendChild(halo);
             guideGroup.appendChild(text);
         });
     });
@@ -380,7 +401,8 @@ function drawTimeLabels() {
     timeLayer.setAttribute("class", "layer-guide-time");
 
     if (concentricRings.length < 20) return;
-    const rMidTime = (concentricRings[19] + concentricRings[20]) / 2;
+    const st = window.layerSettings.guideTime;
+    const rMidTime = (concentricRings[19] + concentricRings[20]) / 2 + st.offsetRadius;
     const timeStr = ["0", "6", "12", "18"];
     
     for (let i = 0; i < 120; i++) {
@@ -392,20 +414,21 @@ function drawTimeLabels() {
         textTime.setAttribute("y", ptTime.y);
         textTime.setAttribute("text-anchor", "middle");
         textTime.setAttribute("dominant-baseline", "central");
-        textTime.setAttribute("fill", "#2c3e50");
-        textTime.setAttribute("font-size", "7px");
-        textTime.setAttribute("font-weight", "bold");
-        textTime.setAttribute("font-family", "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif");
+        textTime.setAttribute("fill", st.fill);
+        textTime.setAttribute("font-size", st.fontSize + "px");
+        textTime.setAttribute("font-family", st.fontFamily);
+        textTime.setAttribute("opacity", st.opacity);
+        if(st.fontWeight === "bold") textTime.setAttribute("font-weight", "bold");
+        
+        if (st.strokeWidth > 0) {
+            textTime.setAttribute("stroke", st.stroke);
+            textTime.setAttribute("stroke-width", st.strokeWidth);
+            textTime.setAttribute("stroke-linejoin", "round");
+            textTime.setAttribute("paint-order", "stroke fill");
+        }
+        
         textTime.setAttribute("transform", `rotate(${angle}, ${ptTime.x}, ${ptTime.y})`);
         textTime.textContent = timeStr[i % 4];
-        
-        const haloTime = textTime.cloneNode(true);
-        haloTime.setAttribute("stroke", "rgba(255, 255, 255, 0.5)");
-        haloTime.setAttribute("stroke-width", "3");
-        haloTime.setAttribute("stroke-linejoin", "round");
-        haloTime.setAttribute("fill", "none");
-        
-        timeLayer.appendChild(haloTime);
         timeLayer.appendChild(textTime);
     }
 }
@@ -416,7 +439,7 @@ function drawLunarShadow(cycleStartTime) {
 
     if (concentricRings.length < 30) return;
 
-    const st = window.layerSettings.lunarShadow; // ★ パネルの透明度と色を適用
+    const st = window.layerSettings.lunarShadow; 
     const rMin = concentricRings[0];
     const rMax = concentricRings[concentricRings.length - 2];
     const maxArea = rMax * rMax - rMin * rMin;
@@ -457,7 +480,7 @@ function drawDynamicLines() {
     linesLayer.innerHTML = "";
     linesLayer.setAttribute("id", "lines-layer");
     
-    const st = window.layerSettings.dateLines; // ★ 日付区切り線のパネル設定
+    const st = window.layerSettings.dateLines;
     const rMin = concentricRings[0];
     const rMax = concentricRings[concentricRings.length - 1];
 
@@ -540,6 +563,7 @@ function getRingInfo(distance) {
 
 function drawKoyomiEvents(startDate) {
     window.lastKoyomiStartDate = startDate;
+    window.lastCycleStartTimeMs = startDate.getTime();
 
     let dateLayer = document.getElementById("solar-dates-layer");
     if(dateLayer) {
@@ -650,7 +674,7 @@ function drawKoyomiEvents(startDate) {
         createArc(`${arcIdBase}_30M_text`, r30M_text + stH.offsetRadius, angStart, angEnd);
         createArc(`${arcIdBase}_30U_text`, r30U_text + stZ.offsetRadius, angStart, angEnd);
 
-        // --- ▼ 階層30（特等席）の3段配置 ---
+        // --- ▼ 階層30（特等席） ---
         const drawSingleText = (pathId, textContent, styleConfig, rVal, targetGroup) => {
             if (!textContent) return;
             const textObj = document.createElementNS(svgNS, "text");
@@ -689,18 +713,18 @@ function drawKoyomiEvents(startDate) {
 
         // --- ▼ 階層24〜29（年中行事） ---
         let dailyEvents = [];
-        const pushEvents = (cellData, colorCode) => {
+        const pushEvents = (cellData, styleConfig) => {
             if (!cellData) return;
             cellData.split('・').forEach(item => {
                 const trimmed = item.trim();
-                if (trimmed) dailyEvents.push({ text: trimmed, col: colorCode });
+                if (trimmed) dailyEvents.push({ text: trimmed, st: styleConfig });
             });
         };
 
-        if (showShinto) pushEvents(dbRow[10], "#1e3a8a");
-        if (showBuddhism) pushEvents(dbRow[11], "#3f3d56");
-        if (showChurch) pushEvents(dbRow[12], "#6b5b4e");
-        if (showSonota) pushEvents(dbRow[13], "#555555");
+        if (showShinto) pushEvents(dbRow[10], window.layerSettings.eventShinto);
+        if (showBuddhism) pushEvents(dbRow[11], window.layerSettings.eventBuddhism);
+        if (showChurch) pushEvents(dbRow[12], window.layerSettings.eventChurch);
+        if (showSonota) pushEvents(dbRow[13], window.layerSettings.eventSonota);
 
         let tracks = [[], [], [], [], [], []]; 
         if (dailyEvents.length > 0) {
@@ -724,10 +748,7 @@ function drawKoyomiEvents(startDate) {
             const pathId = availableIds[tIdx];
 
             const textObj = document.createElementNS(svgNS, "text");
-            textObj.setAttribute("font-size", "6.5px");
-            textObj.setAttribute("font-family", "'Shippori Mincho', serif");
             textObj.setAttribute("dy", "1.5"); 
-
             const textPath = document.createElementNS(svgNS, "textPath");
             textPath.setAttribute("href", `#${pathId}`);
             textPath.setAttribute("startOffset", "50%");
@@ -736,11 +757,23 @@ function drawKoyomiEvents(startDate) {
             let combinedLen = 0;
             trackEvents.forEach((ev, eIdx) => {
                 const tspan = document.createElementNS(svgNS, "tspan");
-                tspan.setAttribute("fill", ev.col);
+                tspan.setAttribute("fill", ev.st.fill);
+                tspan.setAttribute("font-size", ev.st.fontSize + "px");
+                tspan.setAttribute("font-family", ev.st.fontFamily);
+                tspan.setAttribute("opacity", ev.st.opacity);
+                if (ev.st.fontWeight === "bold") tspan.setAttribute("font-weight", "bold");
+                
+                if (ev.st.strokeWidth > 0) {
+                    tspan.setAttribute("stroke", ev.st.stroke);
+                    tspan.setAttribute("stroke-width", ev.st.strokeWidth);
+                    tspan.setAttribute("stroke-linejoin", "round");
+                    tspan.setAttribute("paint-order", "stroke fill");
+                }
+
                 let txt = (eIdx > 0 ? " \u00A0・\u00A0 " : "") + ev.text;
                 tspan.textContent = txt;
                 textPath.appendChild(tspan);
-                combinedLen += txt.length * 6.5;
+                combinedLen += txt.length * ev.st.fontSize;
             });
 
             const maxLen = 2 * Math.PI * rVal * (11 / 360);
@@ -755,6 +788,7 @@ function drawKoyomiEvents(startDate) {
         // --- ▼ 新暦・曜日・旧暦 ---
         const ptDate = polarToCartesian(cx, cy, r30Upper + stG.offsetRadius, baseAngle + 1.5);
         const textDate = document.createElementNS(svgNS, "text");
+        textDate.setAttribute("class", "layer-date-gregorian");
         textDate.setAttribute("x", ptDate.x);
         textDate.setAttribute("y", ptDate.y);
         textDate.setAttribute("text-anchor", "middle");
@@ -776,6 +810,7 @@ function drawKoyomiEvents(startDate) {
 
         const ptDay = polarToCartesian(cx, cy, r30Lower + stW.offsetRadius, baseAngle + 1.5);
         const textDay = document.createElementNS(svgNS, "text");
+        textDay.setAttribute("class", "layer-date-weekday");
         textDay.setAttribute("x", ptDay.x);
         textDay.setAttribute("y", ptDay.y);
         textDay.setAttribute("text-anchor", "middle");
@@ -799,7 +834,6 @@ function drawKoyomiEvents(startDate) {
             const lunarMatch = dbRow[1].match(/旧暦.*?月(.+?)日/);
             const lunarDay = lunarMatch ? lunarMatch[1] : "";
             
-            // ★ 月相の判定
             let phaseKey = "normal";
             if (lunarDay === "一") phaseKey = "newMoon";
             else if (lunarDay === "八") phaseKey = "firstQuarter";
@@ -807,14 +841,13 @@ function drawKoyomiEvents(startDate) {
             else if (lunarDay === "二十三") phaseKey = "lastQuarter";
 
             const pst = stL.phases[phaseKey];
-
             const rLun = (r30In + r30Out)/2 + stL.offsetRadius;
             const ptLunar = polarToCartesian(cx, cy, rLun, baseAngle + 10.5);
             const lunarRadius = (r30Out - r30In) * 0.4;
 
-            // ★ 図形の描画（グループ化して向きを整える）
             if (pst.shape !== "none") {
                 const shapeG = document.createElementNS(svgNS, "g");
+                shapeG.setAttribute("class", "layer-date-lunar");
                 shapeG.setAttribute("transform", `rotate(${baseAngle + 10.5}, ${ptLunar.x}, ${ptLunar.y})`);
 
                 let shapeEl = null;
@@ -850,6 +883,7 @@ function drawKoyomiEvents(startDate) {
 
                 if (shapeEl) {
                     shapeEl.setAttribute("fill", pst.bgFill);
+                    shapeEl.setAttribute("opacity", stL.opacity);
                     if (pst.shapeStrokeWidth > 0) {
                         shapeEl.setAttribute("stroke", pst.shapeStroke);
                         shapeEl.setAttribute("stroke-width", pst.shapeStrokeWidth);
@@ -860,11 +894,11 @@ function drawKoyomiEvents(startDate) {
             }
 
             const textLunar = document.createElementNS(svgNS, "text");
+            textLunar.setAttribute("class", "layer-date-lunar");
             textLunar.setAttribute("x", ptLunar.x);
             textLunar.setAttribute("y", ptLunar.y);
             textLunar.setAttribute("text-anchor", "middle");
             textLunar.setAttribute("dominant-baseline", "central");
-            
             textLunar.setAttribute("fill", pst.fill);
             textLunar.setAttribute("font-size", lunarDay.length > 1 ? (stL.fontSize * 0.7) + "px" : stL.fontSize + "px");
             textLunar.setAttribute("font-family", stL.fontFamily);
@@ -880,7 +914,7 @@ function drawKoyomiEvents(startDate) {
             }
         }
 
-        // --- ▼ 24節気・72候 (完全に分離して描画) ---
+        // --- ▼ 24節気・72候 ---
         const drawOuterText = (eventName, isSekki, classStr, stOut, angleOffset) => {
             if (!eventName) return;
             const lineAngle = baseAngle + angleOffset;
@@ -921,16 +955,13 @@ function drawKoyomiEvents(startDate) {
             outerSeasonLayer.appendChild(outText);
         };
 
-        // 節気を先に描画（ズレなし）
-        if (dbRow[2]) {
-            drawOuterText(dbRow[2], true, "layer-sekki", window.layerSettings.sekki, 0);
-        }
-        // 候を描画（節気と重なる日なら、引き出し線を1.5度ずらして見やすくする）
-        if (dbRow[3]) {
-            const shift = dbRow[2] ? 1.5 : 0; 
-            drawOuterText(dbRow[3], false, "layer-kou", window.layerSettings.kou, shift);
-        }
+        if (dbRow[2]) drawOuterText(dbRow[2], true, "layer-sekki", window.layerSettings.sekki, 0);
+        if (dbRow[3]) drawOuterText(dbRow[3], false, "layer-kou", window.layerSettings.kou, dbRow[2] ? 1.5 : 0);
     }
+
+    // --- ▼ 右上 月名 (旧暦・新暦) ---
+    const stWafu = window.layerSettings.wafuText;
+    const stGreText = window.layerSettings.gregorianText;
 
     let wafuTextLayer = document.getElementById("wafu-text-layer");
     if(wafuTextLayer) {
@@ -944,26 +975,46 @@ function drawKoyomiEvents(startDate) {
     wafuTextLayer.setAttribute("x", cx + 860);
     wafuTextLayer.setAttribute("y", cy - 850);
     wafuTextLayer.setAttribute("text-anchor", "end");
-    wafuTextLayer.setAttribute("font-family", "'Shippori Mincho', serif");
     
     const tspanOld = document.createElementNS(svgNS, "tspan");
+    tspanOld.setAttribute("class", "layer-wafu-text");
     tspanOld.setAttribute("x", cx + 860);
-    tspanOld.setAttribute("dy", "0");
-    tspanOld.setAttribute("fill", "#d4af37");
-    tspanOld.setAttribute("font-size", "70px");
-    tspanOld.setAttribute("font-weight", "bold");
+    tspanOld.setAttribute("dy", stWafu.offsetRadius);
+    tspanOld.setAttribute("fill", stWafu.fill);
+    tspanOld.setAttribute("font-size", stWafu.fontSize + "px");
+    tspanOld.setAttribute("font-family", stWafu.fontFamily);
+    tspanOld.setAttribute("opacity", stWafu.opacity);
+    if(stWafu.fontWeight === "bold") tspanOld.setAttribute("font-weight", "bold");
+    if (stWafu.strokeWidth > 0) {
+        tspanOld.setAttribute("stroke", stWafu.stroke);
+        tspanOld.setAttribute("stroke-width", stWafu.strokeWidth);
+        tspanOld.setAttribute("stroke-linejoin", "round");
+        tspanOld.setAttribute("paint-order", "stroke fill");
+    }
     tspanOld.textContent = startWafu ? `${startWafu}（旧暦）` : "旧暦取得中";
     wafuTextLayer.appendChild(tspanOld);
     
     const tspanNew = document.createElementNS(svgNS, "tspan");
+    tspanNew.setAttribute("class", "layer-gregorian-text");
     const wafuList = ['睦月','如月','弥生','卯月','皐月','水無月','文月','葉月','長月','神無月','霜月','師走'];
     const newWafuStr = startGregorianMonth === endGregorianMonth 
         ? wafuList[startGregorianMonth - 1] 
         : `${wafuList[startGregorianMonth - 1]} ／ ${wafuList[endGregorianMonth - 1]}`;
+    
+    // 次の行へのY方向の間隔を確保するため、フォントサイズに基づくベースの隙間に offsetRadius を加算
     tspanNew.setAttribute("x", cx + 860);
-    tspanNew.setAttribute("dy", "60");
-    tspanNew.setAttribute("fill", "#b0b0b0");
-    tspanNew.setAttribute("font-size", "40px");
+    tspanNew.setAttribute("dy", (stWafu.fontSize * 0.9) + stGreText.offsetRadius);
+    tspanNew.setAttribute("fill", stGreText.fill);
+    tspanNew.setAttribute("font-size", stGreText.fontSize + "px");
+    tspanNew.setAttribute("font-family", stGreText.fontFamily);
+    tspanNew.setAttribute("opacity", stGreText.opacity);
+    if(stGreText.fontWeight === "bold") tspanNew.setAttribute("font-weight", "bold");
+    if (stGreText.strokeWidth > 0) {
+        tspanNew.setAttribute("stroke", stGreText.stroke);
+        tspanNew.setAttribute("stroke-width", stGreText.strokeWidth);
+        tspanNew.setAttribute("stroke-linejoin", "round");
+        tspanNew.setAttribute("paint-order", "stroke fill");
+    }
     tspanNew.textContent = `${newWafuStr}（新暦）`;
     wafuTextLayer.appendChild(tspanNew);
 }
