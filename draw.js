@@ -1083,7 +1083,7 @@ function drawKoyomiEvents(startDate) {
             outText.setAttribute("transform", `rotate(${lineAngle}, ${ptTextOut.x}, ${ptTextOut.y})`);
             outText.setAttribute("x", ptTextOut.x);
             outText.setAttribute("y", ptTextOut.y);
-            outText.textContent = eventName;
+            text.textContent = eventName;
             if(outerSeasonLayer) outerSeasonLayer.appendChild(outText);
         };
 
@@ -1156,7 +1156,7 @@ function drawHaikus(startDate) {
     const st = window.layerSettings.haikuText;
     if (!st || st.opacity === 0) return;
 
-    // 二十七宿のさらに外側に配置するため、少し余裕を持たせる（UIで offsetRadius として調整可能）
+    // 二十七宿の外側に配置（offsetRadius でUIから微調整可能）
     const rBase = concentricRings[concentricRings.length - 1] + 90 + st.offsetRadius;
     
     for (let i = 0; i < window.currentMonthDays; i++) {
@@ -1171,7 +1171,6 @@ function drawHaikus(startDate) {
             const displayCount = Math.min(haikus.length, 3);
             const hasMore = haikus.length > 3;
             
-            // 1日の角度幅(12度)の中にバランス良く散らす
             let angles = [];
             if (displayCount === 1) angles = [6];
             else if (displayCount === 2) angles = [4, 8];
@@ -1189,7 +1188,6 @@ function drawHaikus(startDate) {
                 text.setAttribute("font-family", st.fontFamily);
                 if(st.fontWeight === "bold") text.setAttribute("font-weight", "bold");
                 text.setAttribute("opacity", st.opacity);
-                // 縦書きに設定し、クリックでモーダルを開けるようにポインターにする
                 text.setAttribute("style", "writing-mode: vertical-rl; cursor: pointer;");
                 
                 if (st.strokeWidth > 0) {
@@ -1199,16 +1197,12 @@ function drawHaikus(startDate) {
                     text.setAttribute("paint-order", "stroke fill");
                 }
                 
-                // 放射状に文字が外を向くように回転（angle + 180）
                 text.setAttribute("transform", `rotate(${angle + 180}, ${pt.x}, ${pt.y})`);
                 text.textContent = haikus[j];
-                
-                // モーダルを開くイベント
                 text.onclick = () => window.openHaikuModal(dateStr, haikus);
                 layer.appendChild(text);
             }
             
-            // 3句以上ある場合は「＋〇句」を表示
             if (hasMore) {
                 const angle = baseAngle + 11.5;
                 const pt = polarToCartesian(cx, cy, rBase + 10, angle);
