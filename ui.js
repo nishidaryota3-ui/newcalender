@@ -1,4 +1,4 @@
-// ui.js (UI構築・イベントモジュール) - 軽量化・データ駆動・高画質印刷＆エクスポート完全対応版
+// ui.js (UI構築・イベントモジュール) - 軽量化・高画質印刷＆エクスポート完全対応版（横向き対応）
 
 const TEXT_TARGETS = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'wafuText', 'gregorianText', 'dailyRainText', 'guideTime', 'guideTideText', 'guideRainText', 'lunarMansion', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar', 'haikuText'];
 const SHAPE_TARGETS = ['baseSvg', 'lunarShadow', 'astroPins', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTideLine', 'guideRainLine', 'canvasBg'];
@@ -28,7 +28,6 @@ const LAYER_VISIBILITY_MAP = {
 
 const iconExport = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`;
 
-// ▼▼ 新機能：背景色から文字色（明暗）を自動判定する関数 ▼▼
 function getContrastColor(hexColor) {
     if (!hexColor || hexColor === 'none' || hexColor === 'transparent') return '#2c3e50';
     let r = 245, g = 245, b = 240; 
@@ -36,29 +35,25 @@ function getContrastColor(hexColor) {
         let hex = hexColor.replace('#', '');
         if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
         const num = parseInt(hex, 16);
-        r = (num >> 16) & 255;
-        g = (num >> 8) & 255;
-        b = num & 255;
+        r = (num >> 16) & 255; g = (num >> 8) & 255; b = num & 255;
     } else if (hexColor.startsWith('rgb')) {
         const rgbMatch = hexColor.match(/\d+/g);
         if (rgbMatch && rgbMatch.length >= 3) {
-            r = parseInt(rgbMatch[0], 10);
-            g = parseInt(rgbMatch[1], 10);
-            b = parseInt(rgbMatch[2], 10);
+            r = parseInt(rgbMatch[0], 10); g = parseInt(rgbMatch[1], 10); b = parseInt(rgbMatch[2], 10);
         }
     }
     const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-    // 背景が明るければ濃紺、暗ければ白系を返す
     return (yiq >= 128) ? '#2c3e50' : '#fdfbf7'; 
 }
-// ▲▲ ここまで ▲▲
 
 function initUI() {
+    const oldPalette = document.getElementById('palette');
+    if (oldPalette) oldPalette.remove();
     document.querySelectorAll('.panel-ui').forEach(el => el.remove());
 
     const navDiv = document.createElement('div');
     navDiv.className = 'panel-ui';
-    navDiv.id = 'nav-bar'; // IDを付与（CSSで隠すため）
+    navDiv.id = 'nav-bar';
     navDiv.style = "position:fixed; top:30px; right:30px; background:rgba(25,30,40,0.85); padding:10px 15px; border-radius:8px; color:#d4af37; z-index:100; display:flex; gap:15px; align-items:center; border: 1px solid rgba(212,175,55,0.3); backdrop-filter: blur(10px);";
     navDiv.innerHTML = `
         <button id="prevBtn" style="background:transparent; border:1px solid #d4af37; color:#d4af37; padding:4px 8px; cursor:pointer; border-radius:4px;">◀</button>
@@ -82,7 +77,7 @@ function initUI() {
 
     const toolsDiv = document.createElement('div');
     toolsDiv.className = 'panel-ui';
-    toolsDiv.id = 'tools-palette'; // IDを付与
+    toolsDiv.id = 'tools-palette'; 
     toolsDiv.style = "position:fixed; top:100px; left:20px; background:rgba(25,30,40,0.9); padding:8px; border-radius:8px; z-index:100; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.5); display:flex; flex-direction:column; gap:8px; width:44px; box-sizing:border-box;";
     toolsDiv.innerHTML = `
         <button id="tool-pointer" title="移動/回転切替 (V)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:rgba(212,175,55,0.85); border:1px solid #d4af37; color:#000; padding:0; display:flex; justify-content:center; align-items:center;">${iconPan}</button>
@@ -90,8 +85,8 @@ function initUI() {
         <button id="tool-erase" title="消す (E)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#fff; padding:0; display:flex; justify-content:center; align-items:center;">${iconErase}</button>
         <hr style="border-color:rgba(255,255,255,0.1); width:100%; margin:4px 0;">
         <button id="clearBtn" title="選択色を全消去" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#fff; padding:0; display:flex; justify-content:center; align-items:center;">${iconTrash}</button>
-        <button id="printBtn" title="印刷 (A3など紙へ)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#38bdf8; padding:0; display:flex; justify-content:center; align-items:center;">${iconPrint}</button>
-        <button id="exportBtn" title="高画質で画像保存 (PNG)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#38bdf8; padding:0; display:flex; justify-content:center; align-items:center;">${iconExport}</button>
+        <button id="printBtn" title="印刷 (横向き)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#38bdf8; padding:0; display:flex; justify-content:center; align-items:center;">${iconPrint}</button>
+        <button id="exportBtn" title="高画質で画像保存 (横向きPNG)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#38bdf8; padding:0; display:flex; justify-content:center; align-items:center;">${iconExport}</button>
         <hr style="border-color:rgba(255,255,255,0.1); width:100%; margin:4px 0;">
         <button id="homeBtn" title="新月を真上にリセット" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#38bdf8; padding:0; display:flex; justify-content:center; align-items:center;">${iconHome}</button>
     `;
@@ -690,13 +685,28 @@ function initUI() {
         if (document.getElementById('design-panel').style.display === 'block') loadPanelData();
     };
 
-    // ▼▼ 新機能：完璧な「印刷」と「高解像度エクスポート」のロジック ▼▼
-    const printViewBox = "-200 -200 2241.37 2782.95"; // 余白を広げた表示枠
+
+    // ▼▼ 修正箇所：出力用に「横向きの美しい比率」の枠を設定 ▼▼
+    const printViewBox = "-1059.32 -208.53 3960 2800"; 
+
+    const hideUIForOutput = () => {
+        const panels = document.querySelectorAll('.panel-ui');
+        const states = [];
+        panels.forEach(p => {
+            states.push({ el: p, display: p.style.display });
+            p.style.display = 'none';
+        });
+        return states;
+    };
+
+    const restoreUI = (states) => {
+        states.forEach(state => state.el.style.display = state.display);
+    };
 
     const createPrintHeader = () => {
         const headerG = document.createElementNS(svgNS, "g");
         headerG.setAttribute('id', 'print-header');
-        headerG.setAttribute('transform', 'translate(1950, -100)'); 
+        headerG.setAttribute('transform', 'translate(2500, 0)'); 
         
         const bgColor = document.body.style.backgroundColor || window.layerSettings.canvasBg.fill || '#f5f5f0';
         const textColor = getContrastColor(bgColor);
@@ -730,17 +740,20 @@ function initUI() {
     document.getElementById('printBtn').onclick = () => {
         if(typeof svg === 'undefined' || !svg) return;
         
+        const uiStates = hideUIForOutput();
         const currentViewBox = svg.getAttribute('viewBox');
-        svg.setAttribute('viewBox', printViewBox); // 広げた枠をセット
+        svg.setAttribute('viewBox', printViewBox);
         
         const { headerG } = createPrintHeader();
         svg.appendChild(headerG);
         
-        window.print();
+        window.print(); 
         
-        svg.setAttribute('viewBox', currentViewBox); // 元に戻す
+        svg.setAttribute('viewBox', currentViewBox);
         const ph = document.getElementById('print-header');
         if (ph) ph.remove();
+        
+        restoreUI(uiStates);
     };
 
     document.getElementById('exportBtn').onclick = () => {
@@ -753,18 +766,20 @@ function initUI() {
 
         setTimeout(() => {
             try {
+                const uiStates = hideUIForOutput();
+
                 const clone = svg.cloneNode(true);
                 clone.setAttribute('viewBox', printViewBox);
-                clone.setAttribute('width', '2241.37'); 
-                clone.setAttribute('height', '2782.95');
+                clone.setAttribute('width', '3960'); 
+                clone.setAttribute('height', '2800');
 
                 const bgColor = document.body.style.backgroundColor || window.layerSettings.canvasBg.fill || '#f5f5f0';
                 if (bgColor !== 'transparent' && bgColor !== 'none') {
                     const bgRect = document.createElementNS(svgNS, "rect");
-                    bgRect.setAttribute('x', '-200');
-                    bgRect.setAttribute('y', '-200');
-                    bgRect.setAttribute('width', '100%');
-                    bgRect.setAttribute('height', '100%');
+                    bgRect.setAttribute('x', '-1500');
+                    bgRect.setAttribute('y', '-500');
+                    bgRect.setAttribute('width', '5000');
+                    bgRect.setAttribute('height', '4000');
                     bgRect.setAttribute('fill', bgColor);
                     clone.insertBefore(bgRect, clone.firstChild);
                 }
@@ -779,9 +794,9 @@ function initUI() {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 
-                // SVG枠を2倍にした超高解像度サイズ
-                canvas.width = 4482; 
-                canvas.height = 5565;
+                // 修正箇所：A1印刷にも耐えうる超高解像度の「横向き」出力
+                canvas.width = 5940; 
+                canvas.height = 4200;
 
                 const img = new Image();
                 img.onload = () => {
@@ -800,20 +815,23 @@ function initUI() {
                     
                     URL.revokeObjectURL(url);
                     loader.remove();
+                    restoreUI(uiStates);
                 };
                 img.onerror = () => {
                     alert('画像の生成に失敗しました。');
                     loader.remove();
+                    restoreUI(uiStates);
                 };
                 img.src = url;
             } catch(e) {
                 console.error(e);
                 alert('エラーが発生しました。');
                 loader.remove();
+                restoreUI(uiStates);
             }
         }, 100); 
     };
-    // ▲▲ ここまで ▲▲
+    // ▲▲ 印刷・エクスポートここまで ▲▲
 
     const cycleDisplay = document.getElementById('cycleDisplay');
     cycleDisplay.onmouseover = () => { cycleDisplay.style.background = "rgba(255,255,255,0.1)"; };
@@ -892,7 +910,7 @@ function initUI() {
     document.getElementById('homeBtn').onclick = () => {
         globalRotation = -currentStartSegment * 3;
         masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
-        viewBox = { x: 0, y: 0, w: 1841.3719, h: 2382.9518 };
+        viewBox = { x: -479.3141, y: -208.5241, w: 2800, h: 2800 };
         svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
     };
 
