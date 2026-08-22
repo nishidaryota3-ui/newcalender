@@ -729,8 +729,8 @@ function drawKoyomiEvents(startDate) {
         dateLayer.appendChild(eventMixGroup);
     }
 
-    if (concentricRings.length < 30) return;
     const R = concentricRings;
+    if(R.length < 30) return;
 
     const stG = window.layerSettings.gregorian;
     const stW = window.layerSettings.weekday;
@@ -1100,7 +1100,7 @@ function drawKoyomiEvents(startDate) {
         // ★ 旧暦の文字をキャンバス右側へ移動し、回転から除外（固定化）
         const tspanOld = document.createElementNS(svgNS, "text");
         tspanOld.setAttribute("class", "layer-wafu-text");
-        tspanOld.setAttribute("x", cx + 1210); // ★ 860から1210に変更
+        tspanOld.setAttribute("x", cx + 1210); 
         tspanOld.setAttribute("y", cy - 850 + stWafu.offsetRadius);
         tspanOld.setAttribute("text-anchor", "end");
         tspanOld.setAttribute("fill", stWafu.fill);
@@ -1114,7 +1114,6 @@ function drawKoyomiEvents(startDate) {
             tspanOld.setAttribute("stroke-linejoin", "round");
             tspanOld.setAttribute("paint-order", "stroke fill");
         }
-        // ★ tspanOld.setAttribute("transform", `rotate(...)`); を削除して回転を止める
         tspanOld.textContent = startWafu ? `${startWafu}（旧暦）` : "旧暦取得中";
         wafuTextLayer.appendChild(tspanOld);
         
@@ -1126,7 +1125,7 @@ function drawKoyomiEvents(startDate) {
             ? wafuList[startGregorianMonth - 1] 
             : `${wafuList[startGregorianMonth - 1]} ／ ${wafuList[endGregorianMonth - 1]}`;
         
-        tspanNew.setAttribute("x", cx + 1210); // ★ 860から1210に変更
+        tspanNew.setAttribute("x", cx + 1210); 
         tspanNew.setAttribute("y", cy - 850 + (stWafu.fontSize * 0.9) + stGreText.offsetRadius);
         tspanNew.setAttribute("text-anchor", "end");
         tspanNew.setAttribute("fill", stGreText.fill);
@@ -1140,8 +1139,83 @@ function drawKoyomiEvents(startDate) {
             tspanNew.setAttribute("stroke-linejoin", "round");
             tspanNew.setAttribute("paint-order", "stroke fill");
         }
-        // ★ tspanNew.setAttribute("transform", `rotate(...)`); を削除して回転を止める
         tspanNew.textContent = `${newWafuStr}（新暦）`;
         wafuTextLayer.appendChild(tspanNew);
+    }
+}
+
+// ★ 俳句を放射状に描画する関数
+function drawHaikus(startDate) {
+    const layer = document.getElementById("layer-haiku");
+    if(layer) layer.innerHTML = "";
+    if (concentricRings.length === 0) return;
+
+    const st = window.layerSettings.haikuText;
+    if (!st || st.opacity === 0) return;
+
+    const rBase = concentricRings[concentricRings.length - 1] + 90 + st.offsetRadius;
+    
+    for (let i = 0; i < window.currentMonthDays; i++) {
+        const loopDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
+        const dateStr = formatDateStr(loopDate);
+        const haikus = window.haikuDatabase[dateStr] || [];
+        
+        if (haikus.length > 0) {
+            const absoluteSegment = (currentStartSegment + i * 4) % 120;
+            const baseAngle = absoluteSegment * 3;
+            
+            const displayCount = Math.min(haikus.length, 3);
+            const hasMore = haikus.length > 3;
+            
+            let angles = [];
+            if (displayCount === 1) angles = [6];
+            else if (displayCount === 2) angles = [4, 8];
+            else angles = [2.5, 6, 9.5];
+            
+            for(let j=0; j < displayCount; j++) {
+                const angle = baseAngle + angles[j];
+                const pt = polarToCartesian(cx, cy, rBase, angle);
+                
+                const text = document.createElementNS(svgNS, "text");
+                text.setAttribute("x", pt.x);
+                text.setAttribute("y", pt.y);
+                text.setAttribute("fill", st.fill);
+                text.setAttribute("font-size", st.fontSize + "px");
+                text.setAttribute("font-family", st.fontFamily);
+                if(st.fontWeight === "bold") text.setAttribute("font-weight", "bold");
+                text.setAttribute("opacity", st.opacity);
+                text.setAttribute("style", "writing-mode: vertical-rl; cursor: pointer;");
+                
+                if (st.strokeWidth > 0) {
+                    text.setAttribute("stroke", st.stroke);
+                    text.setAttribute("stroke-width", st.strokeWidth);
+                    text.setAttribute("stroke-linejoin", "round");
+                    text.setAttribute("paint-order", "stroke fill");
+                }
+                
+                text.setAttribute("transform", `rotate(${angle + 180}, ${pt.x}, ${pt.y})`);
+                text.textContent = haikus[j];
+                text.onclick = () => window.openHaikuModal(dateStr, haikus);
+                layer.appendChild(text);
+            }
+            
+            if (hasMore) {
+                const angle = baseAngle + 11.5;
+                const pt = polarToCartesian(cx, cy, rBase + 10, angle);
+                const moreText = document.createElementNS(svgNS, "text");
+                moreText.setAttribute("x", pt.x);
+                moreText.setAttribute("y", pt.y);
+                moreText.setAttribute("fill", "#d25b4e"); 
+                moreText.setAttribute("font-size", (st.fontSize * 0.8) + "px");
+                moreText.setAttribute("font-family", st.fontFamily);
+                moreText.setAttribute("text-anchor", "middle");
+                moreText.setAttribute("dominant-baseline", "middle");
+                moreText.setAttribute("style", "cursor: pointer;");
+                moreText.setAttribute("transform", `rotate(${angle}, ${pt.x}, ${pt.y})`);
+                moreText.textContent = `＋${haikus.length - 3}`;
+                moreText.onclick = () => window.openHaikuModal(dateStr, haikus);
+                layer.appendChild(moreText);
+            }
+        }
     }
 }
