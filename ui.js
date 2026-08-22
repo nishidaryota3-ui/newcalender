@@ -1,4 +1,4 @@
-// ui.js (UI構築・イベントモジュール) - 軽量化・高画質印刷＆エクスポート完全対応版（横向き対応）
+// ui.js (UI構築・イベントモジュール) - 軽量化・極限までホイールを大きく印刷する版
 
 const TEXT_TARGETS = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'wafuText', 'gregorianText', 'dailyRainText', 'guideTime', 'guideTideText', 'guideRainText', 'lunarMansion', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar', 'haikuText'];
 const SHAPE_TARGETS = ['baseSvg', 'lunarShadow', 'astroPins', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTideLine', 'guideRainLine', 'canvasBg'];
@@ -27,24 +27,6 @@ const LAYER_VISIBILITY_MAP = {
 };
 
 const iconExport = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`;
-
-function getContrastColor(hexColor) {
-    if (!hexColor || hexColor === 'none' || hexColor === 'transparent') return '#2c3e50';
-    let r = 245, g = 245, b = 240; 
-    if (hexColor.startsWith('#')) {
-        let hex = hexColor.replace('#', '');
-        if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
-        const num = parseInt(hex, 16);
-        r = (num >> 16) & 255; g = (num >> 8) & 255; b = num & 255;
-    } else if (hexColor.startsWith('rgb')) {
-        const rgbMatch = hexColor.match(/\d+/g);
-        if (rgbMatch && rgbMatch.length >= 3) {
-            r = parseInt(rgbMatch[0], 10); g = parseInt(rgbMatch[1], 10); b = parseInt(rgbMatch[2], 10);
-        }
-    }
-    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
-    return (yiq >= 128) ? '#2c3e50' : '#fdfbf7'; 
-}
 
 function initUI() {
     const oldPalette = document.getElementById('palette');
@@ -86,7 +68,7 @@ function initUI() {
         <hr style="border-color:rgba(255,255,255,0.1); width:100%; margin:4px 0;">
         <button id="clearBtn" title="選択色を全消去" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#fff; padding:0; display:flex; justify-content:center; align-items:center;">${iconTrash}</button>
         <button id="printBtn" title="印刷 (横向き)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#38bdf8; padding:0; display:flex; justify-content:center; align-items:center;">${iconPrint}</button>
-        <button id="exportBtn" title="高画質で画像保存 (横向きPNG)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#38bdf8; padding:0; display:flex; justify-content:center; align-items:center;">${iconExport}</button>
+        <button id="exportBtn" title="高画質で画像保存 (PNG)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#38bdf8; padding:0; display:flex; justify-content:center; align-items:center;">${iconExport}</button>
         <hr style="border-color:rgba(255,255,255,0.1); width:100%; margin:4px 0;">
         <button id="homeBtn" title="新月を真上にリセット" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#38bdf8; padding:0; display:flex; justify-content:center; align-items:center;">${iconHome}</button>
     `;
@@ -685,9 +667,10 @@ function initUI() {
         if (document.getElementById('design-panel').style.display === 'block') loadPanelData();
     };
 
-
-    // ▼▼ 修正箇所：出力用に「横向きの美しい比率」の枠を設定 ▼▼
-    const printViewBox = "-1059.32 -208.53 3960 2800"; 
+    // ▼▼ 印刷・エクスポート専用の処理群（極限最適化版） ▼▼
+    // カレンダーの中心(cx:920.68, cy:1191.47)から半径1250の正方形の枠。
+    // 右上の和風月名と外周の俳句がピッタリ収まる最小サイズの美しい余白です。
+    const printViewBox = "-329.31 -58.52 2500 2500"; 
 
     const hideUIForOutput = () => {
         const panels = document.querySelectorAll('.panel-ui');
@@ -703,40 +686,6 @@ function initUI() {
         states.forEach(state => state.el.style.display = state.display);
     };
 
-    const createPrintHeader = () => {
-        const headerG = document.createElementNS(svgNS, "g");
-        headerG.setAttribute('id', 'print-header');
-        headerG.setAttribute('transform', 'translate(2500, 0)'); 
-        
-        const bgColor = document.body.style.backgroundColor || window.layerSettings.canvasBg.fill || '#f5f5f0';
-        const textColor = getContrastColor(bgColor);
-
-        const dateTextParts = document.getElementById('cycleDisplay').innerText.split('\n');
-        const titleText = dateTextParts[0].replace('▼', '').trim();
-        const subText = dateTextParts[1] ? dateTextParts[1].trim() : '';
-
-        const text1 = document.createElementNS(svgNS, "text");
-        text1.setAttribute('text-anchor', 'end');
-        text1.setAttribute('font-family', "'Shippori Mincho', serif");
-        text1.setAttribute('font-size', '48px');
-        text1.setAttribute('font-weight', 'bold');
-        text1.setAttribute('fill', textColor);
-        text1.textContent = titleText;
-        headerG.appendChild(text1);
-
-        const text2 = document.createElementNS(svgNS, "text");
-        text2.setAttribute('y', '60');
-        text2.setAttribute('text-anchor', 'end');
-        text2.setAttribute('font-family', "'Shippori Mincho', serif");
-        text2.setAttribute('font-size', '28px');
-        text2.setAttribute('fill', textColor);
-        text2.style.opacity = '0.8';
-        text2.textContent = subText;
-        headerG.appendChild(text2);
-        
-        return { headerG, titleText };
-    };
-
     document.getElementById('printBtn').onclick = () => {
         if(typeof svg === 'undefined' || !svg) return;
         
@@ -744,15 +693,9 @@ function initUI() {
         const currentViewBox = svg.getAttribute('viewBox');
         svg.setAttribute('viewBox', printViewBox);
         
-        const { headerG } = createPrintHeader();
-        svg.appendChild(headerG);
-        
         window.print(); 
         
         svg.setAttribute('viewBox', currentViewBox);
-        const ph = document.getElementById('print-header');
-        if (ph) ph.remove();
-        
         restoreUI(uiStates);
     };
 
@@ -770,22 +713,23 @@ function initUI() {
 
                 const clone = svg.cloneNode(true);
                 clone.setAttribute('viewBox', printViewBox);
-                clone.setAttribute('width', '3960'); 
-                clone.setAttribute('height', '2800');
+                clone.setAttribute('width', '2500'); 
+                clone.setAttribute('height', '2500');
 
                 const bgColor = document.body.style.backgroundColor || window.layerSettings.canvasBg.fill || '#f5f5f0';
                 if (bgColor !== 'transparent' && bgColor !== 'none') {
                     const bgRect = document.createElementNS(svgNS, "rect");
-                    bgRect.setAttribute('x', '-1500');
+                    bgRect.setAttribute('x', '-500');
                     bgRect.setAttribute('y', '-500');
-                    bgRect.setAttribute('width', '5000');
-                    bgRect.setAttribute('height', '4000');
+                    bgRect.setAttribute('width', '3500');
+                    bgRect.setAttribute('height', '3500');
                     bgRect.setAttribute('fill', bgColor);
                     clone.insertBefore(bgRect, clone.firstChild);
                 }
 
-                const { headerG, titleText } = createPrintHeader();
-                clone.appendChild(headerG);
+                // ファイル名用に現在の日付文字列を取得
+                const dateTextParts = document.getElementById('cycleDisplay').innerText.split('\n');
+                const titleText = dateTextParts[0].replace('▼', '').trim();
 
                 const svgData = new XMLSerializer().serializeToString(clone);
                 const blob = new Blob([svgData], {type: "image/svg+xml;charset=utf-8"});
@@ -794,9 +738,9 @@ function initUI() {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 
-                // 修正箇所：A1印刷にも耐えうる超高解像度の「横向き」出力
-                canvas.width = 5940; 
-                canvas.height = 4200;
+                // 印刷品質を保つための超高解像度正方形 (5000 x 5000 px)
+                canvas.width = 5000; 
+                canvas.height = 5000;
 
                 const img = new Image();
                 img.onload = () => {
