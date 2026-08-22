@@ -905,9 +905,13 @@ window.openHaikuModal = function(dateStr, haikus) {
     const content = document.getElementById('haiku-modal-content');
     content.innerHTML = '';
     
+   <div id="haiku-modal-content" style="font-family:'Shippori Mincho', serif; font-size:18px; color:#2c3e50; writing-mode: vertical-rl; max-height: 60vh; text-align: left;">
+                </div>
+// ...(中略)...
     haikus.forEach(h => {
         const div = document.createElement('div');
-        div.style = "border-left:1px dashed #ccc; padding-left:15px; line-height:2.5; letter-spacing:3px;";
+        // 縦書きに合わせて、左側（次の句との間）に余白と区切り線を設定
+        div.style = "border-left:1px dashed rgba(212, 175, 55, 0.5); margin-left:20px; padding-left:20px; line-height:2; letter-spacing:3px;";
         div.textContent = h;
         content.appendChild(div);
     });
