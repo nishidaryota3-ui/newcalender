@@ -9,7 +9,7 @@ function initUI() {
     navDiv.className = 'panel-ui';
     navDiv.style = "position:fixed; top:30px; right:30px; background:rgba(25,30,40,0.85); padding:10px 15px; border-radius:8px; color:#d4af37; z-index:100; display:flex; gap:15px; align-items:center; border: 1px solid rgba(212,175,55,0.3); backdrop-filter: blur(10px);";
     navDiv.innerHTML = `
-        <button id="prevBtn" style="background:transparent; border:1px solid #d4af37; color:#d4af37; padding:4px 8px; cursor:pointer; border-radius:4px;">◀</button>
+        <button id="prevBtn" style="background:transparent; border:1px solid #d4af37; color:#d4af37; padding:4px 8px; cursor:border-radius:4px;">◀</button>
         <div id="cycleDisplay" title="クリックして年月を移動" style="font-weight:bold; font-size:14px; text-align:center; min-width:120px; cursor:pointer; padding:4px; border-radius:4px; transition:background 0.2s;">--</div>
         <button id="nextBtn" style="background:#d4af37; border:none; color:#000; padding:4px 8px; cursor:pointer; border-radius:4px; font-weight:bold;">▶</button>
     `;
@@ -72,7 +72,7 @@ function initUI() {
         };
     }
 
-    // ★ レイヤーパネルの中に自動で「俳句」の設定行を追加
+    // ★ 俳句設定ボタンの自動追加
     if (panelContent) {
         const labels = panelContent.querySelectorAll('label');
         let targetLabel = null;
@@ -121,35 +121,38 @@ function initUI() {
             </button>
         `;
         
-        document.getElementById('btn-apply-global').onmouseover = function() { this.style.background = '#0284c7'; };
-        document.getElementById('btn-apply-global').onmouseout = function() { this.style.background = '#0ea5e9'; };
-        document.getElementById('btn-apply-global').onclick = () => {
-            if(confirm("現在の色や設定を、すべての月の基本デザインとして適用しますか？")) {
-                if(typeof window.applyGlobalSettings === 'function') {
-                    window.applyGlobalSettings();
-                    updateCalendarCycle();
+        const applyBtn = document.getElementById('btn-apply-global');
+        if (applyBtn) {
+            applyBtn.onmouseover = function() { this.style.background = '#0284c7'; };
+            applyBtn.onmouseout = function() { this.style.background = '#0ea5e9'; };
+            applyBtn.onclick = () => {
+                if(confirm("現在の色や設定を、すべての月の基本デザインとして適用しますか？")) {
+                    if(typeof window.applyGlobalSettings === 'function') {
+                        window.applyGlobalSettings();
+                        if(typeof updateCalendarCycle === 'function') updateCalendarCycle();
+                    }
                 }
-            }
-        };
+            };
+        }
     }
 
     const designPanel = document.createElement('div');
     designPanel.id = 'design-panel';
     designPanel.className = 'panel-ui';
-    designPanel.style = "display:none; position:fixed; top:100px; left:50%; background:rgba(25,30,40,0.95); padding:0 20px 20px 20px; border-radius:12px; border:1px solid rgba(212,175,55,0.5); color:#fff; z-index:200; box-shadow:0 10px 40px rgba(0,0,0,0.8); min-width:320px; backdrop-filter:blur(10px);";
+    designPanel.style = "display:none; position:fixed; top:100px; left:50%; background:rgba(255,255,255,0.98); padding:0 20px 20px 20px; border-radius:12px; border:1px solid rgba(212,175,55,0.5); color:#2c3e50; z-index:200; box-shadow:0 10px 40px rgba(0,0,0,0.2); min-width:320px; backdrop-filter:blur(10px);";
     designPanel.innerHTML = `
         <div id="dp-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid rgba(212,175,55,0.3); padding:12px 0 10px 0; cursor:grab; user-select:none;">
             <div id="dp-title" style="color:#d4af37; font-weight:bold; font-size:15px;">デザイン設定</div>
             <div style="display:flex; gap:10px; align-items:center;">
-                <button id="dp-reset" title="この項目を初期化" style="background:rgba(255,100,100,0.2); border:1px solid #ff8888; color:#ff8888; border-radius:4px; font-size:11px; padding:2px 6px; cursor:pointer;">初期化</button>
-                <button id="dp-close" style="background:none; border:none; color:#fff; cursor:pointer; font-size:20px; padding:0; line-height:1;">×</button>
+                <button id="dp-reset" title="この項目を初期化" style="background:rgba(255,100,100,0.1); border:1px solid #ff8888; color:#d25b4e; border-radius:4px; font-size:11px; padding:2px 6px; cursor:pointer;">初期化</button>
+                <button id="dp-close" style="background:none; border:none; color:#888; cursor:pointer; font-size:20px; padding:0; line-height:1;">×</button>
             </div>
         </div>
         <div style="display:flex; flex-direction:column; gap:12px; font-size:13px; max-height: 65vh; overflow-y: auto; padding-right: 5px;">
             
             <div id="dp-row-lunar-phase" style="display:none; flex-direction:column; gap:8px;">
                 <label style="display:flex; justify-content:space-between; align-items:center; color:#d4af37; font-weight:bold;">編集対象の月相: 
-                    <select id="dp-lunar-phase" style="background:#111; color:#d4af37; border:1px solid #d4af37; padding:4px; border-radius:4px; width:150px; font-weight:bold;">
+                    <select id="dp-lunar-phase" style="background:#fff; color:#2c3e50; border:1px solid #ccc; padding:4px; border-radius:4px; width:150px; font-weight:bold;">
                         <option value="normal">通常 (平月)</option>
                         <option value="newMoon">新月 (一日)</option>
                         <option value="firstQuarter">上弦 (八日)</option>
@@ -157,12 +160,12 @@ function initUI() {
                         <option value="lastQuarter">下弦 (二十三日)</option>
                     </select>
                 </label>
-                <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin:0;">
+                <hr style="border:0; border-top:1px dashed #ccc; margin:0;">
             </div>
 
             <div id="dp-group-text" style="display:flex; flex-direction:column; gap:12px;">
                 <label id="dp-row-font" style="display:flex; justify-content:space-between; align-items:center;">フォント: 
-                    <select id="dp-font" style="background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px; width:150px;">
+                    <select id="dp-font" style="background:#fff; color:#2c3e50; border:1px solid #ccc; padding:4px; border-radius:4px; width:150px;">
                         <option value="'Shippori Mincho', serif">明朝体 (Shippori)</option>
                         <option value="'YuMincho', 'Yu Mincho', serif">游明朝 (Yu Mincho)</option>
                         <option value="'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif">ゴシック体 (標準)</option>
@@ -172,10 +175,10 @@ function initUI() {
                     </select>
                 </label>
                 <label id="dp-row-size" style="display:flex; justify-content:space-between; align-items:center;">文字サイズ: 
-                    <input type="number" id="dp-size" style="width:60px; background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px;" step="0.5">
+                    <input type="number" id="dp-size" style="width:60px; background:#fff; color:#2c3e50; border:1px solid #ccc; padding:4px; border-radius:4px;" step="0.5">
                 </label>
                 <label id="dp-row-lang" style="display:none; justify-content:space-between; align-items:center;">表示言語: 
-                    <select id="dp-lang" style="background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px; width:120px;">
+                    <select id="dp-lang" style="background:#fff; color:#2c3e50; border:1px solid #ccc; padding:4px; border-radius:4px; width:120px;">
                         <option value="en">英語 (Sun-Sat)</option>
                         <option value="ja">日本語 (日-土)</option>
                     </select>
@@ -195,20 +198,20 @@ function initUI() {
                 </label>
             </div>
 
-            <div id="dp-group-mansion-colors" style="display:none; flex-direction:column; gap:12px; margin-top:5px; padding-top:10px; border-top:1px dashed rgba(255,255,255,0.2);">
+            <div id="dp-group-mansion-colors" style="display:none; flex-direction:column; gap:12px; margin-top:5px; padding-top:10px; border-top:1px dashed #ccc;">
                 <label style="display:flex; justify-content:space-between; align-items:center;">東方青龍 (角〜箕): <input type="color" id="dp-color-east" style="background:none; border:none; width:30px; height:30px; cursor:pointer;"></label>
                 <label style="display:flex; justify-content:space-between; align-items:center;">北方玄武 (斗〜壁): <input type="color" id="dp-color-north" style="background:none; border:none; width:30px; height:30px; cursor:pointer;"></label>
                 <label style="display:flex; justify-content:space-between; align-items:center;">西方白虎 (奎〜参): <input type="color" id="dp-color-west" style="background:none; border:none; width:30px; height:30px; cursor:pointer;"></label>
                 <label style="display:flex; justify-content:space-between; align-items:center;">南方朱雀 (井〜軫): <input type="color" id="dp-color-south" style="background:none; border:none; width:30px; height:30px; cursor:pointer;"></label>
-                <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin:0;">
+                <hr style="border:0; border-top:1px dashed #ccc; margin:0;">
                 <label style="display:flex; justify-content:space-between; align-items:center;">星の大きさ: <input type="range" id="dp-mansion-star-size" min="0.1" max="5" step="0.1" style="width:100px; accent-color:#d4af37;"> <span id="dp-mansion-star-size-val" style="width:30px; text-align:right;">1.5</span></label>
                 <label style="display:flex; justify-content:space-between; align-items:center;">背景帯の色: <input type="color" id="dp-mansion-bg-color" style="background:none; border:none; width:30px; height:30px; cursor:pointer;"></label>
                 <label style="display:flex; justify-content:space-between; align-items:center;">背景帯の透明度: <input type="range" id="dp-mansion-bg-opacity" min="0" max="1" step="0.05" style="width:100px; accent-color:#d4af37;"> <span id="dp-mansion-bg-opacity-val" style="width:30px; text-align:right;">0.05</span></label>
             </div>
 
-            <div id="dp-group-shape" style="display:none; flex-direction:column; gap:12px; margin-top:5px; padding-top:10px; border-top:1px dashed rgba(255,255,255,0.2);">
+            <div id="dp-group-shape" style="display:none; flex-direction:column; gap:12px; margin-top:5px; padding-top:10px; border-top:1px dashed #ccc;">
                 <label id="dp-row-shape-type" style="display:flex; justify-content:space-between; align-items:center;">背景図形: 
-                    <select id="dp-shape" style="background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px; width:100px;">
+                    <select id="dp-shape" style="background:#fff; color:#2c3e50; border:1px solid #ccc; padding:4px; border-radius:4px; width:100px;">
                         <option value="none">なし</option>
                         <option value="circle">丸</option>
                         <option value="rect">四角</option>
@@ -248,13 +251,13 @@ function initUI() {
                 </label>
             </div>
 
-            <div id="dp-group-common" style="display:flex; flex-direction:column; gap:12px; margin-top:5px; padding-top:10px; border-top:1px dashed rgba(255,255,255,0.2);">
+            <div id="dp-group-common" style="display:flex; flex-direction:column; gap:12px; margin-top:5px; padding-top:10px; border-top:1px dashed #ccc;">
                 <label id="dp-row-opacity" style="display:flex; justify-content:space-between; align-items:center;">透明度 (全体): 
                     <input type="range" id="dp-opacity" min="0" max="1" step="0.05" style="width:100px; accent-color:#d4af37;">
                     <span id="dp-opacity-val" style="width:30px; text-align:right;">1</span>
                 </label>
                 <label id="dp-row-offset" style="display:flex; justify-content:space-between; align-items:center;">位置 (文字のY軸微調整): 
-                    <input type="number" id="dp-offset" style="width:60px; background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px;" step="1">
+                    <input type="number" id="dp-offset" style="width:60px; background:#fff; color:#2c3e50; border:1px solid #ccc; padding:4px; border-radius:4px;" step="1">
                 </label>
             </div>
 
@@ -266,20 +269,22 @@ function initUI() {
     let dpStartX = 0, dpStartY = 0;
     const dpHeader = document.getElementById('dp-header');
     
-    dpHeader.addEventListener('mousedown', (e) => {
-        if(e.target.id === 'dp-close' || e.target.id === 'dp-reset') return;
-        isDraggingPanel = true;
-        const rect = designPanel.getBoundingClientRect();
-        dpStartX = e.clientX - rect.left;
-        dpStartY = e.clientY - rect.top;
-        dpHeader.style.cursor = 'grabbing';
-        designPanel.style.transform = 'none';
-        designPanel.style.left = rect.left + 'px';
-        designPanel.style.top = rect.top + 'px';
-    });
+    if (dpHeader) {
+        dpHeader.addEventListener('mousedown', (e) => {
+            if(e.target.id === 'dp-close' || e.target.id === 'dp-reset') return;
+            isDraggingPanel = true;
+            const rect = designPanel.getBoundingClientRect();
+            dpStartX = e.clientX - rect.left;
+            dpStartY = e.clientY - rect.top;
+            dpHeader.style.cursor = 'grabbing';
+            designPanel.style.transform = 'none';
+            designPanel.style.left = rect.left + 'px';
+            designPanel.style.top = rect.top + 'px';
+        });
+    }
 
     window.addEventListener('mousemove', (e) => {
-        if(isDraggingPanel) {
+        if(isDraggingPanel && designPanel) {
             designPanel.style.left = (e.clientX - dpStartX) + 'px';
             designPanel.style.top = (e.clientY - dpStartY) + 'px';
         }
@@ -351,7 +356,8 @@ function initUI() {
         if (!st) return;
 
         ['dp-row-lunar-phase', 'dp-group-text', 'dp-group-shape', 'dp-row-shape-type', 'dp-row-shape-fill', 'dp-row-shape-stroke', 'dp-row-shape-stroke-width', 'dp-shape-stroke-orig', 'dp-shape-stroke-orig-text', 'dp-row-offset', 'dp-row-lang', 'dp-row-density', 'dp-row-shape-scale', 'dp-row-radius-offset', 'dp-group-mansion-colors'].forEach(id => {
-            document.getElementById(id).style.display = 'none';
+            const el = document.getElementById(id);
+            if(el) el.style.display = 'none';
         });
 
         if (currentDesignTarget === 'canvasBg') {
@@ -673,13 +679,13 @@ function initUI() {
 
     document.getElementById('prevBtn').onclick = () => {
         currentCycle--;
-        if(typeof updateCalendarCycle === 'function') updateCalendarCycle();
+        if (typeof updateCalendarCycle === 'function') updateCalendarCycle();
         if (document.getElementById('design-panel').style.display === 'block') loadPanelData();
     };
 
     document.getElementById('nextBtn').onclick = () => {
         currentCycle++;
-        if(typeof updateCalendarCycle === 'function') updateCalendarCycle();
+        if (typeof updateCalendarCycle === 'function') updateCalendarCycle();
         if (document.getElementById('design-panel').style.display === 'block') loadPanelData();
     };
 
@@ -700,7 +706,7 @@ function initUI() {
         const diffDays = diffMs / (1000 * 60 * 60 * 24);
         currentCycle = Math.round(diffDays / synodicMonth);
         jumpDiv.style.display = 'none';
-        if(typeof updateCalendarCycle === 'function') updateCalendarCycle();
+        if (typeof updateCalendarCycle === 'function') updateCalendarCycle();
         if (document.getElementById('design-panel').style.display === 'block') loadPanelData();
     };
 
@@ -872,6 +878,7 @@ function initUI() {
     updateLayerVisibility();
 }
 
+// ★ 和風縦書き短冊モーダル
 window.openHaikuModal = function(dateStr, haikus) {
     let modal = document.getElementById('haiku-modal');
     if(!modal) {
@@ -882,7 +889,7 @@ window.openHaikuModal = function(dateStr, haikus) {
             <div style="background:#fdfbf7; padding:50px 40px 40px 40px; border-radius:8px; max-width:80%; max-height:80%; overflow-x:auto; overflow-y:hidden; display:flex; flex-direction:column; align-items:center; position:relative; box-shadow:0 10px 40px rgba(0,0,0,0.8); border: 1px solid #d4af37;">
                 <button id="haiku-modal-close" style="position:absolute; top:10px; right:15px; background:none; border:none; font-size:28px; cursor:pointer; color:#888;">×</button>
                 <div id="haiku-modal-date" style="font-family:'Shippori Mincho', serif; font-size:16px; color:#888; margin-bottom:20px; letter-spacing:2px;"></div>
-                <div id="haiku-modal-content" style="display:flex; gap:30px; flex-direction:row-reverse; font-family:'Shippori Mincho', serif; font-size:18px; color:#2c3e50; writing-mode: vertical-rl; max-height: 60vh;">
+                <div id="haiku-modal-content" style="font-family:'Shippori Mincho', serif; font-size:18px; color:#2c3e50; writing-mode: vertical-rl; max-height: 60vh; text-align: left;">
                 </div>
             </div>
         `;
@@ -905,9 +912,10 @@ window.openHaikuModal = function(dateStr, haikus) {
     const content = document.getElementById('haiku-modal-content');
     content.innerHTML = '';
     
+    // 短冊を右から左へ並べる
     haikus.forEach(h => {
         const div = document.createElement('div');
-        div.style = "border-left:1px dashed #ccc; padding-left:15px; line-height:2.5; letter-spacing:3px;";
+        div.style = "border-left:1px dashed rgba(212, 175, 55, 0.5); margin-left:20px; padding-left:20px; line-height:2; letter-spacing:3px; white-space: nowrap;";
         div.textContent = h;
         content.appendChild(div);
     });
