@@ -1,5 +1,32 @@
 // main.js (司令塔・初期化モジュール)
 
+const svgNS = "http://www.w3.org/2000/svg";
+const container = document.getElementById('calendar-container') || document.body;
+const loader = document.getElementById('loader') || { style: {} };
+let svg, masterGroup, bgGroup;
+
+const viewBox = { x: -841.89 / 2, y: -841.89 / 2, w: 841.89, h: 841.89 };
+const cx = 0, cy = 0;
+
+const PALAU_LAT = 7.3397;
+const PALAU_LON = 134.4733;
+
+const synodicMonth = 29.530588853; 
+const baseDate = new Date('2025-12-20T00:00:00+09:00'); 
+
+let currentCycle = 0;
+let currentStartSegment = 0;
+let globalRotation = 0;
+let concentricRings = [];
+
+let apiRainData = new Array(720).fill(null);
+let localRainData = {};
+let highLowTidePoints = [];
+let calendarData = {};
+window.haikuDatabase = {}; // ★俳句データ用
+
+const iconDrop = `<path d="M12 2c0 0-4.5 6.4-4.5 9.5a4.5 4.5 0 0 0 9 0C16.5 8.4 12 2 12 2z"/>`;
+
 window.defaultLayerSettings = {
     canvasBg: { fill: "#f5f5f0" },
     baseSvg: { stroke: "", opacity: 0.8 },
@@ -16,13 +43,10 @@ window.defaultLayerSettings = {
     dailyRainBg: { fill: "rgba(14, 165, 233, 1)", opacity: 1, density: 0.35 },
     dailyRainText: { fontFamily: "'Arial', sans-serif", fontSize: 8, fill: "rgba(14, 165, 233, 1)", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     guideTime: { fontFamily: "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif", fontSize: 7, fill: "#2c3e50", fontWeight: "bold", stroke: "rgba(255, 255, 255, 0.5)", strokeWidth: 3, opacity: 1, offsetRadius: 0 },
-    
-    // ★ 分離された潮位・降水量の設定
     guideTideLine: { stroke: "rgba(114, 113, 113, 0.4)", strokeWidth: 0.5, opacity: 1 },
     guideTideText: { fontFamily: "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif", fontSize: 7, fill: "#3b82f6", fontWeight: "bold", stroke: "rgba(255, 255, 255, 0.5)", strokeWidth: 3, opacity: 1, offsetRadius: 0 },
     guideRainLine: { stroke: "rgba(14, 165, 233, 0.3)", strokeWidth: 1, opacity: 1 },
     guideRainText: { fontFamily: "'Shippori Mincho', 'YuMincho', 'Hiragino Mincho ProN', serif", fontSize: 7, fill: "rgba(14, 165, 233, 1)", fontWeight: "bold", stroke: "rgba(255, 255, 255, 0.5)", strokeWidth: 2.5, opacity: 1, offsetRadius: 0 },
-
     gregorian: { fontFamily: "'Shippori Mincho', serif", fontSize: 9, fill: "#727171", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     weekday: { fontFamily: "'Shippori Mincho', serif", fontSize: 6, fill: "#b0b0b0", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0, lang: "en" },
     sekki: { fontFamily: "'Shippori Mincho', serif", fontSize: 19, fill: "#2c3e50", fontWeight: "bold", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
@@ -36,6 +60,8 @@ window.defaultLayerSettings = {
     eventBuddhism: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#3f3d56", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     eventChurch: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#6b5b4e", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     eventSonota: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#555555", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
+    // ★ 俳句用の初期設定
+    haikuText: { fontFamily: "'Shippori Mincho', serif", fontSize: 7.5, fill: "#2c3e50", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 35 },
     lunar: {
         fontFamily: "'Shippori Mincho', serif", fontSize: 11, fontWeight: "normal", opacity: 1, offsetRadius: 0,
         phases: {
@@ -48,9 +74,6 @@ window.defaultLayerSettings = {
     }
 };
 
-// ==========================================
-// ★ オブジェクトのディープマージ関数（月別設定の合成用）
-// ==========================================
 function isObject(item) { return (item && typeof item === 'object' && !Array.isArray(item)); }
 function mergeDeep(target, ...sources) {
     if (!sources.length) return target;
@@ -68,9 +91,6 @@ function mergeDeep(target, ...sources) {
     return mergeDeep(target, ...sources);
 }
 
-// ==========================================
-// ★ 月別テーマ保存機能（V5ストレージ）
-// ==========================================
 window.appSettings = JSON.parse(localStorage.getItem('polarCalendarSettingsV5')) || {
     global: JSON.parse(JSON.stringify(window.defaultLayerSettings)),
     months: {}
@@ -95,16 +115,16 @@ window.saveLayerSettings = () => {
     localStorage.setItem('polarCalendarSettingsV5', JSON.stringify(window.appSettings));
 };
 
-// ★ 現在のデザインを全月に一括適用する関数
 window.applyGlobalSettings = () => {
     window.appSettings.global = JSON.parse(JSON.stringify(window.layerSettings));
-    window.appSettings.months = {}; // 各月の個別設定をクリアして統一
+    window.appSettings.months = {}; 
     localStorage.setItem('polarCalendarSettingsV5', JSON.stringify(window.appSettings));
-    alert("現在のデザインをすべての月の基本設定として適用しました！");
+    alert("現在の色や設定を、すべての月の基本デザインとして適用しました！");
 };
 
 let koyomiDatabase = {};
 const KOYOMI_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRqoX31YV0YAO3Mq4WatmLhjP7uUSF6dPMy3D2H3ktEFDFg1X1gJmoIXkul9JpS4aLgK9Ze3SSbV9BZ/pub?gid=0&single=true&output=csv';
+const HAIKU_CSV_URL = 'https://docs.google.com/spreadsheets/d/1m0y8AOJNx1Ad4I44poPheQAQNki1-QQIwi9wSw8jaBg/export?format=csv&gid=126185184';
 
 function formatDateStr(dateObj) {
     const y = dateObj.getFullYear();
@@ -147,14 +167,39 @@ async function loadLocalCSV() {
                 if (row[0]) {
                     let dateKey = row[0].replace(/\//g, '-');
                     const parts = dateKey.split('-');
-                    if(parts.length === 3) {
-                        dateKey = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-                    }
+                    if(parts.length === 3) dateKey = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
                     koyomiDatabase[dateKey] = row;
                 }
             }
         }
-    } catch(e) { console.error("暦データベースの読み込みに失敗:", e); }
+    } catch(e) { console.error("暦データの読み込みに失敗:", e); }
+
+    // ★ 俳句データの直接リアルタイム取得
+    try {
+        const res = await fetch(HAIKU_CSV_URL);
+        if (res.ok) {
+            const text = await res.text();
+            const lines = text.split('\n');
+            for (let i = 1; i < lines.length; i++) {
+                const row = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').trim());
+                if (row.length > 11) {
+                    const haiku = row[0];
+                    const author = row[1];
+                    const status = row[10];
+                    const dateStrRaw = row[11];
+                    // B列が西田上酢、かつ K列が完成句のデータのみ抽出
+                    if (author === "西田上酢" && status === "完成句" && dateStrRaw) {
+                        let dateKey = dateStrRaw.replace(/\//g, '-');
+                        const parts = dateKey.split('-');
+                        if(parts.length === 3) dateKey = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                        
+                        if (!window.haikuDatabase[dateKey]) window.haikuDatabase[dateKey] = [];
+                        window.haikuDatabase[dateKey].push(haiku);
+                    }
+                }
+            }
+        }
+    } catch(e) { console.error("俳句データベースの読み込みに失敗:", e); }
 
     try {
         const res = await fetch('palau_rain.csv');
@@ -183,10 +228,7 @@ async function loadLocalCSV() {
                     let dateStr = parts[0].trim().replace(/\//g, '-');
                     const dateParts = dateStr.split('-');
                     if(dateParts.length === 3) {
-                        const y = dateParts[0];
-                        const m = dateParts[1].padStart(2, '0');
-                        const d = dateParts[2].padStart(2, '0');
-                        dateStr = `${y}-${m}-${d}`;
+                        dateStr = `${dateParts[0]}-${dateParts[1].padStart(2, '0')}-${dateParts[2].padStart(2, '0')}`;
                     }
                     let timeStrRaw = parts[1].trim();
                     if(timeStrRaw.length > 5) timeStrRaw = timeStrRaw.substring(0, 5);
@@ -205,7 +247,6 @@ async function loadLocalCSV() {
 }
 
 async function updateCalendarCycle() {
-    // ★ 描画の前に、今から描画する月の設定データを読み込む
     if (typeof window.loadSettingsForCycle === 'function') {
         window.loadSettingsForCycle(currentCycle);
     }
@@ -255,6 +296,9 @@ async function updateCalendarCycle() {
     if (typeof renderSavedData === 'function') renderSavedData();
     if (typeof drawTimeLabels === 'function') drawTimeLabels();
     if (typeof drawKoyomiEvents === 'function') drawKoyomiEvents(startDate);
+    
+    // ★ 俳句の描画呼び出し
+    if (typeof drawHaikus === 'function') drawHaikus(startDate);
 
     if (masterGroup) masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
 
@@ -277,7 +321,6 @@ async function updateCalendarCycle() {
     });
 }
 
-// ★ initUIを呼び出す
 if (typeof initUI === 'function') initUI();
 
 loadLocalCSV().then(() => {
@@ -289,7 +332,6 @@ loadLocalCSV().then(() => {
             if (!svg) return;
             
             svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
-            
             svg.querySelectorAll('*[fill="#fff"]').forEach(el => el.setAttribute('fill', 'none'));
             svg.querySelectorAll('text, rect').forEach(el => el.remove());
             
@@ -335,7 +377,8 @@ loadLocalCSV().then(() => {
                 "layer-guide-rain",           
                 "layer-daily-rain-text",      
                 "layer-guide-time",           
-                "layer-wafu-text"             
+                "layer-wafu-text",
+                "layer-haiku" // ★ 俳句用のレイヤーを追加
             ];
 
             const defs = document.createElementNS(svgNS, "defs");
