@@ -1,4 +1,4 @@
-// ui.js (UI構築・イベントモジュール) - 軽量化・データ駆動・バグ修正・堅牢化版
+// ui.js (UI構築・イベントモジュール) - 軽量化・データ駆動・バグ修正・堅牢化版・カーソル修正版
 
 const TEXT_TARGETS = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'wafuText', 'gregorianText', 'dailyRainText', 'guideTime', 'guideTideText', 'guideRainText', 'lunarMansion', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar', 'haikuText'];
 const SHAPE_TARGETS = ['baseSvg', 'lunarShadow', 'astroPins', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTideLine', 'guideRainLine', 'canvasBg'];
@@ -278,11 +278,10 @@ function initUI() {
     `;
     document.body.appendChild(designPanel);
 
-    // 【修正箇所】すべてのUIパネルでの操作をブロックし、背景に干渉させない
     const blockEvent = (e) => e.stopPropagation();
     const uiPanels = [
         navDiv, jumpDiv, toolsDiv, paletteDiv, designPanel, 
-        document.getElementById('layer-panel') // ※メインのレイヤーパネルも防御対象に追加
+        document.getElementById('layer-panel')
     ];
     uiPanels.forEach(panel => {
         if (panel) {
@@ -702,11 +701,11 @@ function initUI() {
         activeBtn.style.borderColor = '#d4af37';
         activeBtn.style.color = '#000';
 
-        // 【修正箇所】カーソルの変更対象も document.body に戻し、確実にカーソルアイコンが切り替わるように
-        const appCont = document.body;
-        if (tool === 'pointer') appCont.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize';
-        else if (tool === 'paint') appCont.style.cursor = 'crosshair';
-        else if (tool === 'erase') appCont.style.cursor = 'cell';
+        // 【修正箇所】見た目のカーソル切り替えは、手前の #container に直接当てる
+        const cursorTarget = document.getElementById('container') || document.body;
+        if (tool === 'pointer') cursorTarget.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize';
+        else if (tool === 'paint') cursorTarget.style.cursor = 'crosshair';
+        else if (tool === 'erase') cursorTarget.style.cursor = 'cell';
     };
 
     let previousTool = 'pointer';
@@ -814,7 +813,6 @@ window.openHaikuModal = function(dateStr, haikus) {
                 <button id="haiku-modal-close" style="position:absolute; top:10px; right:15px; background:none; border:none; font-size:28px; cursor:pointer; color:#888;">×</button>
                 <div id="haiku-modal-date" style="font-family:'Shippori Mincho', serif; font-size:16px; color:#888; margin-bottom:30px; letter-spacing:2px; text-align:center; width:100%;"></div>
                 
-                <!-- フレックスボックスを外し、自然なブロックの縦書きとしてレイアウト -->
                 <div id="haiku-modal-content" style="font-family:'Shippori Mincho', serif; font-size:18px; color:#2c3e50; writing-mode:vertical-rl; max-height:60vh; text-align:left;">
                 </div>
             </div>
@@ -839,7 +837,6 @@ window.openHaikuModal = function(dateStr, haikus) {
     
     haikus.forEach((h, idx) => {
         const div = document.createElement('div');
-        // 右側から順番に配置されていくため、最後の要素以外に左側の区切り線を入れる
         const borderStyle = idx === haikus.length - 1 ? "" : "border-left:1px dashed #ccc;";
         div.style = `margin-left:30px; padding-left:20px; ${borderStyle} line-height:2; letter-spacing:3px;`;
         div.textContent = h;
@@ -852,8 +849,6 @@ window.openHaikuModal = function(dateStr, haikus) {
 };
 
 function initInteractions() {
-    // 【修正箇所】絶対的な安定性を担保するため、イベントの監視を document.body に戻します。
-    // （UIパネル側の stopPropagation によって、スライダーの不具合も防がれています）
     const appContainer = document.body;
     
     appContainer.addEventListener('wheel', (e) => {
@@ -884,7 +879,9 @@ function initInteractions() {
         lastPaintedCell = null;
 
         if (currentTool === 'pointer') {
-            appContainer.style.cursor = interactionMode === 'pan' ? 'grabbing' : 'ew-resize';
+            // 【修正箇所】mousedown時の見た目の変更対象も #container に向ける
+            const cursorTarget = document.getElementById('container') || document.body;
+            cursorTarget.style.cursor = interactionMode === 'pan' ? 'grabbing' : 'ew-resize';
             if (interactionMode === 'rotate') {
                 if(typeof svg === 'undefined' || !svg) return;
                 const pt = svg.createSVGPoint();
@@ -905,7 +902,6 @@ function initInteractions() {
                 const dxScreen = startPos.x - e.clientX, dyScreen = startPos.y - e.clientY;
                 dragDistance += Math.abs(dxScreen) + Math.abs(dyScreen);
                 if(typeof viewBox !== 'undefined' && appContainer && typeof svg !== 'undefined' && svg) {
-                    // 【修正箇所】NaN感染を完全に防ぐため、万が一の幅0判定時でも window.innerWidth でカバーします
                     const cw = appContainer.clientWidth || window.innerWidth;
                     const ch = appContainer.clientHeight || window.innerHeight;
                     viewBox.x += dxScreen * (viewBox.w / cw);
@@ -983,8 +979,10 @@ function initInteractions() {
 
     window.addEventListener('mouseup', () => {
         isInteractionActive = false;
-        if (typeof currentTool !== 'undefined' && currentTool === 'pointer' && appContainer) {
-            appContainer.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize';
+        if (typeof currentTool !== 'undefined' && currentTool === 'pointer') {
+            // 【修正箇所】mouseup時も #container を対象にドラッグ解除
+            const cursorTarget = document.getElementById('container') || document.body;
+            cursorTarget.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize';
         }
         if (typeof calendarData !== 'undefined') localStorage.setItem('polarCalendarDataV27', JSON.stringify(calendarData));
     });
