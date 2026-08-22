@@ -72,7 +72,6 @@ function initUI() {
         };
     }
 
-    // ★ レイヤーパネルの中に自動で「俳句」の設定行を追加
     if (panelContent) {
         const labels = panelContent.querySelectorAll('label');
         let targetLabel = null;
@@ -872,6 +871,7 @@ function initUI() {
     updateLayerVisibility();
 }
 
+// ★ ここが横並びから美しい和風の縦書き短冊に直した部分です
 window.openHaikuModal = function(dateStr, haikus) {
     let modal = document.getElementById('haiku-modal');
     if(!modal) {
@@ -882,7 +882,7 @@ window.openHaikuModal = function(dateStr, haikus) {
             <div style="background:#fdfbf7; padding:50px 40px 40px 40px; border-radius:8px; max-width:80%; max-height:80%; overflow-x:auto; overflow-y:hidden; display:flex; flex-direction:column; align-items:center; position:relative; box-shadow:0 10px 40px rgba(0,0,0,0.8); border: 1px solid #d4af37;">
                 <button id="haiku-modal-close" style="position:absolute; top:10px; right:15px; background:none; border:none; font-size:28px; cursor:pointer; color:#888;">×</button>
                 <div id="haiku-modal-date" style="font-family:'Shippori Mincho', serif; font-size:16px; color:#888; margin-bottom:20px; letter-spacing:2px;"></div>
-                <div id="haiku-modal-content" style="display:flex; gap:30px; flex-direction:row-reverse; font-family:'Shippori Mincho', serif; font-size:18px; color:#2c3e50; writing-mode: vertical-rl; max-height: 60vh;">
+                <div id="haiku-modal-content" style="font-family:'Shippori Mincho', serif; font-size:18px; color:#2c3e50; writing-mode: vertical-rl; max-height: 60vh; text-align: left;">
                 </div>
             </div>
         `;
@@ -905,9 +905,10 @@ window.openHaikuModal = function(dateStr, haikus) {
     const content = document.getElementById('haiku-modal-content');
     content.innerHTML = '';
     
+    // 短冊を美しく並べるデザイン
     haikus.forEach(h => {
         const div = document.createElement('div');
-        div.style = "border-left:1px dashed #ccc; padding-left:15px; line-height:2.5; letter-spacing:3px;";
+        div.style = "border-left:1px dashed rgba(212, 175, 55, 0.5); margin-left:20px; padding-left:20px; line-height:2; letter-spacing:3px;";
         div.textContent = h;
         content.appendChild(div);
     });
