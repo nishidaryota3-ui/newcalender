@@ -1,6 +1,11 @@
 // main.js (司令塔・初期化モジュール)
 
-window.haikuDatabase = {}; 
+window.haikuDatabase = window.haikuDatabase || {}; 
+window.koyomiDatabase = window.koyomiDatabase || {};
+window.apiRainData = window.apiRainData || new Array(720).fill(null);
+window.localRainData = window.localRainData || {};
+window.highLowTidePoints = window.highLowTidePoints || [];
+window.calendarData = window.calendarData || {};
 
 window.defaultLayerSettings = {
     canvasBg: { fill: "#f5f5f0" },
@@ -67,16 +72,17 @@ function mergeDeep(target, ...sources) {
 
 // ★ フリーズを防止する超高速で安全なCSVパーサー
 function parseCSVRow(str) {
-    let result = [];
+    const result = [];
     let current = '';
     let inQuotes = false;
     for (let i = 0; i < str.length; i++) {
-        if (str[i] === '"') {
+        const c = str[i];
+        if (c === '"') {
             if (inQuotes && str[i+1] === '"') { current += '"'; i++; }
             else { inQuotes = !inQuotes; }
-        } else if (str[i] === ',' && !inQuotes) {
+        } else if (c === ',' && !inQuotes) {
             result.push(current); current = '';
-        } else { current += str[i]; }
+        } else { current += c; }
     }
     result.push(current);
     return result.map(s => s.trim());
@@ -98,7 +104,7 @@ window.loadSettingsForCycle = function(cycleIdx) {
 };
 
 window.saveLayerSettings = () => {
-    const cycleKey = `cycle_${currentCycle}`;
+    const cycleKey = `cycle_${typeof currentCycle !== 'undefined' ? currentCycle : 0}`;
     window.appSettings.months[cycleKey] = JSON.parse(JSON.stringify(window.layerSettings));
     localStorage.setItem('polarCalendarSettingsV5', JSON.stringify(window.appSettings));
 };
@@ -110,10 +116,6 @@ window.applyGlobalSettings = () => {
     alert("現在の色や設定を、すべての月の基本デザインとして適用しました！");
 };
 
-let koyomiDatabase = {};
-const KOYOMI_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRqoX31YV0YAO3Mq4WatmLhjP7uUSF6dPMy3D2H3ktEFDFg1X1gJmoIXkul9JpS4aLgK9Ze3SSbV9BZ/pub?gid=0&single=true&output=csv';
-const HAIKU_CSV_URL = 'https://docs.google.com/spreadsheets/d/1m0y8AOJNx1Ad4I44poPheQAQNki1-QQIwi9wSw8jaBg/export?format=csv&gid=126185184';
-
 function formatDateStr(dateObj) {
     const y = dateObj.getFullYear();
     const m = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -122,31 +124,38 @@ function formatDateStr(dateObj) {
 }
 
 async function fetchMeteoData(startDateMs) {
-    if(typeof loader !== 'undefined' && loader.style) loader.style.display = 'flex';
+    const loaderEl = document.getElementById('loader');
+    if(loaderEl) loaderEl.style.display = 'flex';
+    
     const dStart = new Date(startDateMs);
     const dEnd = new Date(startDateMs + 30 * 86400000);
     const startStr = formatDateStr(dStart);
     const endStr = formatDateStr(dEnd);
-    apiRainData = new Array(720).fill(null);
+    
+    window.apiRainData = new Array(720).fill(null);
+    const PALAU_LAT_VAL = typeof PALAU_LAT !== 'undefined' ? PALAU_LAT : 7.3397;
+    const PALAU_LON_VAL = typeof PALAU_LON !== 'undefined' ? PALAU_LON : 134.4733;
+
     const isHistorical = dEnd.getTime() < Date.now() - (5 * 86400000);
-    const rainApiUrl = isHistorical ? `https://archive-api.open-meteo.com/v1/archive?latitude=${PALAU_LAT}&longitude=${PALAU_LON}&hourly=precipitation&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`
-                                     : `https://api.open-meteo.com/v1/forecast?latitude=${PALAU_LAT}&longitude=${PALAU_LON}&hourly=precipitation&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`;
+    const rainApiUrl = isHistorical ? `https://archive-api.open-meteo.com/v1/archive?latitude=${PALAU_LAT_VAL}&longitude=${PALAU_LON_VAL}&hourly=precipitation&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`
+                                     : `https://api.open-meteo.com/v1/forecast?latitude=${PALAU_LAT_VAL}&longitude=${PALAU_LON_VAL}&hourly=precipitation&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`;
 
     try {
         const rainRes = await fetch(rainApiUrl);
         if (rainRes.ok) {
             const rainJson = await rainRes.json();
             if(rainJson.hourly && rainJson.hourly.precipitation) {
-                for(let i=0; i<720; i++) apiRainData[i] = rainJson.hourly.precipitation[i] || 0;
+                for(let i=0; i<720; i++) window.apiRainData[i] = rainJson.hourly.precipitation[i] || 0;
             }
         }
     } catch(e) {}
-    if(typeof loader !== 'undefined' && loader.style) loader.style.display = 'none';
+    
+    if(loaderEl) loaderEl.style.display = 'none';
 }
 
 async function loadLocalCSV() {
     try {
-        const res = await fetch(KOYOMI_CSV_URL);
+        const res = await fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vRqoX31YV0YAO3Mq4WatmLhjP7uUSF6dPMy3D2H3ktEFDFg1X1gJmoIXkul9JpS4aLgK9Ze3SSbV9BZ/pub?gid=0&single=true&output=csv');
         if (res.ok) {
             const text = await res.text();
             const lines = text.split('\n');
@@ -156,35 +165,30 @@ async function loadLocalCSV() {
                     let dateKey = row[0].replace(/\//g, '-');
                     const parts = dateKey.split('-');
                     if(parts.length === 3) dateKey = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-                    koyomiDatabase[dateKey] = row;
+                    window.koyomiDatabase[dateKey] = row;
                 }
             }
         }
     } catch(e) { console.error("暦データの読み込みに失敗:", e); }
 
     try {
-        const res = await fetch(HAIKU_CSV_URL);
+        const res = await fetch('https://docs.google.com/spreadsheets/d/1m0y8AOJNx1Ad4I44poPheQAQNki1-QQIwi9wSw8jaBg/export?format=csv&gid=126185184');
         if (res.ok) {
-            const contentType = res.headers.get('content-type');
-            if (contentType && contentType.includes('text/html')) {
-                console.warn("俳句データがHTMLとして返されました。シートの公開設定を確認してください。");
-            } else {
-                const text = await res.text();
-                const lines = text.split('\n');
-                for (let i = 1; i < lines.length; i++) {
-                    const row = parseCSVRow(lines[i]); // ★ フリーズしない安全な関数を使用
-                    if (row.length > 11) {
-                        const haiku = row[0];
-                        const author = row[1];
-                        const status = row[10];
-                        const dateStrRaw = row[11];
-                        if (author === "西田上酢" && status === "完成句" && dateStrRaw) {
-                            let dateKey = dateStrRaw.replace(/\//g, '-');
-                            const parts = dateKey.split('-');
-                            if(parts.length === 3) dateKey = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-                            if (!window.haikuDatabase[dateKey]) window.haikuDatabase[dateKey] = [];
-                            window.haikuDatabase[dateKey].push(haiku);
-                        }
+            const text = await res.text();
+            const lines = text.split('\n');
+            for (let i = 1; i < lines.length; i++) {
+                const row = parseCSVRow(lines[i]); 
+                if (row.length > 11) {
+                    const haiku = row[0];
+                    const author = row[1];
+                    const status = row[10];
+                    const dateStrRaw = row[11];
+                    if (author === "西田上酢" && status === "完成句" && dateStrRaw) {
+                        let dateKey = dateStrRaw.replace(/\//g, '-');
+                        const parts = dateKey.split('-');
+                        if(parts.length === 3) dateKey = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                        if (!window.haikuDatabase[dateKey]) window.haikuDatabase[dateKey] = [];
+                        window.haikuDatabase[dateKey].push(haiku);
                     }
                 }
             }
@@ -201,7 +205,7 @@ async function loadLocalCSV() {
                 if (parts.length >= 2) {
                     const date = parts[0].trim().replace(/\//g, '-');
                     const rain = parseFloat(parts[1].trim());
-                    if (date && !isNaN(rain)) localRainData[date] = rain;
+                    if (date && !isNaN(rain)) window.localRainData[date] = rain;
                 }
             }
         }
@@ -228,87 +232,100 @@ async function loadLocalCSV() {
                     const min = timeParts[1].padStart(2, '0');
                     const timeMs = new Date(`${dateStr}T${h}:${min}:00`).getTime();
                     const tide = parseFloat(parts[2].trim());
-                    if (!isNaN(timeMs) && !isNaN(tide)) highLowTidePoints.push({ time: timeMs, tide: tide });
+                    if (!isNaN(timeMs) && !isNaN(tide)) window.highLowTidePoints.push({ time: timeMs, tide: tide });
                 }
             }
-            highLowTidePoints.sort((a, b) => a.time - b.time);
+            window.highLowTidePoints.sort((a, b) => a.time - b.time);
         }
     } catch(e) {}
 }
 
 async function updateCalendarCycle() {
-    if (typeof window.loadSettingsForCycle === 'function') {
-        window.loadSettingsForCycle(currentCycle);
-    }
+    try {
+        const cCycle = typeof currentCycle !== 'undefined' ? currentCycle : 0;
+        if (typeof window.loadSettingsForCycle === 'function') {
+            window.loadSettingsForCycle(cCycle);
+        }
 
-    document.body.style.backgroundColor = window.layerSettings.canvasBg.fill;
+        document.body.style.backgroundColor = window.layerSettings.canvasBg.fill;
 
-    const totalElapsedDays = currentCycle * synodicMonth;
-    const estimatedStartTimeMs = baseDate.getTime() + totalElapsedDays * 24 * 60 * 60 * 1000;
-    let startDate = new Date(estimatedStartTimeMs);
+        const sMonth = typeof synodicMonth !== 'undefined' ? synodicMonth : 29.530588853;
+        const bDate = typeof baseDate !== 'undefined' ? baseDate : new Date('2025-12-20T00:00:00+09:00');
+        
+        const totalElapsedDays = cCycle * sMonth;
+        const estimatedStartTimeMs = bDate.getTime() + totalElapsedDays * 24 * 60 * 60 * 1000;
+        let startDate = new Date(estimatedStartTimeMs);
 
-    for (let offset = -3; offset <= 3; offset++) {
-        const checkDate = new Date(estimatedStartTimeMs + offset * 86400000);
-        const dateStr = formatDateStr(checkDate);
-        const dbRow = koyomiDatabase[dateStr];
-        if (dbRow && dbRow[1]) {
-            const lunarMatch = dbRow[1].match(/旧暦.*?月(.+?)日/);
-            if (lunarMatch && lunarMatch[1] === "一") {
-                startDate = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate());
-                break;
+        for (let offset = -3; offset <= 3; offset++) {
+            const checkDate = new Date(estimatedStartTimeMs + offset * 86400000);
+            const dateStr = formatDateStr(checkDate);
+            const dbRow = window.koyomiDatabase[dateStr];
+            if (dbRow && dbRow[1]) {
+                const lunarMatch = dbRow[1].match(/旧暦.*?月(.+?)日/);
+                if (lunarMatch && lunarMatch[1] === "一") {
+                    startDate = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate());
+                    break;
+                }
             }
         }
-    }
 
-    const cycleStartTimeMs = startDate.getTime();
-    const diffDaysExact = (cycleStartTimeMs - baseDate.getTime()) / 86400000;
-    currentStartSegment = Math.round((diffDaysExact % 30) / 0.25) % 120;
-    if (currentStartSegment < 0) currentStartSegment += 120;
+        const cycleStartTimeMs = startDate.getTime();
+        const diffDaysExact = (cycleStartTimeMs - bDate.getTime()) / 86400000;
+        
+        // Update globals if they exist
+        if (typeof currentStartSegment !== 'undefined') {
+            window.currentStartSegment = Math.round((diffDaysExact % 30) / 0.25) % 120;
+            if (window.currentStartSegment < 0) window.currentStartSegment += 120;
+        }
+        if (typeof globalRotation !== 'undefined') {
+            window.globalRotation = -(window.currentStartSegment || 0) * 3;
+        }
 
-    globalRotation = -currentStartSegment * 3;
+        const y = startDate.getFullYear();
+        const m = startDate.getMonth() + 1;
+        const d = startDate.getDate();
+        const cycleDisplay = document.getElementById('cycleDisplay');
+        if (cycleDisplay) {
+            cycleDisplay.innerHTML = `${y}年 ${m}月 <span style="font-size:10px;">▼</span><br><span style="font-size:11px; color:#8b949e;">新月: ${m}月${d}日〜</span>`;
+        }
 
-    const y = startDate.getFullYear();
-    const m = startDate.getMonth() + 1;
-    const d = startDate.getDate();
-    const cycleDisplay = document.getElementById('cycleDisplay');
-    if (cycleDisplay) {
-        cycleDisplay.innerHTML = `${y}年 ${m}月 <span style="font-size:10px;">▼</span><br><span style="font-size:11px; color:#8b949e;">新月: ${m}月${d}日〜</span>`;
-    }
+        if (typeof computeMonthDays === 'function') computeMonthDays(startDate);
 
-    if (typeof computeMonthDays === 'function') computeMonthDays(startDate);
+        if (typeof drawLunarShadow === 'function') drawLunarShadow(cycleStartTimeMs);
+        if (typeof drawAstronomicalPins === 'function') drawAstronomicalPins(cycleStartTimeMs);
+        if (typeof drawDynamicLines === 'function') drawDynamicLines();
+        if (typeof drawTideGraph === 'function') drawTideGraph(cycleStartTimeMs);
+        if (typeof drawDailyRainStats === 'function') drawDailyRainStats(startDate);
+        if (typeof drawLunarMansions === 'function') drawLunarMansions(cycleStartTimeMs);
+        if (typeof renderSavedData === 'function') renderSavedData();
+        if (typeof drawTimeLabels === 'function') drawTimeLabels();
+        if (typeof drawKoyomiEvents === 'function') drawKoyomiEvents(startDate);
+        if (typeof drawHaikus === 'function') drawHaikus(startDate);
 
-    if (typeof drawLunarShadow === 'function') drawLunarShadow(cycleStartTimeMs);
-    if (typeof drawAstronomicalPins === 'function') drawAstronomicalPins(cycleStartTimeMs);
-    if (typeof drawDynamicLines === 'function') drawDynamicLines();
-    if (typeof drawTideGraph === 'function') drawTideGraph(cycleStartTimeMs);
-    if (typeof drawDailyRainStats === 'function') drawDailyRainStats(startDate);
-    if (typeof drawLunarMansions === 'function') drawLunarMansions(cycleStartTimeMs);
-    if (typeof renderSavedData === 'function') renderSavedData();
-    if (typeof drawTimeLabels === 'function') drawTimeLabels();
-    if (typeof drawKoyomiEvents === 'function') drawKoyomiEvents(startDate);
-    if (typeof drawHaikus === 'function') drawHaikus(startDate);
+        if (typeof window.masterGroup !== 'undefined' && window.masterGroup) {
+            window.masterGroup.setAttribute('transform', `rotate(${window.globalRotation || 0}, ${typeof cx !== 'undefined'?cx:0}, ${typeof cy !== 'undefined'?cy:0})`);
+        }
 
-    if (typeof masterGroup !== 'undefined' && masterGroup) {
-        masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
-    }
+        const stBase = window.layerSettings.baseSvg;
+        if (typeof window.bgGroup !== 'undefined' && window.bgGroup) {
+            window.bgGroup.style.opacity = stBase.opacity;
+            Array.from(window.bgGroup.querySelectorAll('*')).forEach(el => {
+                if (stBase.stroke !== "") {
+                    el.setAttribute('stroke', stBase.stroke);
+                } else {
+                    const orig = el.getAttribute('data-orig-stroke');
+                    if (orig) el.setAttribute('stroke', orig);
+                    else el.removeAttribute('stroke');
+                }
+            });
+        }
 
-    const stBase = window.layerSettings.baseSvg;
-    if (typeof bgGroup !== 'undefined' && bgGroup) {
-        bgGroup.style.opacity = stBase.opacity;
-        Array.from(bgGroup.querySelectorAll('*')).forEach(el => {
-            if (stBase.stroke !== "") {
-                el.setAttribute('stroke', stBase.stroke);
-            } else {
-                const orig = el.getAttribute('data-orig-stroke');
-                if (orig) el.setAttribute('stroke', orig);
-                else el.removeAttribute('stroke');
-            }
+        fetchMeteoData(cycleStartTimeMs).then(() => {
+            if (typeof drawRainfallGraph === 'function') drawRainfallGraph(cycleStartTimeMs);
         });
+    } catch(e) {
+        console.error("updateCalendarCycle Error:", e);
     }
-
-    fetchMeteoData(cycleStartTimeMs).then(() => {
-        if (typeof drawRainfallGraph === 'function') drawRainfallGraph(cycleStartTimeMs);
-    });
 }
 
 if (typeof initUI === 'function') initUI();
@@ -317,70 +334,62 @@ loadLocalCSV().then(() => {
     fetch('calendar.svg')
         .then(response => response.text())
         .then(svgCode => {
-            const containerEl = document.getElementById('calendar-container') || document.body;
-            if (containerEl) containerEl.innerHTML = svgCode;
+            const appContainer = document.getElementById('calendar-container') || document.body;
+            if (appContainer) appContainer.innerHTML = svgCode;
             
-            svg = containerEl ? containerEl.querySelector('svg') : document.querySelector('svg');
-            if (!svg) return;
+            window.svg = appContainer.querySelector('svg');
+            if (!window.svg) return;
             
-            svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
-            svg.querySelectorAll('*[fill="#fff"]').forEach(el => el.setAttribute('fill', 'none'));
-            svg.querySelectorAll('text, rect').forEach(el => el.remove());
+            const vb = typeof viewBox !== 'undefined' ? viewBox : { x: -841.89 / 2, y: -841.89 / 2, w: 841.89, h: 841.89 };
+            window.svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+            window.svg.querySelectorAll('*[fill="#fff"]').forEach(el => el.setAttribute('fill', 'none'));
+            window.svg.querySelectorAll('text, rect').forEach(el => el.remove());
             
             const radii = [];
-            svg.querySelectorAll('circle').forEach(c => {
+            window.svg.querySelectorAll('circle').forEach(c => {
                 const r = parseFloat(c.getAttribute('r'));
                 const cx_val = parseFloat(c.getAttribute('cx'));
                 const cy_val = parseFloat(c.getAttribute('cy'));
-                if (r && Math.abs(cx_val - cx) < 1 && Math.abs(cy_val - cy) < 1) radii.push(r);
+                const cX = typeof cx !== 'undefined' ? cx : 0;
+                const cY = typeof cy !== 'undefined' ? cy : 0;
+                if (r && Math.abs(cx_val - cX) < 1 && Math.abs(cy_val - cY) < 1) radii.push(r);
             });
-            concentricRings = [...new Set(radii)].sort((a, b) => a - b);
+            window.concentricRings = [...new Set(radii)].sort((a, b) => a - b);
             
-            masterGroup = document.createElementNS(svgNS, "g");
-            masterGroup.setAttribute("id", "master-group");
-            bgGroup = document.createElementNS(svgNS, "g");
-            bgGroup.setAttribute("id", "bg-group");
+            const svgNS_val = "http://www.w3.org/2000/svg";
+            window.masterGroup = document.createElementNS(svgNS_val, "g");
+            window.masterGroup.setAttribute("id", "master-group");
+            window.bgGroup = document.createElementNS(svgNS_val, "g");
+            window.bgGroup.setAttribute("id", "bg-group");
             
-            while (svg.firstChild) {
-                const child = svg.firstChild;
+            while (window.svg.firstChild) {
+                const child = window.svg.firstChild;
                 if (child.nodeType === 1) { 
                     if (child.getAttribute('stroke')) child.setAttribute('data-orig-stroke', child.getAttribute('stroke'));
                     child.querySelectorAll('*').forEach(el => {
                         if (el.getAttribute('stroke')) el.setAttribute('data-orig-stroke', el.getAttribute('stroke'));
                     });
                 }
-                bgGroup.appendChild(child);
+                window.bgGroup.appendChild(child);
             }
-            masterGroup.appendChild(bgGroup);
-            svg.appendChild(masterGroup);
+            window.masterGroup.appendChild(window.bgGroup);
+            window.svg.appendChild(window.masterGroup);
 
             const layerIds = [
-                "layer-shadow",               
-                "layer-astronomical-pins",    
-                "layer-lines",                
-                "layer-data",                 
-                "layer-tide-wave",            
-                "layer-rain-graph",           
-                "layer-daily-rain-bg",        
-                "layer-lunar-mansion",        
-                "layer-solar-dates",          
-                "layer-outer-season",         
-                "layer-guide-tide",           
-                "layer-guide-rain",           
-                "layer-daily-rain-text",      
-                "layer-guide-time",           
-                "layer-wafu-text",
-                "layer-haiku" 
+                "layer-shadow", "layer-astronomical-pins", "layer-lines", "layer-data",                 
+                "layer-tide-wave", "layer-rain-graph", "layer-daily-rain-bg", "layer-lunar-mansion",        
+                "layer-solar-dates", "layer-outer-season", "layer-guide-tide", "layer-guide-rain",           
+                "layer-daily-rain-text", "layer-guide-time", "layer-wafu-text", "layer-haiku" 
             ];
 
-            const defs = document.createElementNS(svgNS, "defs");
+            const defs = document.createElementNS(svgNS_val, "defs");
             defs.setAttribute("id", "text-path-defs");
-            masterGroup.appendChild(defs);
+            window.masterGroup.appendChild(defs);
             
             layerIds.forEach(id => {
-                const g = document.createElementNS(svgNS, "g");
+                const g = document.createElementNS(svgNS_val, "g");
                 g.setAttribute("id", id);
-                masterGroup.appendChild(g);
+                window.masterGroup.appendChild(g);
             });
             
             updateCalendarCycle();
