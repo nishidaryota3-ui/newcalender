@@ -63,6 +63,31 @@ function initUI() {
         };
     }
 
+    // ★ 古い「テーマ (プリセット) 管理」のHTMLブロックを、動的に「一括適用ボタン」に書き換える
+    const themeBox = document.querySelector('#layer-panel-content > div:first-child');
+    if (themeBox) {
+        themeBox.style.background = "rgba(14, 165, 233, 0.1)";
+        themeBox.style.borderColor = "rgba(14, 165, 233, 0.3)";
+        themeBox.innerHTML = `
+            <div style="font-size:12px; color:#38bdf8; margin-bottom:8px; font-weight:bold; text-align:center;">
+                ※現在の設定は「表示中の月」専用です
+            </div>
+            <button id="btn-apply-global" style="background:#0ea5e9; color:#fff; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold; width:100%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: 0.2s;">
+                このデザインをすべての月に一括適用
+            </button>
+        `;
+        document.getElementById('btn-apply-global').onmouseover = function() { this.style.background = '#0284c7'; };
+        document.getElementById('btn-apply-global').onmouseout = function() { this.style.background = '#0ea5e9'; };
+        document.getElementById('btn-apply-global').onclick = () => {
+            if(confirm("現在の色や設定を、すべての月の基本デザインとして適用しますか？")) {
+                if(typeof window.applyGlobalSettings === 'function') {
+                    window.applyGlobalSettings();
+                    updateCalendarCycle();
+                }
+            }
+        };
+    }
+
     const designPanel = document.createElement('div');
     designPanel.id = 'design-panel';
     designPanel.className = 'panel-ui';
@@ -125,7 +150,6 @@ function initUI() {
                 </label>
             </div>
 
-            <!-- ★ 二十七宿専用の設定項目（星の大きさ、背景のリングなど） -->
             <div id="dp-group-mansion-colors" style="display:none; flex-direction:column; gap:12px; margin-top:5px; padding-top:10px; border-top:1px dashed rgba(255,255,255,0.2);">
                 <label style="display:flex; justify-content:space-between; align-items:center;">東方青龍 (角〜箕): <input type="color" id="dp-color-east" style="background:none; border:none; width:30px; height:30px; cursor:pointer;"></label>
                 <label style="display:flex; justify-content:space-between; align-items:center;">北方玄武 (斗〜壁): <input type="color" id="dp-color-north" style="background:none; border:none; width:30px; height:30px; cursor:pointer;"></label>
@@ -221,50 +245,8 @@ function initUI() {
         if(dpHeader) dpHeader.style.cursor = 'grab';
     });
 
-    const updateThemeSelect = () => {
-        const select = document.getElementById('theme-select');
-        if(!select) return;
-        select.innerHTML = '<option value="default">デフォルト設定</option>';
-        for(let name in window.savedThemes) {
-            const opt = document.createElement('option');
-            opt.value = name;
-            opt.textContent = name;
-            select.appendChild(opt);
-        }
-    };
-    updateThemeSelect();
-
-    const btnThemeSave = document.getElementById('btn-theme-save');
-    if (btnThemeSave) {
-        btnThemeSave.onclick = () => {
-            const name = document.getElementById('theme-name-input').value.trim();
-            if(!name) return alert("保存するテーマ名を入力してください");
-            window.savedThemes[name] = JSON.parse(JSON.stringify(window.layerSettings));
-            localStorage.setItem('polarCalendarThemesV1', JSON.stringify(window.savedThemes));
-            updateThemeSelect();
-            document.getElementById('theme-select').value = name;
-            document.getElementById('theme-name-input').value = "";
-            alert(`テーマ「${name}」を保存しました！`);
-        };
-    }
-
-    const btnThemeLoad = document.getElementById('btn-theme-load');
-    if (btnThemeLoad) {
-        btnThemeLoad.onclick = () => {
-            const name = document.getElementById('theme-select').value;
-            if(name === 'default') {
-                window.layerSettings = JSON.parse(JSON.stringify(window.defaultLayerSettings));
-            } else if(window.savedThemes[name]) {
-                window.layerSettings = JSON.parse(JSON.stringify(window.savedThemes[name]));
-            }
-            window.saveLayerSettings();
-            location.reload();
-        };
-    }
-
     let currentDesignTarget = null;
     
-    // ★ ターゲット名の一覧（分離したもの）
     const targetNames = {
         canvasBg: "キャンバス背景", baseSvg: "ベース図形", lunarShadow: "月相シャドウ", astroPins: "天文学的ピン (朔望)", 
         dateLines: "日付区切り線 (30等分)", lunarMansion: "二十七宿", tideGraph: "潮汐波形", rainGraph: "毎時降水量 (棒線)", 
@@ -295,7 +277,6 @@ function initUI() {
             }
         }
 
-        // ★ テキスト・シェイプ対象の判定
         const isTextTarget = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'wafuText', 'gregorianText', 'dailyRainText', 'guideTime', 'guideTideText', 'guideRainText', 'lunarMansion', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar'].includes(currentDesignTarget);
         const isShapeTarget = ['baseSvg', 'lunarShadow', 'astroPins', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTideLine', 'guideRainLine', 'canvasBg'].includes(currentDesignTarget);
 
@@ -334,14 +315,12 @@ function initUI() {
             document.getElementById('dp-color-west').value = st.colorWest || "#888888";
             document.getElementById('dp-color-north').value = st.colorNorth || "#888888";
             
-            // ★ 新規追加項目
             document.getElementById('dp-mansion-star-size').value = st.starSize !== undefined ? st.starSize : 1.5;
             document.getElementById('dp-mansion-star-size-val').innerText = st.starSize !== undefined ? st.starSize : 1.5;
             document.getElementById('dp-mansion-bg-color').value = st.bgRingColor || "#ffffff";
             document.getElementById('dp-mansion-bg-opacity').value = st.bgRingOpacity !== undefined ? st.bgRingOpacity : 0.05;
             document.getElementById('dp-mansion-bg-opacity-val').innerText = st.bgRingOpacity !== undefined ? st.bgRingOpacity : 0.05;
 
-            // ★ 不要な文字色・縁取り設定を非表示にする
             document.getElementById('dp-row-color').style.display = 'none';
             document.getElementById('dp-row-stroke-color').style.display = 'none';
             document.getElementById('dp-row-stroke-width').style.display = 'none';
@@ -442,8 +421,11 @@ function initUI() {
         }
     };
 
+    // ★ 全リセットボタンの処理をV5ストレージ用に修正
     document.getElementById('reset-all-settings').onclick = () => {
-        if (confirm('⚠️ すべてのデザイン設定を完全に初期化しますか？\n（カレンダーの塗りデータや保存したテーマは消えません）')) {
+        if (confirm('⚠️ すべてのデザイン設定を完全に初期化しますか？\n（現在保存されている各月のテーマデータもすべて消去されます）')) {
+            localStorage.removeItem('polarCalendarSettingsV5');
+            window.appSettings = { global: JSON.parse(JSON.stringify(window.defaultLayerSettings)), months: {} };
             window.layerSettings = JSON.parse(JSON.stringify(window.defaultLayerSettings));
             window.saveLayerSettings();
             location.reload();
@@ -500,7 +482,6 @@ function initUI() {
             st.colorWest = document.getElementById('dp-color-west').value;
             st.colorNorth = document.getElementById('dp-color-north').value;
             
-            // ★ 新規追加項目の保存
             st.starSize = parseFloat(document.getElementById('dp-mansion-star-size').value);
             document.getElementById('dp-mansion-star-size-val').innerText = st.starSize;
             st.bgRingColor = document.getElementById('dp-mansion-bg-color').value;
@@ -572,7 +553,6 @@ function initUI() {
                 });
             }
         } else if (currentDesignTarget === 'canvasBg') {
-            // 背景色は既に適用済み
         } else if (currentDesignTarget === 'dateLines') {
             if (typeof drawDynamicLines === 'function') drawDynamicLines();
         } else if (currentDesignTarget === 'tideGraph' || currentDesignTarget === 'guideTideLine' || currentDesignTarget === 'guideTideText') {
@@ -594,7 +574,6 @@ function initUI() {
         }
     };
 
-    // ★ イベントリスナー登録に新しいIDを追加
     ['dp-lunar-phase', 'dp-font', 'dp-size', 'dp-color', 'dp-bold', 'dp-stroke-color', 'dp-stroke-width', 'dp-shape', 'dp-shape-scale', 'dp-lang', 'dp-density', 'dp-color-east', 'dp-color-south', 'dp-color-west', 'dp-color-north', 'dp-mansion-star-size', 'dp-mansion-bg-color', 'dp-mansion-bg-opacity', 'dp-shape-fill-trans', 'dp-shape-fill', 'dp-shape-stroke-orig', 'dp-shape-stroke', 'dp-shape-stroke-width', 'dp-opacity', 'dp-offset', 'dp-radius-offset'].forEach(id => {
         const el = document.getElementById(id);
         if (el) {
@@ -603,14 +582,17 @@ function initUI() {
         }
     });
 
+    // ★ 月をめくったときに、開いているデザインパネルの中身もその月のものに更新する
     document.getElementById('prevBtn').onclick = () => {
         currentCycle--;
         updateCalendarCycle();
+        if (document.getElementById('design-panel').style.display === 'block') loadPanelData();
     };
 
     document.getElementById('nextBtn').onclick = () => {
         currentCycle++;
         updateCalendarCycle();
+        if (document.getElementById('design-panel').style.display === 'block') loadPanelData();
     };
 
     document.getElementById('printBtn').onclick = () => window.print();
@@ -631,6 +613,7 @@ function initUI() {
         currentCycle = Math.round(diffDays / synodicMonth);
         jumpDiv.style.display = 'none';
         updateCalendarCycle();
+        if (document.getElementById('design-panel').style.display === 'block') loadPanelData();
     };
 
     const btnPointer = document.getElementById('tool-pointer');
@@ -766,7 +749,6 @@ function initUI() {
         if(!document.getElementById("toggle-date-lines")?.checked) addHiddenRule("#layer-lines");
         if(!document.getElementById("toggle-guide-time")?.checked) addHiddenRule("#layer-guide-time");
         
-        // ★ 分離した設定の非表示ルール
         if(!document.getElementById("toggle-guide-tide-line")?.checked) addHiddenRule(".layer-guide-tide-line");
         if(!document.getElementById("toggle-guide-tide-text")?.checked) addHiddenRule(".layer-guide-tide-text");
         if(!document.getElementById("toggle-guide-rain-line")?.checked) addHiddenRule(".layer-guide-rain-line");
