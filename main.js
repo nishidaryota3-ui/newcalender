@@ -33,7 +33,6 @@ window.defaultLayerSettings = {
     eventBuddhism: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#3f3d56", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     eventChurch: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#6b5b4e", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     eventSonota: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#555555", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
-    // ★ 俳句用の初期設定
     haikuText: { fontFamily: "'Shippori Mincho', serif", fontSize: 8, fill: "#2c3e50", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 40 },
     lunar: {
         fontFamily: "'Shippori Mincho', serif", fontSize: 11, fontWeight: "normal", opacity: 1, offsetRadius: 0,
@@ -66,7 +65,6 @@ function mergeDeep(target, ...sources) {
     return mergeDeep(target, ...sources);
 }
 
-// ★ フリーズを防止する超高速で安全なCSVパーサー
 function parseCSVRow(str) {
     const result = [];
     let current = '';
@@ -168,30 +166,6 @@ async function loadLocalCSV() {
     } catch(e) { console.error("暦データの読み込みに失敗:", e); }
 
     try {
-        const res = await fetch(HAIKU_CSV_URL);
-        if (res.ok) {
-            const text = await res.text();
-            const lines = text.split('\n');
-            for (let i = 1; i < lines.length; i++) {
-                const row = parseCSVRow(lines[i]);
-                if (row.length > 11) {
-                    const haiku = row[0];
-                    const author = row[1];
-                    const status = row[10];
-                    const dateStrRaw = row[11];
-                    if (author === "西田上酢" && status === "完成句" && dateStrRaw) {
-                        let dateKey = dateStrRaw.replace(/\//g, '-');
-                        const parts = dateKey.split('-');
-                        if(parts.length === 3) dateKey = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-                        if (!window.haikuDatabase[dateKey]) window.haikuDatabase[dateKey] = [];
-                        window.haikuDatabase[dateKey].push(haiku);
-                    }
-                }
-            }
-        }
-    } catch(e) { console.error("俳句データベースの読み込みに失敗:", e); }
-
-    try {
         const res = await fetch('palau_rain.csv');
         if (res.ok) {
             const text = await res.text();
@@ -286,7 +260,6 @@ async function updateCalendarCycle() {
     if (typeof renderSavedData === 'function') renderSavedData();
     if (typeof drawTimeLabels === 'function') drawTimeLabels();
     if (typeof drawKoyomiEvents === 'function') drawKoyomiEvents(startDate);
-    if (typeof drawHaikus === 'function') drawHaikus(startDate);
 
     if (masterGroup) {
         masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
@@ -368,8 +341,7 @@ loadLocalCSV().then(() => {
                 "layer-guide-rain",           
                 "layer-daily-rain-text",      
                 "layer-guide-time",           
-                "layer-wafu-text",
-                "layer-haiku" 
+                "layer-wafu-text"
             ];
 
             const defs = document.createElementNS(svgNS, "defs");
@@ -379,7 +351,12 @@ loadLocalCSV().then(() => {
             layerIds.forEach(id => {
                 const g = document.createElementNS(svgNS, "g");
                 g.setAttribute("id", id);
-                masterGroup.appendChild(g);
+                // ★ 月名はマスターグループ（回転する部分）から外し、SVGに直接固定でくっつける
+                if (id === "layer-wafu-text") {
+                    svg.appendChild(g);
+                } else {
+                    masterGroup.appendChild(g);
+                }
             });
             
             updateCalendarCycle();
