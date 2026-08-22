@@ -6,7 +6,7 @@
     <title>Polar Calendar - 分割・精密ペイント版</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .panel-ui, #layer-panel, #palette, #status-bar, button, input, select {
+        .panel-ui, #layer-panel, #palette-container, #status-bar, button, input, select {
             font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif !important;
         }
     </style>
@@ -14,13 +14,7 @@
 <body>
     <div class="calendar-container" id="container"></div>
 
-    <div id="palette">
-        <div class="palette-title">気配の筆（ペイント）</div>
-        <div class="color-tag tag-rain selected" data-color="#38bdf8">雨・湿気</div>
-        <div class="color-tag tag-fruit" data-color="#f59e0b">実り</div>
-        <div class="color-tag tag-wind" data-color="#c084fc">風・気配</div>
-        <div class="color-tag tag-eraser" data-color="erase">消しゴム</div>
-    </div>
+    <!-- 古い #palette は完全に削除しました -->
 
     <div id="layer-panel">
         <div class="layer-panel-title" style="display:flex; justify-content:space-between; align-items:center;">
@@ -65,8 +59,6 @@
             <div class="layer-group-title">▼ 目盛り・ガイド</div>
             <div class="layer-item layer-indent"><input type="checkbox" id="toggle-date-lines" checked><label for="toggle-date-lines">日付区切り線 (30分割)</label><button class="layer-settings-btn" data-target="dateLines" title="デザイン設定">⚙️</button></div>
             <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-time" checked><label for="toggle-guide-time">時間 (0/6/12/18)</label><button class="layer-settings-btn" data-target="guideTime" title="デザイン設定">⚙️</button></div>
-            
-            <!-- ★ 分離された潮位・降水量の目盛りパネル（不要な幽霊パネルは削除済み） -->
             <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-tide-line" checked><label for="toggle-guide-tide-line">潮位 (ft) 目盛り線</label><button class="layer-settings-btn" data-target="guideTideLine" title="デザイン設定">⚙️</button></div>
             <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-tide-text" checked><label for="toggle-guide-tide-text">潮位 (ft) 文字</label><button class="layer-settings-btn" data-target="guideTideText" title="デザイン設定">⚙️</button></div>
             <div class="layer-item layer-indent"><input type="checkbox" id="toggle-guide-rain-line" checked><label for="toggle-guide-rain-line">降水量 (mm) 目盛り線</label><button class="layer-settings-btn" data-target="guideRainLine" title="デザイン設定">⚙️</button></div>
