@@ -1,4 +1,4 @@
-// ui.js (UI構築・イベントモジュール) - 軽量化・データ駆動・バグ修正・高画質印刷＆エクスポート対応版
+// ui.js (UI構築・イベントモジュール) - 軽量化・データ駆動・高画質印刷＆エクスポート完全対応版
 
 const TEXT_TARGETS = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'wafuText', 'gregorianText', 'dailyRainText', 'guideTime', 'guideTideText', 'guideRainText', 'lunarMansion', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar', 'haikuText'];
 const SHAPE_TARGETS = ['baseSvg', 'lunarShadow', 'astroPins', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTideLine', 'guideRainLine', 'canvasBg'];
@@ -26,16 +26,39 @@ const LAYER_VISIBILITY_MAP = {
     "toggle-kou": ".layer-kou", "toggle-zassetsu": ".layer-zassetsu", "toggle-holiday": ".layer-holiday", "toggle-event-important": ".layer-event-important"
 };
 
-// ▼▼ 新規アイコンの追加（画像エクスポート） ▼▼
 const iconExport = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`;
 
+// ▼▼ 新機能：背景色から文字色（明暗）を自動判定する関数 ▼▼
+function getContrastColor(hexColor) {
+    if (!hexColor || hexColor === 'none' || hexColor === 'transparent') return '#2c3e50';
+    let r = 245, g = 245, b = 240; 
+    if (hexColor.startsWith('#')) {
+        let hex = hexColor.replace('#', '');
+        if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+        const num = parseInt(hex, 16);
+        r = (num >> 16) & 255;
+        g = (num >> 8) & 255;
+        b = num & 255;
+    } else if (hexColor.startsWith('rgb')) {
+        const rgbMatch = hexColor.match(/\d+/g);
+        if (rgbMatch && rgbMatch.length >= 3) {
+            r = parseInt(rgbMatch[0], 10);
+            g = parseInt(rgbMatch[1], 10);
+            b = parseInt(rgbMatch[2], 10);
+        }
+    }
+    const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+    // 背景が明るければ濃紺、暗ければ白系を返す
+    return (yiq >= 128) ? '#2c3e50' : '#fdfbf7'; 
+}
+// ▲▲ ここまで ▲▲
+
 function initUI() {
-    const oldPalette = document.getElementById('palette');
-    if (oldPalette) oldPalette.remove();
     document.querySelectorAll('.panel-ui').forEach(el => el.remove());
 
     const navDiv = document.createElement('div');
     navDiv.className = 'panel-ui';
+    navDiv.id = 'nav-bar'; // IDを付与（CSSで隠すため）
     navDiv.style = "position:fixed; top:30px; right:30px; background:rgba(25,30,40,0.85); padding:10px 15px; border-radius:8px; color:#d4af37; z-index:100; display:flex; gap:15px; align-items:center; border: 1px solid rgba(212,175,55,0.3); backdrop-filter: blur(10px);";
     navDiv.innerHTML = `
         <button id="prevBtn" style="background:transparent; border:1px solid #d4af37; color:#d4af37; padding:4px 8px; cursor:pointer; border-radius:4px;">◀</button>
@@ -59,6 +82,7 @@ function initUI() {
 
     const toolsDiv = document.createElement('div');
     toolsDiv.className = 'panel-ui';
+    toolsDiv.id = 'tools-palette'; // IDを付与
     toolsDiv.style = "position:fixed; top:100px; left:20px; background:rgba(25,30,40,0.9); padding:8px; border-radius:8px; z-index:100; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.5); display:flex; flex-direction:column; gap:8px; width:44px; box-sizing:border-box;";
     toolsDiv.innerHTML = `
         <button id="tool-pointer" title="移動/回転切替 (V)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:rgba(212,175,55,0.85); border:1px solid #d4af37; color:#000; padding:0; display:flex; justify-content:center; align-items:center;">${iconPan}</button>
@@ -666,25 +690,62 @@ function initUI() {
         if (document.getElementById('design-panel').style.display === 'block') loadPanelData();
     };
 
-    // ▼▼ 修正箇所：印刷時のズーム・パンのリセット処理 ▼▼
-    document.getElementById('printBtn').onclick = () => {
-        if(typeof svg === 'undefined' || !svg) return;
-        // 印刷前に現在のズーム・パン状態を保存し、一旦全体表示にリセットする
-        const currentViewBox = svg.getAttribute('viewBox');
-        svg.setAttribute('viewBox', `0 0 1841.3719 2382.9518`);
+    // ▼▼ 新機能：完璧な「印刷」と「高解像度エクスポート」のロジック ▼▼
+    const printViewBox = "-200 -200 2241.37 2782.95"; // 余白を広げた表示枠
+
+    const createPrintHeader = () => {
+        const headerG = document.createElementNS(svgNS, "g");
+        headerG.setAttribute('id', 'print-header');
+        headerG.setAttribute('transform', 'translate(1950, -100)'); 
         
-        // 印刷ダイアログを呼び出し（CSSの魔法で完璧にフィットします）
-        window.print();
+        const bgColor = document.body.style.backgroundColor || window.layerSettings.canvasBg.fill || '#f5f5f0';
+        const textColor = getContrastColor(bgColor);
+
+        const dateTextParts = document.getElementById('cycleDisplay').innerText.split('\n');
+        const titleText = dateTextParts[0].replace('▼', '').trim();
+        const subText = dateTextParts[1] ? dateTextParts[1].trim() : '';
+
+        const text1 = document.createElementNS(svgNS, "text");
+        text1.setAttribute('text-anchor', 'end');
+        text1.setAttribute('font-family', "'Shippori Mincho', serif");
+        text1.setAttribute('font-size', '48px');
+        text1.setAttribute('font-weight', 'bold');
+        text1.setAttribute('fill', textColor);
+        text1.textContent = titleText;
+        headerG.appendChild(text1);
+
+        const text2 = document.createElementNS(svgNS, "text");
+        text2.setAttribute('y', '60');
+        text2.setAttribute('text-anchor', 'end');
+        text2.setAttribute('font-family', "'Shippori Mincho', serif");
+        text2.setAttribute('font-size', '28px');
+        text2.setAttribute('fill', textColor);
+        text2.style.opacity = '0.8';
+        text2.textContent = subText;
+        headerG.appendChild(text2);
         
-        // 印刷が終わったら元のズーム・パン状態に戻す
-        svg.setAttribute('viewBox', currentViewBox);
+        return { headerG, titleText };
     };
 
-    // ▼▼ 新機能：高解像度エクスポート（画像保存）のロジック ▼▼
+    document.getElementById('printBtn').onclick = () => {
+        if(typeof svg === 'undefined' || !svg) return;
+        
+        const currentViewBox = svg.getAttribute('viewBox');
+        svg.setAttribute('viewBox', printViewBox); // 広げた枠をセット
+        
+        const { headerG } = createPrintHeader();
+        svg.appendChild(headerG);
+        
+        window.print();
+        
+        svg.setAttribute('viewBox', currentViewBox); // 元に戻す
+        const ph = document.getElementById('print-header');
+        if (ph) ph.remove();
+    };
+
     document.getElementById('exportBtn').onclick = () => {
         if(typeof svg === 'undefined' || !svg) return;
         
-        // ローディング表示
         const loader = document.createElement('div');
         loader.style = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); z-index:9999; display:flex; justify-content:center; align-items:center; color:#d4af37; font-size:20px; font-weight:bold;";
         loader.innerHTML = "高解像度画像を生成中... しばらくお待ちください";
@@ -692,50 +753,25 @@ function initUI() {
 
         setTimeout(() => {
             try {
-                // SVGをクローンして、画像保存用の加工を行う（元の画面は壊さない）
                 const clone = svg.cloneNode(true);
-                clone.setAttribute('viewBox', '0 0 1841.3719 2382.9518');
-                clone.setAttribute('width', '1841.3719');
-                clone.setAttribute('height', '2382.9518');
+                clone.setAttribute('viewBox', printViewBox);
+                clone.setAttribute('width', '2241.37'); 
+                clone.setAttribute('height', '2782.95');
 
-                // キャンバスの背景色（透明以外なら）をSVGに埋め込む
                 const bgColor = document.body.style.backgroundColor || window.layerSettings.canvasBg.fill || '#f5f5f0';
                 if (bgColor !== 'transparent' && bgColor !== 'none') {
                     const bgRect = document.createElementNS(svgNS, "rect");
+                    bgRect.setAttribute('x', '-200');
+                    bgRect.setAttribute('y', '-200');
                     bgRect.setAttribute('width', '100%');
                     bgRect.setAttribute('height', '100%');
                     bgRect.setAttribute('fill', bgColor);
                     clone.insertBefore(bgRect, clone.firstChild);
                 }
 
-                // 右上の日付テキスト（UI）をSVGの中に描画として合成する
-                const dateTextParts = document.getElementById('cycleDisplay').innerText.split('\n');
-                const titleText = dateTextParts[0].replace('▼', '').trim();
-                const subText = dateTextParts[1] ? dateTextParts[1].trim() : '';
+                const { headerG, titleText } = createPrintHeader();
+                clone.appendChild(headerG);
 
-                const textG = document.createElementNS(svgNS, "g");
-                textG.setAttribute('transform', 'translate(1780, 150)'); 
-
-                const text1 = document.createElementNS(svgNS, "text");
-                text1.setAttribute('text-anchor', 'end');
-                text1.setAttribute('font-family', "'Shippori Mincho', serif");
-                text1.setAttribute('font-size', '40px');
-                text1.setAttribute('font-weight', 'bold');
-                text1.setAttribute('fill', '#2c3e50'); // 印刷用の濃い色
-                text1.textContent = titleText;
-                textG.appendChild(text1);
-
-                const text2 = document.createElementNS(svgNS, "text");
-                text2.setAttribute('y', '50');
-                text2.setAttribute('text-anchor', 'end');
-                text2.setAttribute('font-family', "'Shippori Mincho', serif");
-                text2.setAttribute('font-size', '24px');
-                text2.setAttribute('fill', '#555555');
-                text2.textContent = subText;
-                textG.appendChild(text2);
-                clone.appendChild(textG);
-
-                // SVGデータをCanvas経由で超高解像度PNGに変換
                 const svgData = new XMLSerializer().serializeToString(clone);
                 const blob = new Blob([svgData], {type: "image/svg+xml;charset=utf-8"});
                 const url = URL.createObjectURL(blob);
@@ -743,9 +779,9 @@ function initUI() {
                 const canvas = document.createElement('canvas');
                 const ctx = canvas.getContext('2d');
                 
-                // 超高解像度 (A2, A1でも綺麗に印刷できるよう、元のSVGサイズの約2倍)
-                canvas.width = 3682;
-                canvas.height = 4765;
+                // SVG枠を2倍にした超高解像度サイズ
+                canvas.width = 4482; 
+                canvas.height = 5565;
 
                 const img = new Image();
                 img.onload = () => {
@@ -758,8 +794,6 @@ function initUI() {
                     const pngUrl = canvas.toDataURL('image/png', 1.0);
                     const a = document.createElement('a');
                     a.href = pngUrl;
-                    
-                    // ファイル名に年月を入れる（例：PolarCalendar_2026年7月.png）
                     const safeName = titleText.replace(/\s/g, '');
                     a.download = `PolarCalendar_${safeName}.png`;
                     a.click();
@@ -818,10 +852,10 @@ function initUI() {
         activeBtn.style.borderColor = '#d4af37';
         activeBtn.style.color = '#000';
 
-        const appCont = document.body;
-        if (tool === 'pointer') appCont.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize';
-        else if (tool === 'paint') appCont.style.cursor = 'crosshair';
-        else if (tool === 'erase') appCont.style.cursor = 'cell';
+        const cursorTarget = document.getElementById('container') || document.body;
+        if (tool === 'pointer') cursorTarget.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize';
+        else if (tool === 'paint') cursorTarget.style.cursor = 'crosshair';
+        else if (tool === 'erase') cursorTarget.style.cursor = 'cell';
     };
 
     let previousTool = 'pointer';
