@@ -128,7 +128,6 @@ function drawAstronomicalPins(cycleStartTime) {
     }
 }
 
-// 二十七宿の描画
 function drawLunarMansions(cycleStartTimeMs) {
     const layer = document.getElementById("layer-lunar-mansion");
     if(layer) layer.innerHTML = "";
@@ -1083,7 +1082,7 @@ function drawKoyomiEvents(startDate) {
             outText.setAttribute("transform", `rotate(${lineAngle}, ${ptTextOut.x}, ${ptTextOut.y})`);
             outText.setAttribute("x", ptTextOut.x);
             outText.setAttribute("y", ptTextOut.y);
-            text.textContent = eventName;
+            outText.textContent = eventName;
             if(outerSeasonLayer) outerSeasonLayer.appendChild(outText);
         };
 
