@@ -72,7 +72,7 @@ function initUI() {
         };
     }
 
-    // ★ `index.html`に触らずに「俳句の切替・設定ボタン」を自動で差し込む
+    // ★ 俳句の切替・設定ボタンをレイヤーパネルに自動追加
     if (panelContent) {
         const labels = panelContent.querySelectorAll('label');
         let targetLabel = null;
@@ -333,7 +333,6 @@ function initUI() {
 
     let currentDesignTarget = null;
     
-    // ★ ターゲットに俳句を追加
     const targetNames = {
         canvasBg: "キャンバス背景", baseSvg: "ベース図形", lunarShadow: "月相シャドウ", astroPins: "天文学的ピン (朔望)", 
         dateLines: "日付区切り線 (30等分)", lunarMansion: "二十七宿", tideGraph: "潮汐波形", rainGraph: "毎時降水量 (棒線)", 
@@ -864,7 +863,6 @@ function initUI() {
         }
     };
 
-    // 自動で差し込んだ俳句チェックボックスにもイベントを紐付け
     document.body.addEventListener("change", (e) => {
         if (e.target && e.target.type === 'checkbox' && e.target.id.startsWith('toggle-')) {
             updateLayerVisibility();
@@ -902,13 +900,11 @@ window.openHaikuModal = function(dateStr, haikus) {
         };
     }
     
-    // 日付を「YYYY年MM月DD日」の形式に変換
     document.getElementById('haiku-modal-date').textContent = dateStr.replace(/-/g, '年').replace(/年(\d+)$/, '月$1日');
     
     const content = document.getElementById('haiku-modal-content');
     content.innerHTML = '';
     
-    // 俳句を一つずつ短冊のように並べる
     haikus.forEach(h => {
         const div = document.createElement('div');
         div.style = "border-left:1px dashed #ccc; padding-left:15px; line-height:2.5; letter-spacing:3px;";
@@ -917,146 +913,6 @@ window.openHaikuModal = function(dateStr, haikus) {
     });
     
     modal.style.display = 'flex';
-    void modal.offsetWidth; // 描画を強制
+    void modal.offsetWidth; 
     modal.style.opacity = '1';
 };
-
-function initInteractions() {
-    container.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        const zoomFactor = e.deltaY > 0 ? 1.05 : 0.95;
-        const pt = svg.createSVGPoint();
-        pt.x = e.clientX;
-        pt.y = e.clientY;
-        const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-        
-        viewBox.w *= zoomFactor;
-        viewBox.h *= zoomFactor;
-        viewBox.x = svgP.x - (svgP.x - viewBox.x) * zoomFactor;
-        viewBox.y = svgP.y - (svgP.y - viewBox.y) * zoomFactor;
-        
-        svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
-    }, { passive: false });
-
-    let isInteractionActive = false;
-    let startPos = { x: 0, y: 0 }, dragDistance = 0;
-    let startGlobalRotation = 0, startAngleOffset = 0;
-    let lastPaintedCell = null;
-
-    container.addEventListener('mousedown', (e) => {
-        dragDistance = 0;
-        isInteractionActive = true;
-        lastPaintedCell = null;
-
-        if (currentTool === 'pointer') {
-            container.style.cursor = interactionMode === 'pan' ? 'grabbing' : 'ew-resize';
-            if (interactionMode === 'rotate') {
-                const pt = svg.createSVGPoint();
-                pt.x = e.clientX;
-                pt.y = e.clientY;
-                const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-                startAngleOffset = Math.atan2(svgP.y - cy, svgP.x - cx) * 180 / Math.PI;
-                startGlobalRotation = globalRotation;
-            } else {
-                startPos = { x: e.clientX, y: e.clientY };
-            }
-        }
-    });
-
-    window.addEventListener('mousemove', (e) => {
-        if (isInteractionActive && currentTool === 'pointer') {
-            if (interactionMode === 'pan') {
-                const dxScreen = startPos.x - e.clientX, dyScreen = startPos.y - e.clientY;
-                dragDistance += Math.abs(dxScreen) + Math.abs(dyScreen);
-                viewBox.x += dxScreen * (viewBox.w / container.clientWidth);
-                viewBox.y += dyScreen * (viewBox.h / container.clientHeight);
-                svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
-                startPos = { x: e.clientX, y: e.clientY };
-            } else if (interactionMode === 'rotate') {
-                const pt = svg.createSVGPoint();
-                pt.x = e.clientX;
-                pt.y = e.clientY;
-                const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-                const currentAngleOffset = Math.atan2(svgP.y - cy, svgP.x - cx) * 180 / Math.PI;
-                
-                let delta = currentAngleOffset - startAngleOffset;
-                if (delta > 180) delta -= 360;
-                if (delta < -180) delta += 360;
-                
-                globalRotation = startGlobalRotation + delta;
-                masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
-                dragDistance += Math.abs(delta) * 5;
-                startGlobalRotation = globalRotation;
-                startAngleOffset = currentAngleOffset;
-            }
-        }
-
-        const pt = svg.createSVGPoint();
-        pt.x = e.clientX;
-        pt.y = e.clientY;
-        const ptM = pt.matrixTransform(masterGroup.getScreenCTM().inverse());
-        const dx = ptM.x - cx, dy = ptM.y - cy;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        let angle = Math.atan2(dy, dx) * (180 / Math.PI);
-        angle = (angle + 90 + 360) % 360;
-        
-        const absSegment = Math.floor(angle / 3);
-        const ringInfo = getRingInfo(distance);
-
-        if (ringInfo) {
-            const relSegment = (absSegment - currentStartSegment + 120) % 120;
-            const day = Math.floor(relSegment / 4) + 1;
-            const timeSlot = relSegment % 4;
-            const timeLabels = ["0:00〜6:00", "6:00〜12:00", "12:00〜18:00", "18:00〜24:00"];
-            
-            statusBar.innerText = `第 ${day} 日目 ｜ ${timeLabels[timeSlot]} ｜ ${ringInfo.name}`;
-            statusBar.style.color = "#fff";
-
-            if (isInteractionActive && (currentTool === 'paint' || currentTool === 'erase')) {
-                const cellKey = `c${currentCycle}_abs${absSegment}_${ringInfo.layerId}`;
-                if (lastPaintedCell !== cellKey) {
-                    if (currentTool === 'erase') delete calendarData[cellKey];
-                    else calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
-                    renderSavedData();
-                    lastPaintedCell = cellKey;
-                }
-            }
-        } else {
-            statusBar.innerText = `キャンバス外`;
-            statusBar.style.color = "#8b949e";
-        }
-    });
-
-    window.addEventListener('mouseup', () => {
-        isInteractionActive = false;
-        if (currentTool === 'pointer') container.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize';
-        localStorage.setItem('polarCalendarDataV27', JSON.stringify(calendarData));
-    });
-
-    svg.addEventListener('click', (e) => {
-        if (dragDistance > 5 || currentTool === 'pointer') return;
-        const pt = svg.createSVGPoint();
-        pt.x = e.clientX;
-        pt.y = e.clientY;
-        const ptM = pt.matrixTransform(masterGroup.getScreenCTM().inverse());
-        const dx = ptM.x - cx, dy = ptM.y - cy;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        let angle = Math.atan2(dy, dx) * (180 / Math.PI);
-        angle = (angle + 90 + 360) % 360;
-        
-        const absSegment = Math.floor(angle / 3);
-        const ringInfo = getRingInfo(distance);
-        if (!ringInfo) return;
-
-        const cellKey = `c${currentCycle}_abs${absSegment}_${ringInfo.layerId}`;
-        
-        if (currentTool === 'erase') delete calendarData[cellKey];
-        else if (currentTool === 'paint') {
-            calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
-        }
-        
-        localStorage.setItem('polarCalendarDataV27', JSON.stringify(calendarData));
-        renderSavedData();
-    });
-}
