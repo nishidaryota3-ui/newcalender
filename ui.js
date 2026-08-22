@@ -61,7 +61,6 @@ function initUI() {
     if (btnMinimize && panelContent) {
         btnMinimize.style.position = 'absolute';
         btnMinimize.style.right = '10px';
-        
         btnMinimize.onclick = () => {
             if (panelContent.style.display === 'none') {
                 panelContent.style.display = 'block';
@@ -73,7 +72,29 @@ function initUI() {
         };
     }
 
-    // ★ プリセット管理と全月一括適用のハイブリッドUI（左右の幅を完全に揃えた版）
+    // ★ `index.html`に触らずに「俳句の切替・設定ボタン」を自動で差し込む
+    if (panelContent) {
+        const labels = panelContent.querySelectorAll('label');
+        let targetLabel = null;
+        labels.forEach(l => { if(l.textContent.includes('二十七宿')) targetLabel = l; });
+        if (targetLabel && targetLabel.parentNode && !document.getElementById('toggle-haiku-text')) {
+            const containerDiv = targetLabel.parentNode; 
+            const newRow = document.createElement('div');
+            newRow.style.display = 'flex';
+            newRow.style.justifyContent = 'space-between';
+            newRow.style.alignItems = 'center';
+            newRow.style.marginBottom = '5px';
+            newRow.innerHTML = `
+                <label style="display:flex; align-items:center; gap:5px; font-size:12px; cursor:pointer;">
+                    <input type="checkbox" id="toggle-haiku-text" checked style="accent-color:#d4af37;">
+                    俳句 (一番外周)
+                </label>
+                <button class="layer-settings-btn" data-target="haikuText" style="background:none; border:none; color:#8b949e; cursor:pointer; font-size:14px;">⚙️</button>
+            `;
+            containerDiv.parentNode.insertBefore(newRow, containerDiv.nextSibling);
+        }
+    }
+
     const themeBox = document.querySelector('#layer-panel-content > div:first-child');
     if (themeBox) {
         themeBox.style.background = "rgba(0, 0, 0, 0.3)";
@@ -312,6 +333,7 @@ function initUI() {
 
     let currentDesignTarget = null;
     
+    // ★ ターゲットに俳句を追加
     const targetNames = {
         canvasBg: "キャンバス背景", baseSvg: "ベース図形", lunarShadow: "月相シャドウ", astroPins: "天文学的ピン (朔望)", 
         dateLines: "日付区切り線 (30等分)", lunarMansion: "二十七宿", tideGraph: "潮汐波形", rainGraph: "毎時降水量 (棒線)", 
@@ -321,7 +343,8 @@ function initUI() {
         gregorian: "新暦日付", weekday: "曜日", lunar: "旧暦 (月相対応)", 
         sekki: "24節気", kou: "72候", wafuText: "右上 月名 (旧暦)", gregorianText: "右上 月名 (新暦)", 
         holiday: "祝日 (上段)", zassetsu: "雑節 (中段)", important: "重要年中行事 (下段)", 
-        eventShinto: "神事", eventBuddhism: "仏事", eventChurch: "教会行事", eventSonota: "その他"
+        eventShinto: "神事", eventBuddhism: "仏事", eventChurch: "教会行事", eventSonota: "その他",
+        haikuText: "俳句 (一番外周)"
     };
 
     const loadPanelData = () => {
@@ -342,7 +365,7 @@ function initUI() {
             }
         }
 
-        const isTextTarget = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'wafuText', 'gregorianText', 'dailyRainText', 'guideTime', 'guideTideText', 'guideRainText', 'lunarMansion', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar'].includes(currentDesignTarget);
+        const isTextTarget = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'wafuText', 'gregorianText', 'dailyRainText', 'guideTime', 'guideTideText', 'guideRainText', 'lunarMansion', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar', 'haikuText'].includes(currentDesignTarget);
         const isShapeTarget = ['baseSvg', 'lunarShadow', 'astroPins', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTideLine', 'guideRainLine', 'canvasBg'].includes(currentDesignTarget);
 
         if (isTextTarget) {
@@ -517,7 +540,7 @@ function initUI() {
             document.getElementById('dp-opacity-val').innerText = st.opacity;
         }
 
-        const isTextTarget = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'wafuText', 'gregorianText', 'dailyRainText', 'guideTime', 'guideTideText', 'guideRainText', 'lunarMansion', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar'].includes(currentDesignTarget);
+        const isTextTarget = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'wafuText', 'gregorianText', 'dailyRainText', 'guideTime', 'guideTideText', 'guideRainText', 'lunarMansion', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar', 'haikuText'].includes(currentDesignTarget);
 
         if (isTextTarget) {
             st.fontFamily = document.getElementById('dp-font').value;
@@ -635,6 +658,11 @@ function initUI() {
             if (window.lastKoyomiStartDate) drawDailyRainStats(window.lastKoyomiStartDate);
         } else if (window.lastKoyomiStartDate) {
             if (typeof drawKoyomiEvents === 'function') drawKoyomiEvents(window.lastKoyomiStartDate);
+        }
+        
+        // ★ 俳句の更新反映
+        if (currentDesignTarget === 'haikuText' && window.lastKoyomiStartDate) {
+            if (typeof drawHaikus === 'function') drawHaikus(window.lastKoyomiStartDate);
         }
     };
 
@@ -811,6 +839,7 @@ function initUI() {
         if(!document.getElementById("toggle-daily-rain-text")?.checked) addHiddenRule("#layer-daily-rain-text");
         if(!document.getElementById("toggle-date-lines")?.checked) addHiddenRule("#layer-lines");
         if(!document.getElementById("toggle-guide-time")?.checked) addHiddenRule("#layer-guide-time");
+        if(!document.getElementById("toggle-haiku-text")?.checked) addHiddenRule("#layer-haiku"); // ★ 俳句の表示・非表示用
         
         if(!document.getElementById("toggle-guide-tide-line")?.checked) addHiddenRule(".layer-guide-tide-line");
         if(!document.getElementById("toggle-guide-tide-text")?.checked) addHiddenRule(".layer-guide-tide-text");
@@ -835,11 +864,62 @@ function initUI() {
         }
     };
 
-    document.querySelectorAll("#layer-panel input[type='checkbox']").forEach(cb => {
-        cb.addEventListener("change", updateLayerVisibility);
+    // 自動で差し込んだ俳句チェックボックスにもイベントを紐付け
+    document.body.addEventListener("change", (e) => {
+        if (e.target && e.target.type === 'checkbox' && e.target.id.startsWith('toggle-')) {
+            updateLayerVisibility();
+        }
     });
     updateLayerVisibility();
 }
+
+// ★ クリックで開く和風モーダルを作成・表示する関数
+window.openHaikuModal = function(dateStr, haikus) {
+    let modal = document.getElementById('haiku-modal');
+    if(!modal) {
+        modal = document.createElement('div');
+        modal.id = 'haiku-modal';
+        modal.style = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); z-index:9999; display:flex; justify-content:center; align-items:center; opacity:0; transition:opacity 0.3s;";
+        modal.innerHTML = `
+            <div style="background:#fdfbf7; padding:50px 40px 40px 40px; border-radius:8px; max-width:80%; max-height:80%; overflow-x:auto; overflow-y:hidden; display:flex; flex-direction:column; align-items:center; position:relative; box-shadow:0 10px 40px rgba(0,0,0,0.8); border: 1px solid #d4af37;">
+                <button id="haiku-modal-close" style="position:absolute; top:10px; right:15px; background:none; border:none; font-size:28px; cursor:pointer; color:#888;">×</button>
+                <div id="haiku-modal-date" style="font-family:'Shippori Mincho', serif; font-size:16px; color:#888; margin-bottom:20px; letter-spacing:2px;"></div>
+                <div id="haiku-modal-content" style="display:flex; gap:30px; flex-direction:row-reverse; font-family:'Shippori Mincho', serif; font-size:18px; color:#2c3e50; writing-mode: vertical-rl; max-height: 60vh;">
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        document.getElementById('haiku-modal-close').onclick = () => {
+            modal.style.opacity = '0';
+            setTimeout(() => modal.style.display = 'none', 300);
+        };
+        modal.onclick = (e) => {
+            if(e.target === modal) {
+                modal.style.opacity = '0';
+                setTimeout(() => modal.style.display = 'none', 300);
+            }
+        };
+    }
+    
+    // 日付を「YYYY年MM月DD日」の形式に変換
+    document.getElementById('haiku-modal-date').textContent = dateStr.replace(/-/g, '年').replace(/年(\d+)$/, '月$1日');
+    
+    const content = document.getElementById('haiku-modal-content');
+    content.innerHTML = '';
+    
+    // 俳句を一つずつ短冊のように並べる
+    haikus.forEach(h => {
+        const div = document.createElement('div');
+        div.style = "border-left:1px dashed #ccc; padding-left:15px; line-height:2.5; letter-spacing:3px;";
+        div.textContent = h;
+        content.appendChild(div);
+    });
+    
+    modal.style.display = 'flex';
+    void modal.offsetWidth; // 描画を強制
+    modal.style.opacity = '1';
+};
 
 function initInteractions() {
     container.addEventListener('wheel', (e) => {
