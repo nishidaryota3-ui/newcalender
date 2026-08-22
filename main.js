@@ -1,6 +1,6 @@
 // main.js (司令塔・初期化モジュール)
 
-window.haikuDatabase = {}; // ★俳句データ用
+window.haikuDatabase = {}; 
 
 window.defaultLayerSettings = {
     canvasBg: { fill: "#f5f5f0" },
@@ -35,7 +35,6 @@ window.defaultLayerSettings = {
     eventBuddhism: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#3f3d56", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     eventChurch: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#6b5b4e", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     eventSonota: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#555555", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
-    // ★ 俳句用の初期設定
     haikuText: { fontFamily: "'Shippori Mincho', serif", fontSize: 8, fill: "#2c3e50", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 40 },
     lunar: {
         fontFamily: "'Shippori Mincho', serif", fontSize: 11, fontWeight: "normal", opacity: 1, offsetRadius: 0,
@@ -66,22 +65,36 @@ function mergeDeep(target, ...sources) {
     return mergeDeep(target, ...sources);
 }
 
+// ★ フリーズを防止する超高速で安全なCSVパーサー
+function parseCSVRow(str) {
+    let result = [];
+    let current = '';
+    let inQuotes = false;
+    for (let i = 0; i < str.length; i++) {
+        if (str[i] === '"') {
+            if (inQuotes && str[i+1] === '"') { current += '"'; i++; }
+            else { inQuotes = !inQuotes; }
+        } else if (str[i] === ',' && !inQuotes) {
+            result.push(current); current = '';
+        } else { current += str[i]; }
+    }
+    result.push(current);
+    return result.map(s => s.trim());
+}
+
 window.appSettings = JSON.parse(localStorage.getItem('polarCalendarSettingsV5')) || {
     global: JSON.parse(JSON.stringify(window.defaultLayerSettings)),
     months: {}
 };
 window.layerSettings = {}; 
+window.savedThemes = JSON.parse(localStorage.getItem('polarCalendarThemesV1')) || {};
 
 window.loadSettingsForCycle = function(cycleIdx) {
     let base = JSON.parse(JSON.stringify(window.appSettings.global));
     base = mergeDeep(JSON.parse(JSON.stringify(window.defaultLayerSettings)), base);
-    
     let monthData = window.appSettings.months[`cycle_${cycleIdx}`];
-    if (monthData) {
-        window.layerSettings = mergeDeep(base, monthData);
-    } else {
-        window.layerSettings = base;
-    }
+    if (monthData) { window.layerSettings = mergeDeep(base, monthData); } 
+    else { window.layerSettings = base; }
 };
 
 window.saveLayerSettings = () => {
@@ -99,7 +112,6 @@ window.applyGlobalSettings = () => {
 
 let koyomiDatabase = {};
 const KOYOMI_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRqoX31YV0YAO3Mq4WatmLhjP7uUSF6dPMy3D2H3ktEFDFg1X1gJmoIXkul9JpS4aLgK9Ze3SSbV9BZ/pub?gid=0&single=true&output=csv';
-// ★ 俳句スプレッドシートのURL
 const HAIKU_CSV_URL = 'https://docs.google.com/spreadsheets/d/1m0y8AOJNx1Ad4I44poPheQAQNki1-QQIwi9wSw8jaBg/export?format=csv&gid=126185184';
 
 function formatDateStr(dateObj) {
@@ -139,7 +151,7 @@ async function loadLocalCSV() {
             const text = await res.text();
             const lines = text.split('\n');
             for (let i = 1; i < lines.length; i++) {
-                const row = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').trim());
+                const row = parseCSVRow(lines[i]);
                 if (row[0]) {
                     let dateKey = row[0].replace(/\//g, '-');
                     const parts = dateKey.split('-');
@@ -150,27 +162,29 @@ async function loadLocalCSV() {
         }
     } catch(e) { console.error("暦データの読み込みに失敗:", e); }
 
-    // ★ 俳句データの直接リアルタイム取得
     try {
         const res = await fetch(HAIKU_CSV_URL);
         if (res.ok) {
-            const text = await res.text();
-            const lines = text.split('\n');
-            for (let i = 1; i < lines.length; i++) {
-                const row = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(s => s.replace(/^"|"$/g, '').trim());
-                if (row.length > 11) {
-                    const haiku = row[0];
-                    const author = row[1];
-                    const status = row[10];
-                    const dateStrRaw = row[11];
-                    // B列が西田上酢、かつ K列が完成句のデータのみ抽出
-                    if (author === "西田上酢" && status === "完成句" && dateStrRaw) {
-                        let dateKey = dateStrRaw.replace(/\//g, '-');
-                        const parts = dateKey.split('-');
-                        if(parts.length === 3) dateKey = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-                        
-                        if (!window.haikuDatabase[dateKey]) window.haikuDatabase[dateKey] = [];
-                        window.haikuDatabase[dateKey].push(haiku);
+            const contentType = res.headers.get('content-type');
+            if (contentType && contentType.includes('text/html')) {
+                console.warn("俳句データがHTMLとして返されました。シートの公開設定を確認してください。");
+            } else {
+                const text = await res.text();
+                const lines = text.split('\n');
+                for (let i = 1; i < lines.length; i++) {
+                    const row = parseCSVRow(lines[i]); // ★ フリーズしない安全な関数を使用
+                    if (row.length > 11) {
+                        const haiku = row[0];
+                        const author = row[1];
+                        const status = row[10];
+                        const dateStrRaw = row[11];
+                        if (author === "西田上酢" && status === "完成句" && dateStrRaw) {
+                            let dateKey = dateStrRaw.replace(/\//g, '-');
+                            const parts = dateKey.split('-');
+                            if(parts.length === 3) dateKey = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+                            if (!window.haikuDatabase[dateKey]) window.haikuDatabase[dateKey] = [];
+                            window.haikuDatabase[dateKey].push(haiku);
+                        }
                     }
                 }
             }
@@ -272,8 +286,6 @@ async function updateCalendarCycle() {
     if (typeof renderSavedData === 'function') renderSavedData();
     if (typeof drawTimeLabels === 'function') drawTimeLabels();
     if (typeof drawKoyomiEvents === 'function') drawKoyomiEvents(startDate);
-    
-    // ★ 俳句の描画呼び出し
     if (typeof drawHaikus === 'function') drawHaikus(startDate);
 
     if (typeof masterGroup !== 'undefined' && masterGroup) {
@@ -358,7 +370,7 @@ loadLocalCSV().then(() => {
                 "layer-daily-rain-text",      
                 "layer-guide-time",           
                 "layer-wafu-text",
-                "layer-haiku" // ★ 俳句用のレイヤー
+                "layer-haiku" 
             ];
 
             const defs = document.createElementNS(svgNS, "defs");
