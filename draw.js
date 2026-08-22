@@ -41,7 +41,6 @@ function computeMonthDays(startDate) {
     }
 }
 
-// ▼▼ リファクタリング：SVG要素を一括生成する共通ヘルパー関数 ▼▼
 function createSVGElem(tag, attrs = {}, text = null) {
     const el = document.createElementNS(svgNS, tag);
     for (const k in attrs) {
@@ -74,7 +73,6 @@ function getStyleAttrs(st) {
 function createStyledText(st, attrs = {}, text = null) {
     return createSVGElem("text", { ...getStyleAttrs(st), ...attrs }, text);
 }
-// ▲▲ ここまで ▲▲
 
 
 function drawAstronomicalPins(cycleStartTime) {
@@ -697,17 +695,23 @@ function drawKoyomiEvents(startDate) {
         if (dbRow[3]) drawOuterText(dbRow[3], false, "layer-kou", window.layerSettings.kou, dbRow[2] ? 1.5 : 0);
     }
 
+    // ▼▼ 修正箇所：月名テキストをフォントサイズの5文字分右へシフト ▼▼
     const stWafu = window.layerSettings.wafuText;
     const stGreText = window.layerSettings.gregorianText;
     const wafuTextLayer = document.getElementById("layer-wafu-text");
     if(wafuTextLayer) {
         wafuTextLayer.innerHTML = "";
-        wafuTextLayer.appendChild(createStyledText(stWafu, { class: "layer-wafu-text", x: cx + 860, y: cy - 850 + stWafu.offsetRadius, "text-anchor": "end", transform: `rotate(${-globalRotation}, ${cx}, ${cy})` }, startWafu ? `${startWafu}（旧暦）` : "旧暦取得中"));
+        
+        const shiftX = (stWafu.fontSize || 70) * 5;
+        const baseX = cx + 860 + shiftX;
+        
+        wafuTextLayer.appendChild(createStyledText(stWafu, { class: "layer-wafu-text", x: baseX, y: cy - 850 + stWafu.offsetRadius, "text-anchor": "end", transform: `rotate(${-globalRotation}, ${cx}, ${cy})` }, startWafu ? `${startWafu}（旧暦）` : "旧暦取得中"));
         
         const wafuList = ['睦月','如月','弥生','卯月','皐月','水無月','文月','葉月','長月','神無月','霜月','師走'];
         const newWafuStr = startGregorianMonth === endGregorianMonth ? wafuList[startGregorianMonth - 1] : `${wafuList[startGregorianMonth - 1]} ／ ${wafuList[endGregorianMonth - 1]}`;
-        wafuTextLayer.appendChild(createStyledText(stGreText, { class: "layer-gregorian-text", x: cx + 860, y: cy - 850 + (stWafu.fontSize * 0.9) + stGreText.offsetRadius, "text-anchor": "end", transform: `rotate(${-globalRotation}, ${cx}, ${cy})` }, `${newWafuStr}（新暦）`));
+        wafuTextLayer.appendChild(createStyledText(stGreText, { class: "layer-gregorian-text", x: baseX, y: cy - 850 + (stWafu.fontSize * 0.9) + stGreText.offsetRadius, "text-anchor": "end", transform: `rotate(${-globalRotation}, ${cx}, ${cy})` }, `${newWafuStr}（新暦）`));
     }
+    // ▲▲ ここまで ▲▲
 }
 
 function drawHaikus(startDate) {
