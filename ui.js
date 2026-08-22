@@ -278,7 +278,6 @@ function initUI() {
     `;
     document.body.appendChild(designPanel);
 
-    // ▼▼ 修正1：UIパネル上でのクリックやスクロールがキャンバスに貫通するのを完全にブロック ▼▼
     const blockEvent = (e) => e.stopPropagation();
     [navDiv, jumpDiv, toolsDiv, paletteDiv, designPanel].forEach(panel => {
         if (panel) {
@@ -286,7 +285,6 @@ function initUI() {
             panel.addEventListener('wheel', blockEvent);
         }
     });
-    // ▲▲ ここまで ▲▲
 
     let isDraggingPanel = false;
     let dpStartX = 0, dpStartY = 0;
@@ -520,7 +518,6 @@ function initUI() {
         }
     });
 
-    // ▼▼ 修正2：再描画の対象判定を、厳密な一致で振り分ける ▼▼
     const triggerRedraw = (target) => {
         if (target === 'baseSvg') {
             const bgGroup = document.getElementById('bg-group');
@@ -543,26 +540,19 @@ function initUI() {
         else if (target === 'guideTime' && typeof drawTimeLabels === 'function') drawTimeLabels();
         
         if (window.lastCycleStartTimeMs) {
-            // 潮汐グループ
             if (['tideGraph', 'guideTideLine', 'guideTideText'].includes(target) && typeof drawTideGraph === 'function') drawTideGraph(window.lastCycleStartTimeMs);
-            // 降水量（棒線）グループ
             if (['rainGraph', 'guideRainLine', 'guideRainText'].includes(target) && typeof drawRainfallGraph === 'function') drawRainfallGraph(window.lastCycleStartTimeMs);
-            // 天文学・図形グループ
             if (target === 'lunarShadow' && typeof drawLunarShadow === 'function') drawLunarShadow(window.lastCycleStartTimeMs);
             if (target === 'astroPins' && typeof drawAstronomicalPins === 'function') drawAstronomicalPins(window.lastCycleStartTimeMs);
             if (target === 'lunarMansion' && typeof drawLunarMansions === 'function') drawLunarMansions(window.lastCycleStartTimeMs);
         }
 
         if (window.lastKoyomiStartDate) {
-            // 日別降水量（背景と数値）グループ
             if (['dailyRainBg', 'dailyRainText'].includes(target) && typeof drawDailyRainStats === 'function') drawDailyRainStats(window.lastKoyomiStartDate);
-            // 俳句グループ
             if (target === 'haikuText' && typeof drawHaikus === 'function') drawHaikus(window.lastKoyomiStartDate);
-            // 日付・暦グループ
             if (['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar', 'wafuText', 'gregorianText'].includes(target) && typeof drawKoyomiEvents === 'function') drawKoyomiEvents(window.lastKoyomiStartDate);
         }
     };
-    // ▲▲ ここまで ▲▲
 
     const updateDesign = () => {
         if (!currentDesignTarget) return;
@@ -816,6 +806,7 @@ function initUI() {
     updateLayerVisibility();
 }
 
+// ▼▼ 修正箇所：モーダルのHTML構造とCSSを本来の縦書き（右から左）に対応させる ▼▼
 window.openHaikuModal = function(dateStr, haikus) {
     let modal = document.getElementById('haiku-modal');
     if(!modal) {
@@ -823,10 +814,12 @@ window.openHaikuModal = function(dateStr, haikus) {
         modal.id = 'haiku-modal';
         modal.style = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); z-index:9999; display:flex; justify-content:center; align-items:center; opacity:0; transition:opacity 0.3s;";
         modal.innerHTML = `
-            <div style="background:#fdfbf7; padding:50px 40px 40px 40px; border-radius:8px; max-width:80%; max-height:80%; overflow-x:auto; overflow-y:hidden; display:flex; flex-direction:column; align-items:center; position:relative; box-shadow:0 10px 40px rgba(0,0,0,0.8); border: 1px solid #d4af37;">
+            <div style="background:#fdfbf7; padding:50px 40px 40px 40px; border-radius:8px; max-width:80%; max-height:80%; overflow-x:auto; overflow-y:auto; display:flex; flex-direction:column; align-items:center; position:relative; box-shadow:0 10px 40px rgba(0,0,0,0.8); border: 1px solid #d4af37;">
                 <button id="haiku-modal-close" style="position:absolute; top:10px; right:15px; background:none; border:none; font-size:28px; cursor:pointer; color:#888;">×</button>
-                <div id="haiku-modal-date" style="font-family:'Shippori Mincho', serif; font-size:16px; color:#888; margin-bottom:20px; letter-spacing:2px;"></div>
-                <div id="haiku-modal-content" style="display:flex; gap:30px; flex-direction:row-reverse; font-family:'Shippori Mincho', serif; font-size:18px; color:#2c3e50; writing-mode: vertical-rl; max-height: 60vh;">
+                <div id="haiku-modal-date" style="font-family:'Shippori Mincho', serif; font-size:16px; color:#888; margin-bottom:30px; letter-spacing:2px; text-align:center; width:100%;"></div>
+                
+                <!-- フレックスボックスを外し、自然なブロックの縦書きとしてレイアウト -->
+                <div id="haiku-modal-content" style="font-family:'Shippori Mincho', serif; font-size:18px; color:#2c3e50; writing-mode:vertical-rl; max-height:60vh; text-align:left;">
                 </div>
             </div>
         `;
@@ -848,9 +841,11 @@ window.openHaikuModal = function(dateStr, haikus) {
     const content = document.getElementById('haiku-modal-content');
     content.innerHTML = '';
     
-    haikus.forEach(h => {
+    haikus.forEach((h, idx) => {
         const div = document.createElement('div');
-        div.style = "border-left:1px dashed #ccc; padding-left:15px; line-height:2.5; letter-spacing:3px;";
+        // 右側から順番に配置されていくため、最後の要素以外に左側の区切り線を入れる
+        const borderStyle = idx === haikus.length - 1 ? "" : "border-left:1px dashed #ccc;";
+        div.style = `margin-left:30px; padding-left:20px; ${borderStyle} line-height:2; letter-spacing:3px;`;
         div.textContent = h;
         content.appendChild(div);
     });
@@ -859,168 +854,4 @@ window.openHaikuModal = function(dateStr, haikus) {
     void modal.offsetWidth; 
     modal.style.opacity = '1';
 };
-
-function initInteractions() {
-    // 【修正箇所】IDを 'container' に修正し、ドラッグイベントが画面全体に及ぶのを防止
-    const appContainer = document.getElementById('container') || document.body;
-    
-    appContainer.addEventListener('wheel', (e) => {
-        e.preventDefault();
-        const zoomFactor = e.deltaY > 0 ? 1.05 : 0.95;
-        if (typeof svg === 'undefined' || !svg) return;
-        const pt = svg.createSVGPoint();
-        pt.x = e.clientX;
-        pt.y = e.clientY;
-        const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-        
-        viewBox.w *= zoomFactor;
-        viewBox.h *= zoomFactor;
-        viewBox.x = svgP.x - (svgP.x - viewBox.x) * zoomFactor;
-        viewBox.y = svgP.y - (svgP.y - viewBox.y) * zoomFactor;
-        
-        svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
-    }, { passive: false });
-
-    let isInteractionActive = false;
-    let startPos = { x: 0, y: 0 }, dragDistance = 0;
-    let startGlobalRotation = 0, startAngleOffset = 0;
-    let lastPaintedCell = null;
-
-    appContainer.addEventListener('mousedown', (e) => {
-        dragDistance = 0;
-        isInteractionActive = true;
-        lastPaintedCell = null;
-
-        if (currentTool === 'pointer') {
-            appContainer.style.cursor = interactionMode === 'pan' ? 'grabbing' : 'ew-resize';
-            if (interactionMode === 'rotate') {
-                if(typeof svg === 'undefined' || !svg) return;
-                const pt = svg.createSVGPoint();
-                pt.x = e.clientX;
-                pt.y = e.clientY;
-                const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-                startAngleOffset = Math.atan2(svgP.y - cy, svgP.x - cx) * 180 / Math.PI;
-                startGlobalRotation = globalRotation;
-            } else {
-                startPos = { x: e.clientX, y: e.clientY };
-            }
-        }
-    });
-
-    window.addEventListener('mousemove', (e) => {
-        if (isInteractionActive && currentTool === 'pointer') {
-            if (interactionMode === 'pan') {
-                const dxScreen = startPos.x - e.clientX, dyScreen = startPos.y - e.clientY;
-                dragDistance += Math.abs(dxScreen) + Math.abs(dyScreen);
-                if(typeof viewBox !== 'undefined' && appContainer && typeof svg !== 'undefined' && svg) {
-                    viewBox.x += dxScreen * (viewBox.w / appContainer.clientWidth);
-                    viewBox.y += dyScreen * (viewBox.h / appContainer.clientHeight);
-                    svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
-                }
-                startPos = { x: e.clientX, y: e.clientY };
-            } else if (interactionMode === 'rotate') {
-                if(typeof svg === 'undefined' || !svg) return;
-                const pt = svg.createSVGPoint();
-                pt.x = e.clientX;
-                pt.y = e.clientY;
-                const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-                const currentAngleOffset = Math.atan2(svgP.y - cy, svgP.x - cx) * 180 / Math.PI;
-                
-                let delta = currentAngleOffset - startAngleOffset;
-                if (delta > 180) delta -= 360;
-                if (delta < -180) delta += 360;
-                
-                globalRotation = startGlobalRotation + delta;
-                if(typeof masterGroup !== 'undefined' && masterGroup) {
-                    masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
-                }
-                dragDistance += Math.abs(delta) * 5;
-                startGlobalRotation = globalRotation;
-                startAngleOffset = currentAngleOffset;
-            }
-        }
-
-        if (typeof svg === 'undefined' || !svg || typeof masterGroup === 'undefined' || !masterGroup) return;
-        const pt = svg.createSVGPoint();
-        pt.x = e.clientX;
-        pt.y = e.clientY;
-        const ptM = pt.matrixTransform(masterGroup.getScreenCTM().inverse());
-        const dx = ptM.x - cx, dy = ptM.y - cy;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        
-        let angle = Math.atan2(dy, dx) * (180 / Math.PI);
-        angle = (angle + 90 + 360) % 360;
-        
-        const absSegment = Math.floor(angle / 3);
-        let ringInfo = null;
-        if (typeof getRingInfo === 'function') ringInfo = getRingInfo(distance);
-
-        let sb = document.getElementById('status-bar');
-        if(!sb) {
-            sb = document.createElement('div');
-            sb.id = 'status-bar';
-            document.body.appendChild(sb);
-        }
-
-        if (ringInfo) {
-            const relSegment = (absSegment - currentStartSegment + 120) % 120;
-            const day = Math.floor(relSegment / 4) + 1;
-            const timeSlot = relSegment % 4;
-            const timeLabels = ["0:00〜6:00", "6:00〜12:00", "12:00〜18:00", "18:00〜24:00"];
-            
-            sb.innerText = `第 ${day} 日目 ｜ ${timeLabels[timeSlot]} ｜ ${ringInfo.name}`;
-            sb.style.color = "#fff";
-
-            if (isInteractionActive && (currentTool === 'paint' || currentTool === 'erase')) {
-                const cellKey = `c${currentCycle}_abs${absSegment}_${ringInfo.layerId}`;
-                if (lastPaintedCell !== cellKey) {
-                    if (currentTool === 'erase') delete calendarData[cellKey];
-                    else calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
-                    if (typeof renderSavedData === 'function') renderSavedData();
-                    lastPaintedCell = cellKey;
-                }
-            }
-        } else {
-            sb.innerText = `キャンバス外`;
-            sb.style.color = "#8b949e";
-        }
-    });
-
-    window.addEventListener('mouseup', () => {
-        isInteractionActive = false;
-        if (typeof currentTool !== 'undefined' && currentTool === 'pointer' && appContainer) {
-            appContainer.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize';
-        }
-        if (typeof calendarData !== 'undefined') localStorage.setItem('polarCalendarDataV27', JSON.stringify(calendarData));
-    });
-
-    if(typeof svg !== 'undefined' && svg) {
-        svg.addEventListener('click', (e) => {
-            if (dragDistance > 5 || currentTool === 'pointer') return;
-            const pt = svg.createSVGPoint();
-            pt.x = e.clientX;
-            pt.y = e.clientY;
-            if(typeof masterGroup === 'undefined' || !masterGroup) return;
-            const ptM = pt.matrixTransform(masterGroup.getScreenCTM().inverse());
-            const dx = ptM.x - cx, dy = ptM.y - cy;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-            let angle = Math.atan2(dy, dx) * (180 / Math.PI);
-            angle = (angle + 90 + 360) % 360;
-            
-            const absSegment = Math.floor(angle / 3);
-            let ringInfo = null;
-            if(typeof getRingInfo === 'function') ringInfo = getRingInfo(distance);
-            if (!ringInfo) return;
-
-            const cellKey = `c${currentCycle}_abs${absSegment}_${ringInfo.layerId}`;
-            
-            if (currentTool === 'erase') delete calendarData[cellKey];
-            else if (currentTool === 'paint') {
-                calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
-            }
-            
-            localStorage.setItem('polarCalendarDataV27', JSON.stringify(calendarData));
-            if(typeof renderSavedData === 'function') renderSavedData();
-        });
-    }
-}
+// ▲▲ ここまで ▲▲
