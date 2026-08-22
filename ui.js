@@ -1,4 +1,4 @@
-// ui.js (UI構築・イベントモジュール) - 軽量化・データ駆動・バグ修正版
+// ui.js (UI構築・イベントモジュール) - 軽量化・データ駆動・バグ修正・堅牢化版
 
 const TEXT_TARGETS = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'wafuText', 'gregorianText', 'dailyRainText', 'guideTime', 'guideTideText', 'guideRainText', 'lunarMansion', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar', 'haikuText'];
 const SHAPE_TARGETS = ['baseSvg', 'lunarShadow', 'astroPins', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTideLine', 'guideRainLine', 'canvasBg'];
@@ -278,11 +278,17 @@ function initUI() {
     `;
     document.body.appendChild(designPanel);
 
+    // 【修正箇所】すべてのUIパネルでの操作をブロックし、背景に干渉させない
     const blockEvent = (e) => e.stopPropagation();
-    [navDiv, jumpDiv, toolsDiv, paletteDiv, designPanel].forEach(panel => {
+    const uiPanels = [
+        navDiv, jumpDiv, toolsDiv, paletteDiv, designPanel, 
+        document.getElementById('layer-panel') // ※メインのレイヤーパネルも防御対象に追加
+    ];
+    uiPanels.forEach(panel => {
         if (panel) {
             panel.addEventListener('mousedown', blockEvent);
             panel.addEventListener('wheel', blockEvent);
+            panel.addEventListener('mousemove', blockEvent);
         }
     });
 
@@ -696,17 +702,8 @@ function initUI() {
         activeBtn.style.borderColor = '#d4af37';
         activeBtn.style.color = '#000';
 
-        if (currentTool === 'pointer') {
-            if (interactionMode === 'pan') {
-                btnPointer.innerHTML = iconPan;
-                btnPointer.title = "移動 (V)";
-            } else {
-                btnPointer.innerHTML = iconRotate;
-                btnPointer.title = "回転 (V)";
-            }
-        }
-
-        const appCont = document.getElementById('container') || document.body;
+        // 【修正箇所】カーソルの変更対象も document.body に戻し、確実にカーソルアイコンが切り替わるように
+        const appCont = document.body;
         if (tool === 'pointer') appCont.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize';
         else if (tool === 'paint') appCont.style.cursor = 'crosshair';
         else if (tool === 'erase') appCont.style.cursor = 'cell';
@@ -806,7 +803,6 @@ function initUI() {
     updateLayerVisibility();
 }
 
-// ▼▼ 修正箇所：モーダルのHTML構造とCSSを本来の縦書き（右から左）に対応させる ▼▼
 window.openHaikuModal = function(dateStr, haikus) {
     let modal = document.getElementById('haiku-modal');
     if(!modal) {
@@ -854,4 +850,172 @@ window.openHaikuModal = function(dateStr, haikus) {
     void modal.offsetWidth; 
     modal.style.opacity = '1';
 };
-// ▲▲ ここまで ▲▲
+
+function initInteractions() {
+    // 【修正箇所】絶対的な安定性を担保するため、イベントの監視を document.body に戻します。
+    // （UIパネル側の stopPropagation によって、スライダーの不具合も防がれています）
+    const appContainer = document.body;
+    
+    appContainer.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const zoomFactor = e.deltaY > 0 ? 1.05 : 0.95;
+        if (typeof svg === 'undefined' || !svg) return;
+        const pt = svg.createSVGPoint();
+        pt.x = e.clientX;
+        pt.y = e.clientY;
+        const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+        
+        viewBox.w *= zoomFactor;
+        viewBox.h *= zoomFactor;
+        viewBox.x = svgP.x - (svgP.x - viewBox.x) * zoomFactor;
+        viewBox.y = svgP.y - (svgP.y - viewBox.y) * zoomFactor;
+        
+        svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+    }, { passive: false });
+
+    let isInteractionActive = false;
+    let startPos = { x: 0, y: 0 }, dragDistance = 0;
+    let startGlobalRotation = 0, startAngleOffset = 0;
+    let lastPaintedCell = null;
+
+    appContainer.addEventListener('mousedown', (e) => {
+        dragDistance = 0;
+        isInteractionActive = true;
+        lastPaintedCell = null;
+
+        if (currentTool === 'pointer') {
+            appContainer.style.cursor = interactionMode === 'pan' ? 'grabbing' : 'ew-resize';
+            if (interactionMode === 'rotate') {
+                if(typeof svg === 'undefined' || !svg) return;
+                const pt = svg.createSVGPoint();
+                pt.x = e.clientX;
+                pt.y = e.clientY;
+                const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+                startAngleOffset = Math.atan2(svgP.y - cy, svgP.x - cx) * 180 / Math.PI;
+                startGlobalRotation = globalRotation;
+            } else {
+                startPos = { x: e.clientX, y: e.clientY };
+            }
+        }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (isInteractionActive && currentTool === 'pointer') {
+            if (interactionMode === 'pan') {
+                const dxScreen = startPos.x - e.clientX, dyScreen = startPos.y - e.clientY;
+                dragDistance += Math.abs(dxScreen) + Math.abs(dyScreen);
+                if(typeof viewBox !== 'undefined' && appContainer && typeof svg !== 'undefined' && svg) {
+                    // 【修正箇所】NaN感染を完全に防ぐため、万が一の幅0判定時でも window.innerWidth でカバーします
+                    const cw = appContainer.clientWidth || window.innerWidth;
+                    const ch = appContainer.clientHeight || window.innerHeight;
+                    viewBox.x += dxScreen * (viewBox.w / cw);
+                    viewBox.y += dyScreen * (viewBox.h / ch);
+                    svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+                }
+                startPos = { x: e.clientX, y: e.clientY };
+            } else if (interactionMode === 'rotate') {
+                if(typeof svg === 'undefined' || !svg) return;
+                const pt = svg.createSVGPoint();
+                pt.x = e.clientX;
+                pt.y = e.clientY;
+                const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+                const currentAngleOffset = Math.atan2(svgP.y - cy, svgP.x - cx) * 180 / Math.PI;
+                
+                let delta = currentAngleOffset - startAngleOffset;
+                if (delta > 180) delta -= 360;
+                if (delta < -180) delta += 360;
+                
+                globalRotation = startGlobalRotation + delta;
+                if(typeof masterGroup !== 'undefined' && masterGroup) {
+                    masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
+                }
+                dragDistance += Math.abs(delta) * 5;
+                startGlobalRotation = globalRotation;
+                startAngleOffset = currentAngleOffset;
+            }
+        }
+
+        if (typeof svg === 'undefined' || !svg || typeof masterGroup === 'undefined' || !masterGroup) return;
+        const pt = svg.createSVGPoint();
+        pt.x = e.clientX;
+        pt.y = e.clientY;
+        const ptM = pt.matrixTransform(masterGroup.getScreenCTM().inverse());
+        const dx = ptM.x - cx, dy = ptM.y - cy;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+        angle = (angle + 90 + 360) % 360;
+        
+        const absSegment = Math.floor(angle / 3);
+        let ringInfo = null;
+        if (typeof getRingInfo === 'function') ringInfo = getRingInfo(distance);
+
+        let sb = document.getElementById('status-bar');
+        if(!sb) {
+            sb = document.createElement('div');
+            sb.id = 'status-bar';
+            document.body.appendChild(sb);
+        }
+
+        if (ringInfo) {
+            const relSegment = (absSegment - currentStartSegment + 120) % 120;
+            const day = Math.floor(relSegment / 4) + 1;
+            const timeSlot = relSegment % 4;
+            const timeLabels = ["0:00〜6:00", "6:00〜12:00", "12:00〜18:00", "18:00〜24:00"];
+            
+            sb.innerText = `第 ${day} 日目 ｜ ${timeLabels[timeSlot]} ｜ ${ringInfo.name}`;
+            sb.style.color = "#fff";
+
+            if (isInteractionActive && (currentTool === 'paint' || currentTool === 'erase')) {
+                const cellKey = `c${currentCycle}_abs${absSegment}_${ringInfo.layerId}`;
+                if (lastPaintedCell !== cellKey) {
+                    if (currentTool === 'erase') delete calendarData[cellKey];
+                    else calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
+                    if (typeof renderSavedData === 'function') renderSavedData();
+                    lastPaintedCell = cellKey;
+                }
+            }
+        } else {
+            sb.innerText = `キャンバス外`;
+            sb.style.color = "#8b949e";
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        isInteractionActive = false;
+        if (typeof currentTool !== 'undefined' && currentTool === 'pointer' && appContainer) {
+            appContainer.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize';
+        }
+        if (typeof calendarData !== 'undefined') localStorage.setItem('polarCalendarDataV27', JSON.stringify(calendarData));
+    });
+
+    if(typeof svg !== 'undefined' && svg) {
+        svg.addEventListener('click', (e) => {
+            if (dragDistance > 5 || currentTool === 'pointer') return;
+            const pt = svg.createSVGPoint();
+            pt.x = e.clientX;
+            pt.y = e.clientY;
+            if(typeof masterGroup === 'undefined' || !masterGroup) return;
+            const ptM = pt.matrixTransform(masterGroup.getScreenCTM().inverse());
+            const dx = ptM.x - cx, dy = ptM.y - cy;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+            angle = (angle + 90 + 360) % 360;
+            
+            const absSegment = Math.floor(angle / 3);
+            let ringInfo = null;
+            if(typeof getRingInfo === 'function') ringInfo = getRingInfo(distance);
+            if (!ringInfo) return;
+
+            const cellKey = `c${currentCycle}_abs${absSegment}_${ringInfo.layerId}`;
+            
+            if (currentTool === 'erase') delete calendarData[cellKey];
+            else if (currentTool === 'paint') {
+                calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
+            }
+            
+            localStorage.setItem('polarCalendarDataV27', JSON.stringify(calendarData));
+            if(typeof renderSavedData === 'function') renderSavedData();
+        });
+    }
+}
