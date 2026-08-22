@@ -31,7 +31,7 @@ function computeMonthDays(startDate) {
     for (let i = 15; i < 30; i++) { 
         const loopDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
         const dateStr = formatDateStr(loopDate);
-        const dbRow = koyomiDatabase[dateStr];
+        const dbRow = window.koyomiDatabase[dateStr];
         if (dbRow && dbRow[1] && dbRow[1].match(/旧暦.*?月(.+?)日/)) {
             if (dbRow[1].match(/旧暦.*?月(.+?)日/)[1] === "一") {
                 window.currentMonthDays = i; 
@@ -45,13 +45,18 @@ function drawAstronomicalPins(cycleStartTime) {
     const layer = document.getElementById("layer-astronomical-pins");
     if(!layer) return;
     layer.innerHTML = "";
-    if (concentricRings.length < 30) return;
+    const rings = window.concentricRings || [];
+    if (rings.length < 30) return;
 
     const st = window.layerSettings.astroPins;
     if(!st || st.opacity === 0) return;
 
-    const rMin = concentricRings[0] + (st.radiusOffset || 0);
-    const startAngle = currentStartSegment * 3;
+    const cX = typeof cx !== 'undefined' ? cx : 0;
+    const cY = typeof cy !== 'undefined' ? cy : 0;
+    const svgNS_val = "http://www.w3.org/2000/svg";
+
+    const rMin = rings[0] + (st.radiusOffset || 0);
+    const startAngle = (window.currentStartSegment || 0) * 3;
     
     let prevDiff = null;
     
@@ -86,15 +91,15 @@ function drawAstronomicalPins(cycleStartTime) {
                 if (cross) {
                     const exactI = i - 1 + fraction;
                     const angle = startAngle + exactI * 0.5;
-                    const pt = polarToCartesian(cx, cy, rMin, angle);
+                    const pt = polarToCartesian(cX, cY, rMin, angle);
                     
-                    const g = document.createElementNS(svgNS, "g");
+                    const g = document.createElementNS(svgNS_val, "g");
                     g.setAttribute("transform", `translate(${pt.x}, ${pt.y}) rotate(${angle})`);
                     g.setAttribute("opacity", st.opacity);
                     
                     const R = 3.5 * (st.scale || 1); 
                     
-                    const circle = document.createElementNS(svgNS, "circle");
+                    const circle = document.createElementNS(svgNS_val, "circle");
                     circle.setAttribute("cx", 0);
                     circle.setAttribute("cy", 0);
                     circle.setAttribute("r", R);
@@ -108,13 +113,13 @@ function drawAstronomicalPins(cycleStartTime) {
                     } else if (t.key === 'full') {
                         g.appendChild(circle);
                     } else if (t.key === 'first') {
-                        const path = document.createElementNS(svgNS, "path");
+                        const path = document.createElementNS(svgNS_val, "path");
                         path.setAttribute("d", `M 0,-${R} A ${R},${R} 0 0,1 0,${R} Z`);
                         path.setAttribute("fill", st.fill);
                         g.appendChild(path);
                         g.appendChild(circle);
                     } else if (t.key === 'last') {
-                        const path = document.createElementNS(svgNS, "path");
+                        const path = document.createElementNS(svgNS_val, "path");
                         path.setAttribute("d", `M 0,-${R} A ${R},${R} 0 0,0 0,${R} Z`);
                         path.setAttribute("fill", st.fill);
                         g.appendChild(path);
@@ -131,18 +136,23 @@ function drawAstronomicalPins(cycleStartTime) {
 function drawLunarMansions(cycleStartTimeMs) {
     const layer = document.getElementById("layer-lunar-mansion");
     if(layer) layer.innerHTML = "";
-    if (concentricRings.length === 0) return;
+    const rings = window.concentricRings || [];
+    if (rings.length === 0) return;
 
     const st = window.layerSettings.lunarMansion;
-    const rBase = concentricRings[concentricRings.length - 1] + 60;
+    const rBase = rings[rings.length - 1] + 60;
     const rMax = rBase + 30;
     const resolution = 2;
     const totalHours = 720; 
-    const startAngle = currentStartSegment * 3;
+    const startAngle = (window.currentStartSegment || 0) * 3;
 
-    const trackBg = document.createElementNS(svgNS, "circle");
-    trackBg.setAttribute("cx", cx);
-    trackBg.setAttribute("cy", cy);
+    const cX = typeof cx !== 'undefined' ? cx : 0;
+    const cY = typeof cy !== 'undefined' ? cy : 0;
+    const svgNS_val = "http://www.w3.org/2000/svg";
+
+    const trackBg = document.createElementNS(svgNS_val, "circle");
+    trackBg.setAttribute("cx", cX);
+    trackBg.setAttribute("cy", cY);
     trackBg.setAttribute("r", rBase + 15);
     trackBg.setAttribute("fill", "none");
     trackBg.setAttribute("stroke", st.bgRingColor !== undefined ? st.bgRingColor : "#ffffff");
@@ -171,9 +181,9 @@ function drawLunarMansions(cycleStartTimeMs) {
             if (currentMansionIndex !== -1) {
                 drawConstellationMark(mansionStartAngle, angle, currentMansionIndex, rBase + 15, st, getMansionColor(currentMansionIndex));
             }
-            const p1 = polarToCartesian(cx, cy, rBase, angle);
-            const p2 = polarToCartesian(cx, cy, rMax, angle);
-            const line = document.createElementNS(svgNS, "line");
+            const p1 = polarToCartesian(cX, cY, rBase, angle);
+            const p2 = polarToCartesian(cX, cY, rMax, angle);
+            const line = document.createElementNS(svgNS_val, "line");
             line.setAttribute("x1", p1.x);
             line.setAttribute("y1", p1.y);
             line.setAttribute("x2", p2.x);
@@ -195,10 +205,13 @@ function drawConstellationMark(startAng, endAng, index, rCenter, st, color) {
     if(endAng < startAng) endAng += 360;
     const midAngle = startAng + (endAng - startAng) / 2;
     const mansion = window.mansions[index]; 
-    const g = document.createElementNS(svgNS, "g");
+    const cX = typeof cx !== 'undefined' ? cx : 0;
+    const cY = typeof cy !== 'undefined' ? cy : 0;
+    const svgNS_val = "http://www.w3.org/2000/svg";
+    const g = document.createElementNS(svgNS_val, "g");
     
-    const ptText = polarToCartesian(cx, cy, rCenter + 22, midAngle);
-    const text = document.createElementNS(svgNS, "text");
+    const ptText = polarToCartesian(cX, cY, rCenter + 22, midAngle);
+    const text = document.createElementNS(svgNS_val, "text");
     text.setAttribute("x", ptText.x);
     text.setAttribute("y", ptText.y);
     text.setAttribute("text-anchor", "middle");
@@ -221,9 +234,9 @@ function drawConstellationMark(startAng, endAng, index, rCenter, st, color) {
     for(let i=0; i<starCount; i++) {
         const sAngle = midAngle + (rand() - 0.5) * 8;
         const sR = rCenter + (rand() - 0.5) * 15;
-        const pt = polarToCartesian(cx, cy, sR, sAngle);
+        const pt = polarToCartesian(cX, cY, sR, sAngle);
         stars.push(pt);
-        const circle = document.createElementNS(svgNS, "circle");
+        const circle = document.createElementNS(svgNS_val, "circle");
         circle.setAttribute("cx", pt.x);
         circle.setAttribute("cy", pt.y);
         circle.setAttribute("r", rand() > 0.8 ? starBaseSize : starBaseSize * 0.6);
@@ -233,7 +246,7 @@ function drawConstellationMark(startAng, endAng, index, rCenter, st, color) {
     }
 
     for(let i=0; i<stars.length - 1; i++) {
-        const line = document.createElementNS(svgNS, "line");
+        const line = document.createElementNS(svgNS_val, "line");
         line.setAttribute("x1", stars[i].x);
         line.setAttribute("y1", stars[i].y);
         line.setAttribute("x2", stars[i+1].x);
@@ -255,46 +268,53 @@ function drawDailyRainStats(startDate) {
 
     const stBg = window.layerSettings.dailyRainBg;
     const stText = window.layerSettings.dailyRainText;
+    const rings = window.concentricRings || [];
+    if(rings.length < 24) return;
 
-    const rMin = concentricRings[16];
-    const rMax = concentricRings[22];
-    const layer23CenterR = (concentricRings[22] + concentricRings[23]) / 2;
+    const cX = typeof cx !== 'undefined' ? cx : 0;
+    const cY = typeof cy !== 'undefined' ? cy : 0;
+    const svgNS_val = "http://www.w3.org/2000/svg";
+    const localRain = window.localRainData || {};
+
+    const rMin = rings[16];
+    const rMax = rings[22];
+    const layer23CenterR = (rings[22] + rings[23]) / 2;
 
     for (let i = 0; i < window.currentMonthDays; i++) {
         const loopDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
         const dateStr = formatDateStr(loopDate);
-        if (localRainData[dateStr] !== undefined && localRainData[dateStr] > 0) {
-            const rain = localRainData[dateStr];
-            const startAngle = (currentStartSegment + i * 4) * 3;
+        if (localRain[dateStr] !== undefined && localRain[dateStr] > 0) {
+            const rain = localRain[dateStr];
+            const startAngle = ((window.currentStartSegment || 0) + i * 4) * 3;
             const endAngle = startAngle + 12;
             
             let computedOpacity = Math.min(rain / 150, 1) * (stBg.density || 0.35) + 0.05;
 
-            const startIn = polarToCartesian(cx, cy, rMin, endAngle);
-            const endIn = polarToCartesian(cx, cy, rMin, startAngle);
-            const startOut = polarToCartesian(cx, cy, rMax, endAngle);
-            const endOut = polarToCartesian(cx, cy, rMax, startAngle);
+            const startIn = polarToCartesian(cX, cY, rMin, endAngle);
+            const endIn = polarToCartesian(cX, cY, rMin, startAngle);
+            const startOut = polarToCartesian(cX, cY, rMax, endAngle);
+            const endOut = polarToCartesian(cX, cY, rMax, startAngle);
 
             const d = ["M", startOut.x, startOut.y, "A", rMax, rMax, 0, 0, 0, endOut.x, endOut.y, "L", endIn.x, endIn.y, "A", rMin, rMin, 0, 0, 1, startIn.x, startIn.y, "Z"].join(" ");
-            const path = document.createElementNS(svgNS, "path");
+            const path = document.createElementNS(svgNS_val, "path");
             path.setAttribute("d", d);
             path.setAttribute("fill", stBg.fill);
             path.setAttribute("opacity", computedOpacity);
             if(bgLayer) bgLayer.appendChild(path);
 
             const angleMid = startAngle + 6;
-            const ptText = polarToCartesian(cx, cy, layer23CenterR + stText.offsetRadius, angleMid);
+            const ptText = polarToCartesian(cX, cY, layer23CenterR + stText.offsetRadius, angleMid);
             
-            const textGroup = document.createElementNS(svgNS, "g");
+            const textGroup = document.createElementNS(svgNS_val, "g");
             textGroup.setAttribute("transform", `rotate(${angleMid + 180}, ${ptText.x}, ${ptText.y})`);
 
-            const iconGroup = document.createElementNS(svgNS, "g");
+            const iconGroup = document.createElementNS(svgNS_val, "g");
             iconGroup.setAttribute("transform", `translate(${ptText.x - 14}, ${ptText.y - 4})`);
             iconGroup.setAttribute("fill", stText.fill);
-            iconGroup.innerHTML = iconDrop;
+            iconGroup.innerHTML = typeof iconDrop !== 'undefined' ? iconDrop : '';
             textGroup.appendChild(iconGroup);
 
-            const text = document.createElementNS(svgNS, "text");
+            const text = document.createElementNS(svgNS_val, "text");
             text.setAttribute("x", ptText.x - 2);
             text.setAttribute("y", ptText.y);
             text.setAttribute("text-anchor", "start");
@@ -324,49 +344,54 @@ function drawTideGraph(cycleStartTimeMs) {
     if(waveLayer) waveLayer.innerHTML = "";
     if(guideLayer) guideLayer.innerHTML = "";
     
-    if (concentricRings.length < 23) return;
+    const rings = window.concentricRings || [];
+    if (rings.length < 23) return;
 
     const stGraph = window.layerSettings.tideGraph;
     const stLine = window.layerSettings.guideTideLine || window.layerSettings.guideTide;
     const stText = window.layerSettings.guideTideText || window.layerSettings.guideTide;
 
-    const rMin = concentricRings[16];
-    const rMax = concentricRings[22];
+    const cX = typeof cx !== 'undefined' ? cx : 0;
+    const cY = typeof cy !== 'undefined' ? cy : 0;
+    const svgNS_val = "http://www.w3.org/2000/svg";
+    const tidePoints = window.highLowTidePoints || [];
+
+    const rMin = rings[16];
+    const rMax = rings[22];
     const cycleEndMs = cycleStartTimeMs + window.currentMonthDays * 24 * 60 * 60 * 1000; 
     
-    const waveGroup = document.createElementNS(svgNS, "g");
-
-    const cyclePoints = highLowTidePoints.filter(p => p.time >= cycleStartTimeMs && p.time <= cycleEndMs);
+    const waveGroup = document.createElementNS(svgNS_val, "g");
+    const cyclePoints = tidePoints.filter(p => p.time >= cycleStartTimeMs && p.time <= cycleEndMs);
 
     if (cyclePoints.length > 1) {
         let pathD = "";
         for (let i = 0; i < cyclePoints.length; i++) {
             const pt = cyclePoints[i];
             const diffHours = (pt.time - cycleStartTimeMs) / 3600000;
-            const segmentIndex = (currentStartSegment + diffHours * (4/24)) % 120;
+            const segmentIndex = ((window.currentStartSegment || 0) + diffHours * (4/24)) % 120;
             let angle = segmentIndex * 3;
             const r = window.getTideRadius(pt.tide, rMin, rMax); 
-            const coords = polarToCartesian(cx, cy, r, angle);
+            const coords = polarToCartesian(cX, cY, r, angle);
 
             if(i === 0) {
                 pathD += `M ${coords.x},${coords.y} `;
             } else {
                 const prev = cyclePoints[i-1];
                 const diffHPrev = (prev.time - cycleStartTimeMs) / 3600000;
-                const segPrev = (currentStartSegment + diffHPrev * (4/24)) % 120;
+                const segPrev = ((window.currentStartSegment || 0) + diffHPrev * (4/24)) % 120;
                 let anglePrev = segPrev * 3;
                 if(angle < anglePrev) angle += 360; 
 
                 const cp1Angle = anglePrev + (angle - anglePrev) * 0.4;
                 const cp2Angle = anglePrev + (angle - anglePrev) * 0.6;
                 const rPrev = window.getTideRadius(prev.tide, rMin, rMax); 
-                const cp1 = polarToCartesian(cx, cy, rPrev, cp1Angle);
-                const cp2 = polarToCartesian(cx, cy, r, cp2Angle);
+                const cp1 = polarToCartesian(cX, cY, rPrev, cp1Angle);
+                const cp2 = polarToCartesian(cX, cY, r, cp2Angle);
                 
                 pathD += `C ${cp1.x},${cp1.y} ${cp2.x},${cp2.y} ${coords.x},${coords.y} `;
             }
         }
-        const wavePath = document.createElementNS(svgNS, "path");
+        const wavePath = document.createElementNS(svgNS_val, "path");
         wavePath.setAttribute("d", pathD);
         wavePath.setAttribute("fill", "none");
         wavePath.setAttribute("stroke", stGraph.stroke);
@@ -378,10 +403,10 @@ function drawTideGraph(cycleStartTimeMs) {
     const guideTides = [-1.5, 0, 1.5, 3.0, 4.5, 6.0, 7.5];
     guideTides.forEach(ft => {
         const r = window.getTideRadius(ft, rMin, rMax); 
-        const circle = document.createElementNS(svgNS, "circle");
+        const circle = document.createElementNS(svgNS_val, "circle");
         circle.setAttribute("class", "layer-guide-tide-line");
-        circle.setAttribute("cx", cx);
-        circle.setAttribute("cy", cy);
+        circle.setAttribute("cx", cX);
+        circle.setAttribute("cy", cY);
         circle.setAttribute("r", r);
         circle.setAttribute("fill", "none");
         circle.setAttribute("stroke", stLine.stroke);
@@ -391,9 +416,9 @@ function drawTideGraph(cycleStartTimeMs) {
         if(guideLayer) guideLayer.appendChild(circle);
 
         for(let i = 0; i < 6; i++) {
-            const labelAngle = currentStartSegment * 3 + (i * 60);
-            const labelPt = polarToCartesian(cx, cy, r + stText.offsetRadius, labelAngle);
-            const text = document.createElementNS(svgNS, "text");
+            const labelAngle = (window.currentStartSegment || 0) * 3 + (i * 60);
+            const labelPt = polarToCartesian(cX, cY, r + (stText.offsetRadius || 0), labelAngle);
+            const text = document.createElementNS(svgNS_val, "text");
             text.setAttribute("class", "layer-guide-tide-text");
             text.setAttribute("x", labelPt.x);
             text.setAttribute("y", labelPt.y);
@@ -427,22 +452,28 @@ function drawRainfallGraph(cycleStartTimeMs) {
     if(rainLayer) rainLayer.innerHTML = "";
     if(guideLayer) guideLayer.innerHTML = "";
     
-    if (concentricRings.length < 23) return;
+    const rings = window.concentricRings || [];
+    if (rings.length < 23) return;
 
     const stGraph = window.layerSettings.rainGraph;
     const stLine = window.layerSettings.guideRainLine || window.layerSettings.guideRain;
     const stText = window.layerSettings.guideRainText || window.layerSettings.guideRain;
 
-    const rMin = concentricRings[16];
-    const rMax = concentricRings[22];
+    const cX = typeof cx !== 'undefined' ? cx : 0;
+    const cY = typeof cy !== 'undefined' ? cy : 0;
+    const svgNS_val = "http://www.w3.org/2000/svg";
+    const rainData = window.apiRainData || [];
+
+    const rMin = rings[16];
+    const rMax = rings[22];
     const maxRain = 30;
 
-    const rainGroup = document.createElementNS(svgNS, "g");
+    const rainGroup = document.createElementNS(svgNS_val, "g");
 
-    const circle = document.createElementNS(svgNS, "circle");
+    const circle = document.createElementNS(svgNS_val, "circle");
     circle.setAttribute("class", "layer-guide-rain-line");
-    circle.setAttribute("cx", cx);
-    circle.setAttribute("cy", cy);
+    circle.setAttribute("cx", cX);
+    circle.setAttribute("cy", cY);
     circle.setAttribute("r", rMax);
     circle.setAttribute("fill", "none");
     circle.setAttribute("stroke", stLine.stroke);
@@ -450,17 +481,17 @@ function drawRainfallGraph(cycleStartTimeMs) {
     circle.setAttribute("opacity", stLine.opacity);
     if(guideLayer) guideLayer.appendChild(circle);
 
-    const startAngle = currentStartSegment * 3;
+    const startAngle = (window.currentStartSegment || 0) * 3;
     for (let h = 0; h < window.currentMonthDays * 24; h++) {
-        let rain = apiRainData[h];
+        let rain = rainData[h];
         if(rain === null || isNaN(rain) || rain <= 0) continue;
         
         const r = rMax - (rMax - rMin) * (rain / maxRain);
         const angle = startAngle + h * 0.5 + 0.25;
-        const p1 = polarToCartesian(cx, cy, rMax, angle);
-        const p2 = polarToCartesian(cx, cy, r, angle);
+        const p1 = polarToCartesian(cX, cY, rMax, angle);
+        const p2 = polarToCartesian(cX, cY, r, angle);
         
-        const line = document.createElementNS(svgNS, "line");
+        const line = document.createElementNS(svgNS_val, "line");
         line.setAttribute("x1", p1.x);
         line.setAttribute("y1", p1.y);
         line.setAttribute("x2", p2.x);
@@ -472,19 +503,16 @@ function drawRainfallGraph(cycleStartTimeMs) {
         rainGroup.appendChild(line);
     }
 
-    const labelsToDraw = [
-        { relAngle: 96 },
-        { relAngle: 288 }
-    ];
+    const labelsToDraw = [{ relAngle: 96 }, { relAngle: 288 }];
 
     labelsToDraw.forEach(target => {
         const labelAngle = startAngle + target.relAngle;
         [5, 10, 15, 20, 25, 30].forEach(val => {
             const r = rMax - (rMax - rMin) * (val / maxRain);
             
-            const p1 = polarToCartesian(cx, cy, r - 3, labelAngle);
-            const p2 = polarToCartesian(cx, cy, r + 3, labelAngle);
-            const tick = document.createElementNS(svgNS, "line");
+            const p1 = polarToCartesian(cX, cY, r - 3, labelAngle);
+            const p2 = polarToCartesian(cX, cY, r + 3, labelAngle);
+            const tick = document.createElementNS(svgNS_val, "line");
             tick.setAttribute("class", "layer-guide-rain-line");
             tick.setAttribute("x1", p1.x);
             tick.setAttribute("y1", p1.y);
@@ -495,8 +523,8 @@ function drawRainfallGraph(cycleStartTimeMs) {
             tick.setAttribute("opacity", stLine.opacity);
             if(guideLayer) guideLayer.appendChild(tick);
             
-            const ptLabel = polarToCartesian(cx, cy, r + stText.offsetRadius, labelAngle);
-            const text = document.createElementNS(svgNS, "text");
+            const ptLabel = polarToCartesian(cX, cY, r + (stText.offsetRadius || 0), labelAngle);
+            const text = document.createElementNS(svgNS_val, "text");
             text.setAttribute("class", "layer-guide-rain-text");
             text.setAttribute("x", ptLabel.x);
             text.setAttribute("y", ptLabel.y);
@@ -530,16 +558,22 @@ function drawTimeLabels() {
     const timeLayer = document.getElementById("layer-guide-time");
     if(timeLayer) timeLayer.innerHTML = "";
     
-    if (concentricRings.length < 20) return;
+    const rings = window.concentricRings || [];
+    if (rings.length < 20) return;
+
+    const cX = typeof cx !== 'undefined' ? cx : 0;
+    const cY = typeof cy !== 'undefined' ? cy : 0;
+    const svgNS_val = "http://www.w3.org/2000/svg";
+
     const st = window.layerSettings.guideTime;
-    const rMidTime = (concentricRings[19] + concentricRings[20]) / 2 + st.offsetRadius;
+    const rMidTime = (rings[19] + rings[20]) / 2 + (st.offsetRadius || 0);
     const timeStr = ["0", "6", "12", "18"];
     
     for (let i = 0; i < 120; i++) { 
-        const angle = ((currentStartSegment + i) % 120) * 3;
-        const ptTime = polarToCartesian(cx, cy, rMidTime, angle);
+        const angle = (((window.currentStartSegment || 0) + i) % 120) * 3;
+        const ptTime = polarToCartesian(cX, cY, rMidTime, angle);
         
-        const textTime = document.createElementNS(svgNS, "text");
+        const textTime = document.createElementNS(svgNS_val, "text");
         textTime.setAttribute("x", ptTime.x);
         textTime.setAttribute("y", ptTime.y);
         textTime.setAttribute("text-anchor", "middle");
@@ -566,15 +600,20 @@ function drawTimeLabels() {
 function drawLunarShadow(cycleStartTime) {
     const shadowLayer = document.getElementById("layer-shadow");
     if(shadowLayer) shadowLayer.innerHTML = "";
-    if (concentricRings.length < 30) return;
+    const rings = window.concentricRings || [];
+    if (rings.length < 30) return;
+
+    const cX = typeof cx !== 'undefined' ? cx : 0;
+    const cY = typeof cy !== 'undefined' ? cy : 0;
+    const svgNS_val = "http://www.w3.org/2000/svg";
 
     const st = window.layerSettings.lunarShadow; 
-    const rMin = concentricRings[0];
-    const rMax = concentricRings[concentricRings.length - 2];
+    const rMin = rings[0];
+    const rMax = rings[rings.length - 2];
     const maxArea = rMax * rMax - rMin * rMin;
     const resolution = 2;
     const totalHours = 720; 
-    const startAngle = currentStartSegment * 3;
+    const startAngle = (window.currentStartSegment || 0) * 3;
 
     let pathD = "";
 
@@ -587,18 +626,18 @@ function drawLunarShadow(cycleStartTime) {
         
         const r = Math.sqrt(rMin * rMin + shadow * maxArea);
         const angle = startAngle + (i / resolution) * 0.5;
-        const pt = polarToCartesian(cx, cy, r, angle);
+        const pt = polarToCartesian(cX, cY, r, angle);
 
         if (i === 0) pathD += `M ${pt.x},${pt.y} `;
         else pathD += `L ${pt.x},${pt.y} `;
     }
 
     const endAngle = startAngle + (totalHours * 0.5);
-    const pEndMin = polarToCartesian(cx, cy, rMin, endAngle);
-    const pStartMin = polarToCartesian(cx, cy, rMin, startAngle);
+    const pEndMin = polarToCartesian(cX, cY, rMin, endAngle);
+    const pStartMin = polarToCartesian(cX, cY, rMin, startAngle);
     pathD += ` L ${pEndMin.x},${pEndMin.y} A ${rMin} ${rMin} 0 0 0 ${pStartMin.x} ${pStartMin.y} Z`;
 
-    const shadowPath = document.createElementNS(svgNS, "path");
+    const shadowPath = document.createElementNS(svgNS_val, "path");
     shadowPath.setAttribute("d", pathD);
     shadowPath.setAttribute("fill", st.fill);
     shadowPath.setAttribute("opacity", st.opacity);
@@ -608,14 +647,22 @@ function drawLunarShadow(cycleStartTime) {
 function drawDynamicLines() {
     const linesLayer = document.getElementById("layer-lines");
     if(linesLayer) linesLayer.innerHTML = "";
-    const st = window.layerSettings.dateLines;
-    const rMin = concentricRings[0];
-    const rMax = concentricRings[concentricRings.length - 1];
+    
+    const rings = window.concentricRings || [];
+    if (rings.length < 2) return;
 
-    const ringDateInner = document.createElementNS(svgNS, "circle");
-    ringDateInner.setAttribute("cx", cx);
-    ringDateInner.setAttribute("cy", cy);
-    ringDateInner.setAttribute("r", concentricRings[concentricRings.length - 2]);
+    const cX = typeof cx !== 'undefined' ? cx : 0;
+    const cY = typeof cy !== 'undefined' ? cy : 0;
+    const svgNS_val = "http://www.w3.org/2000/svg";
+
+    const st = window.layerSettings.dateLines;
+    const rMin = rings[0];
+    const rMax = rings[rings.length - 1];
+
+    const ringDateInner = document.createElementNS(svgNS_val, "circle");
+    ringDateInner.setAttribute("cx", cX);
+    ringDateInner.setAttribute("cy", cY);
+    ringDateInner.setAttribute("r", rings[rings.length - 2]);
     ringDateInner.setAttribute("fill", "none");
     ringDateInner.setAttribute("stroke", st.stroke);
     ringDateInner.setAttribute("stroke-width", st.strokeWidth);
@@ -623,11 +670,11 @@ function drawDynamicLines() {
     if(linesLayer) linesLayer.appendChild(ringDateInner);
 
     for (let i = 0; i < 30; i++) { 
-        const angle = ((currentStartSegment + i * 4) % 120) * 3;
-        const ptInner = polarToCartesian(cx, cy, rMin, angle);
-        const ptOuter = polarToCartesian(cx, cy, rMax, angle);
+        const angle = (((window.currentStartSegment || 0) + i * 4) % 120) * 3;
+        const ptInner = polarToCartesian(cX, cY, rMin, angle);
+        const ptOuter = polarToCartesian(cX, cY, rMax, angle);
         
-        const line = document.createElementNS(svgNS, "line");
+        const line = document.createElementNS(svgNS_val, "line");
         line.setAttribute("x1", ptInner.x);
         line.setAttribute("y1", ptInner.y);
         line.setAttribute("x2", ptOuter.x);
@@ -642,10 +689,12 @@ function drawDynamicLines() {
 function renderSavedData() {
     const dataLayer = document.getElementById("layer-data");
     if(dataLayer) dataLayer.innerHTML = "";
-    const cyclePrefix = `c${currentCycle}_`;
-    for (const key in calendarData) {
+    
+    const calData = window.calendarData || {};
+    const cyclePrefix = `c${window.currentCycle || 0}_`;
+    for (const key in calData) {
         if (key.startsWith(cyclePrefix)) {
-            const data = calendarData[key];
+            const data = calData[key];
             const startAngle = data.absSegment * 3;
             const endAngle = (data.absSegment + 1) * 3;
             drawCell(data.rIn, data.rOut, startAngle, endAngle, data.color);
@@ -654,10 +703,14 @@ function renderSavedData() {
 }
 
 function drawCell(rIn, rOut, startAngle, endAngle, color) {
-    const startIn = polarToCartesian(cx, cy, rIn, endAngle);
-    const endIn = polarToCartesian(cx, cy, rIn, startAngle);
-    const startOut = polarToCartesian(cx, cy, rOut, endAngle);
-    const endOut = polarToCartesian(cx, cy, rOut, startAngle);
+    const cX = typeof cx !== 'undefined' ? cx : 0;
+    const cY = typeof cy !== 'undefined' ? cy : 0;
+    const svgNS_val = "http://www.w3.org/2000/svg";
+
+    const startIn = polarToCartesian(cX, cY, rIn, endAngle);
+    const endIn = polarToCartesian(cX, cY, rIn, startAngle);
+    const startOut = polarToCartesian(cX, cY, rOut, endAngle);
+    const endOut = polarToCartesian(cX, cY, rOut, startAngle);
 
     const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
     const d = [
@@ -668,7 +721,7 @@ function drawCell(rIn, rOut, startAngle, endAngle, color) {
         "Z"
     ].join(" ");
 
-    const path = document.createElementNS(svgNS, "path");
+    const path = document.createElementNS(svgNS_val, "path");
     path.setAttribute("d", d);
     path.setAttribute("fill", color);
     path.setAttribute("opacity", "0.6");
@@ -677,14 +730,15 @@ function drawCell(rIn, rOut, startAngle, endAngle, color) {
 }
 
 function getRingInfo(distance) {
-    if (concentricRings.length === 0) return null;
-    for (let i = 0; i < concentricRings.length - 1; i++) {
-        if (distance > concentricRings[i] && distance <= concentricRings[i+1]) {
+    const rings = window.concentricRings || [];
+    if (rings.length === 0) return null;
+    for (let i = 0; i < rings.length - 1; i++) {
+        if (distance > rings[i] && distance <= rings[i+1]) {
             return {
                 layerId: `layer_${i}`,
                 name: `階層 ${i+1}`,
-                rIn: concentricRings[i],
-                rOut: concentricRings[i+1]
+                rIn: rings[i],
+                rOut: rings[i+1]
             };
         }
     }
@@ -703,21 +757,25 @@ function drawKoyomiEvents(startDate) {
     if(outerSeasonLayer) outerSeasonLayer.innerHTML = "";
     if(textPathDefs) textPathDefs.innerHTML = "";
 
-    const gregorianGroup = document.createElementNS(svgNS, "g");
+    const cX = typeof cx !== 'undefined' ? cx : 0;
+    const cY = typeof cy !== 'undefined' ? cy : 0;
+    const svgNS_val = "http://www.w3.org/2000/svg";
+
+    const gregorianGroup = document.createElementNS(svgNS_val, "g");
     gregorianGroup.setAttribute("class", "layer-date-gregorian");
-    const weekdayGroup = document.createElementNS(svgNS, "g");
+    const weekdayGroup = document.createElementNS(svgNS_val, "g");
     weekdayGroup.setAttribute("class", "layer-date-weekday");
-    const lunarGroup = document.createElementNS(svgNS, "g");
+    const lunarGroup = document.createElementNS(svgNS_val, "g");
     lunarGroup.setAttribute("class", "layer-date-lunar");
 
-    const zassetsuGroup = document.createElementNS(svgNS, "g");
+    const zassetsuGroup = document.createElementNS(svgNS_val, "g");
     zassetsuGroup.setAttribute("class", "layer-zassetsu");
-    const holidayGroup = document.createElementNS(svgNS, "g");
+    const holidayGroup = document.createElementNS(svgNS_val, "g");
     holidayGroup.setAttribute("class", "layer-holiday");
-    const importantGroup = document.createElementNS(svgNS, "g");
+    const importantGroup = document.createElementNS(svgNS_val, "g");
     importantGroup.setAttribute("class", "layer-event-important");
 
-    const eventMixGroup = document.createElementNS(svgNS, "g");
+    const eventMixGroup = document.createElementNS(svgNS_val, "g");
 
     if(dateLayer) {
         dateLayer.appendChild(gregorianGroup);
@@ -729,7 +787,7 @@ function drawKoyomiEvents(startDate) {
         dateLayer.appendChild(eventMixGroup);
     }
 
-    const R = concentricRings;
+    const R = window.concentricRings || [];
     if(R.length < 30) return;
 
     const stG = window.layerSettings.gregorian;
@@ -772,26 +830,28 @@ function drawKoyomiEvents(startDate) {
     const showBuddhism = cbBuddhism ? cbBuddhism.checked : true;
     const showChurch = cbChurch ? cbChurch.checked : true;
     const showSonota = cbSonota ? cbSonota.checked : true;
+    
+    const db = window.koyomiDatabase || {};
 
     for (let i = 0; i < window.currentMonthDays; i++) {
         const loopDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
         const dateStr = formatDateStr(loopDate);
-        const dbRow = koyomiDatabase[dateStr] || [];
+        const dbRow = db[dateStr] || [];
 
-        const absoluteSegment = (currentStartSegment + i * 4) % 120;
+        const absoluteSegment = ((window.currentStartSegment || 0) + i * 4) % 120;
         const baseAngle = absoluteSegment * 3;
 
         const createArc = (id, r, angStart, angEnd) => {
-            const p1 = polarToCartesian(cx, cy, r, angStart);
-            const p2 = polarToCartesian(cx, cy, r, angEnd);
+            const p1 = polarToCartesian(cX, cY, r, angStart);
+            const p2 = polarToCartesian(cX, cY, r, angEnd);
             const d = `M ${p1.x} ${p1.y} A ${r} ${r} 0 0 1 ${p2.x} ${p2.y}`;
-            const path = document.createElementNS(svgNS, "path");
+            const path = document.createElementNS(svgNS_val, "path");
             path.setAttribute("id", id);
             path.setAttribute("d", d);
             if(textPathDefs) textPathDefs.appendChild(path);
         };
 
-        const arcIdBase = `arc_${currentCycle}_${i}`;
+        const arcIdBase = `arc_${window.currentCycle || 0}_${i}`;
         const angStart = baseAngle + 0.5;
         const angEnd = baseAngle + 11.5;
 
@@ -802,13 +862,13 @@ function drawKoyomiEvents(startDate) {
         createArc(`${arcIdBase}_28`, r28, angStart, angEnd);
         createArc(`${arcIdBase}_29`, r29, angStart, angEnd);
         
-        createArc(`${arcIdBase}_30U_text`, r30U_text + stH.offsetRadius, angStart, angEnd);
-        createArc(`${arcIdBase}_30M_text`, r30M_text + stZ.offsetRadius, angStart, angEnd);
-        createArc(`${arcIdBase}_30L_text`, r30L_text + stI.offsetRadius, angStart, angEnd);
+        createArc(`${arcIdBase}_30U_text`, r30U_text + (stH.offsetRadius||0), angStart, angEnd);
+        createArc(`${arcIdBase}_30M_text`, r30M_text + (stZ.offsetRadius||0), angStart, angEnd);
+        createArc(`${arcIdBase}_30L_text`, r30L_text + (stI.offsetRadius||0), angStart, angEnd);
 
         const drawSingleText = (pathId, textContent, styleConfig, rVal, targetGroup) => {
             if (!textContent) return;
-            const textObj = document.createElementNS(svgNS, "text");
+            const textObj = document.createElementNS(svgNS_val, "text");
             textObj.setAttribute("fill", styleConfig.fill);
             textObj.setAttribute("font-size", styleConfig.fontSize + "px");
             textObj.setAttribute("font-family", styleConfig.fontFamily);
@@ -822,7 +882,7 @@ function drawKoyomiEvents(startDate) {
                 textObj.setAttribute("paint-order", "stroke fill");
             }
 
-            const textPath = document.createElementNS(svgNS, "textPath");
+            const textPath = document.createElementNS(svgNS_val, "textPath");
             textPath.setAttribute("href", `#${pathId}`);
             textPath.setAttribute("startOffset", "50%");
             textPath.setAttribute("text-anchor", "middle");
@@ -838,9 +898,9 @@ function drawKoyomiEvents(startDate) {
         };
 
         const holidayText = [dbRow[8], dbRow[14]].filter(Boolean).join(' ／ ');
-        drawSingleText(`${arcIdBase}_30U_text`, holidayText, stH, r30U_text + stH.offsetRadius, holidayGroup);
-        drawSingleText(`${arcIdBase}_30M_text`, dbRow[7], stZ, r30M_text + stZ.offsetRadius, zassetsuGroup);
-        drawSingleText(`${arcIdBase}_30L_text`, dbRow[9], stI, r30L_text + stI.offsetRadius, importantGroup);
+        drawSingleText(`${arcIdBase}_30U_text`, holidayText, stH, r30U_text + (stH.offsetRadius||0), holidayGroup);
+        drawSingleText(`${arcIdBase}_30M_text`, dbRow[7], stZ, r30M_text + (stZ.offsetRadius||0), zassetsuGroup);
+        drawSingleText(`${arcIdBase}_30L_text`, dbRow[9], stI, r30L_text + (stI.offsetRadius||0), importantGroup);
 
         let dailyEvents = [];
         const pushEvents = (cellData, styleConfig) => {
@@ -877,16 +937,16 @@ function drawKoyomiEvents(startDate) {
             const rVal = availableR[tIdx];
             const pathId = availableIds[tIdx];
 
-            const textObj = document.createElementNS(svgNS, "text");
+            const textObj = document.createElementNS(svgNS_val, "text");
             textObj.setAttribute("dy", "1.5"); 
-            const textPath = document.createElementNS(svgNS, "textPath");
+            const textPath = document.createElementNS(svgNS_val, "textPath");
             textPath.setAttribute("href", `#${pathId}`);
             textPath.setAttribute("startOffset", "50%");
             textPath.setAttribute("text-anchor", "middle");
 
             let combinedLen = 0;
             trackEvents.forEach((ev, eIdx) => {
-                const tspan = document.createElementNS(svgNS, "tspan");
+                const tspan = document.createElementNS(svgNS_val, "tspan");
                 tspan.setAttribute("fill", ev.st.fill);
                 tspan.setAttribute("font-size", ev.st.fontSize + "px");
                 tspan.setAttribute("font-family", ev.st.fontFamily);
@@ -915,8 +975,8 @@ function drawKoyomiEvents(startDate) {
             eventMixGroup.appendChild(textObj);
         });
 
-        const ptDate = polarToCartesian(cx, cy, r30Upper + stG.offsetRadius, baseAngle + 1.5);
-        const textDate = document.createElementNS(svgNS, "text");
+        const ptDate = polarToCartesian(cX, cY, r30Upper + (stG.offsetRadius||0), baseAngle + 1.5);
+        const textDate = document.createElementNS(svgNS_val, "text");
         textDate.setAttribute("class", "layer-date-gregorian");
         textDate.setAttribute("x", ptDate.x);
         textDate.setAttribute("y", ptDate.y);
@@ -937,8 +997,8 @@ function drawKoyomiEvents(startDate) {
         textDate.textContent = `${loopDate.getMonth() + 1}/${loopDate.getDate()}`;
         gregorianGroup.appendChild(textDate); 
 
-        const ptDay = polarToCartesian(cx, cy, r30Lower + stW.offsetRadius, baseAngle + 1.5);
-        const textDay = document.createElementNS(svgNS, "text");
+        const ptDay = polarToCartesian(cX, cY, r30Lower + (stW.offsetRadius||0), baseAngle + 1.5);
+        const textDay = document.createElementNS(svgNS_val, "text");
         textDay.setAttribute("class", "layer-date-weekday");
         textDay.setAttribute("x", ptDay.x);
         textDay.setAttribute("y", ptDay.y);
@@ -971,24 +1031,24 @@ function drawKoyomiEvents(startDate) {
             else if (rawLunarDay === "二十三") phaseKey = "lastQuarter";
 
             const pst = stL.phases[phaseKey];
-            const rLun = (r30In + r30Out)/2 + stL.offsetRadius;
-            const ptLunar = polarToCartesian(cx, cy, rLun, baseAngle + 10.5);
+            const rLun = (r30In + r30Out)/2 + (stL.offsetRadius||0);
+            const ptLunar = polarToCartesian(cX, cY, rLun, baseAngle + 10.5);
             
             const lunarRadius = ((r30Out - r30In) * 0.4) * (pst.scale || 1);
 
             if (pst.shape !== "none") {
-                const shapeG = document.createElementNS(svgNS, "g");
+                const shapeG = document.createElementNS(svgNS_val, "g");
                 shapeG.setAttribute("class", "layer-date-lunar");
                 shapeG.setAttribute("transform", `rotate(${baseAngle + 10.5}, ${ptLunar.x}, ${ptLunar.y})`);
 
                 let shapeEl = null;
                 if (pst.shape === "circle") {
-                    shapeEl = document.createElementNS(svgNS, "circle");
+                    shapeEl = document.createElementNS(svgNS_val, "circle");
                     shapeEl.setAttribute("cx", ptLunar.x);
                     shapeEl.setAttribute("cy", ptLunar.y);
                     shapeEl.setAttribute("r", lunarRadius);
                 } else if (pst.shape === "rect") {
-                    shapeEl = document.createElementNS(svgNS, "rect");
+                    shapeEl = document.createElementNS(svgNS_val, "rect");
                     const size = lunarRadius * 1.8;
                     shapeEl.setAttribute("x", ptLunar.x - size/2);
                     shapeEl.setAttribute("y", ptLunar.y - size/2);
@@ -996,13 +1056,13 @@ function drawKoyomiEvents(startDate) {
                     shapeEl.setAttribute("height", size);
                     shapeEl.setAttribute("rx", 2);
                 } else if (pst.shape === "triangle") {
-                    shapeEl = document.createElementNS(svgNS, "polygon");
+                    shapeEl = document.createElementNS(svgNS_val, "polygon");
                     const p1 = polarToCartesian(ptLunar.x, ptLunar.y, lunarRadius*1.1, 0);
                     const p2 = polarToCartesian(ptLunar.x, ptLunar.y, lunarRadius*1.1, 120);
                     const p3 = polarToCartesian(ptLunar.x, ptLunar.y, lunarRadius*1.1, 240);
                     shapeEl.setAttribute("points", `${p1.x},${p1.y} ${p2.x},${p2.y} ${p3.x},${p3.y}`);
                 } else if (pst.shape === "star") {
-                    shapeEl = document.createElementNS(svgNS, "polygon");
+                    shapeEl = document.createElementNS(svgNS_val, "polygon");
                     let pts = "";
                     for(let k=0; k<10; k++) {
                         const radius = k%2 === 0 ? lunarRadius*1.2 : lunarRadius*0.5;
@@ -1024,7 +1084,7 @@ function drawKoyomiEvents(startDate) {
                 }
             }
 
-            const textLunar = document.createElementNS(svgNS, "text");
+            const textLunar = document.createElementNS(svgNS_val, "text");
             textLunar.setAttribute("class", "layer-date-lunar");
             textLunar.setAttribute("x", ptLunar.x);
             textLunar.setAttribute("y", ptLunar.y);
@@ -1049,10 +1109,10 @@ function drawKoyomiEvents(startDate) {
         const drawOuterText = (eventName, isSekki, classStr, stOut, angleOffset) => {
             if (!eventName) return;
             const lineAngle = baseAngle + angleOffset;
-            const p1 = polarToCartesian(cx, cy, r30Out, lineAngle);
-            const p2 = polarToCartesian(cx, cy, r30Out + (isSekki ? 12 : 8), lineAngle);
+            const p1 = polarToCartesian(cX, cY, r30Out, lineAngle);
+            const p2 = polarToCartesian(cX, cY, r30Out + (isSekki ? 12 : 8), lineAngle);
             
-            const outLine = document.createElementNS(svgNS, "line");
+            const outLine = document.createElementNS(svgNS_val, "line");
             outLine.setAttribute("class", classStr);
             outLine.setAttribute("x1", p1.x);
             outLine.setAttribute("y1", p1.y);
@@ -1062,9 +1122,9 @@ function drawKoyomiEvents(startDate) {
             outLine.setAttribute("stroke-width", isSekki ? "1.5" : "0.5");
             if(outerSeasonLayer) outerSeasonLayer.appendChild(outLine);
 
-            const rText = r30Out + (isSekki ? 45 : 20) + stOut.offsetRadius;
-            const ptTextOut = polarToCartesian(cx, cy, rText, lineAngle);
-            const outText = document.createElementNS(svgNS, "text");
+            const rText = r30Out + (isSekki ? 45 : 20) + (stOut.offsetRadius||0);
+            const ptTextOut = polarToCartesian(cX, cY, rText, lineAngle);
+            const outText = document.createElementNS(svgNS_val, "text");
             outText.setAttribute("class", classStr);
             outText.setAttribute("fill", stOut.fill);
             outText.setAttribute("font-size", stOut.fontSize + "px");
@@ -1092,15 +1152,15 @@ function drawKoyomiEvents(startDate) {
 
     const stWafu = window.layerSettings.wafuText;
     const stGreText = window.layerSettings.gregorianText;
-
     const wafuTextLayer = document.getElementById("layer-wafu-text");
     if(wafuTextLayer) wafuTextLayer.innerHTML = "";
     
     if(wafuTextLayer) {
-        const tspanOld = document.createElementNS(svgNS, "text");
+        // ★ 旧暦の文字をキャンバス右側へ固定（回転から除外）
+        const tspanOld = document.createElementNS(svgNS_val, "text");
         tspanOld.setAttribute("class", "layer-wafu-text");
-        tspanOld.setAttribute("x", cx + 860);
-        tspanOld.setAttribute("y", cy - 850 + stWafu.offsetRadius);
+        tspanOld.setAttribute("x", cX + 1210); // ★ 大幅に右（外側）へ移動
+        tspanOld.setAttribute("y", cY - 850 + (stWafu.offsetRadius||0));
         tspanOld.setAttribute("text-anchor", "end");
         tspanOld.setAttribute("fill", stWafu.fill);
         tspanOld.setAttribute("font-size", stWafu.fontSize + "px");
@@ -1113,20 +1173,19 @@ function drawKoyomiEvents(startDate) {
             tspanOld.setAttribute("stroke-linejoin", "round");
             tspanOld.setAttribute("paint-order", "stroke fill");
         }
-        
-        tspanOld.setAttribute("transform", `rotate(${-globalRotation}, ${cx}, ${cy})`);
         tspanOld.textContent = startWafu ? `${startWafu}（旧暦）` : "旧暦取得中";
         wafuTextLayer.appendChild(tspanOld);
         
-        const tspanNew = document.createElementNS(svgNS, "text");
+        // ★ 新暦の文字を旧暦の真下に固定
+        const tspanNew = document.createElementNS(svgNS_val, "text");
         tspanNew.setAttribute("class", "layer-gregorian-text");
         const wafuList = ['睦月','如月','弥生','卯月','皐月','水無月','文月','葉月','長月','神無月','霜月','師走'];
         const newWafuStr = startGregorianMonth === endGregorianMonth 
             ? wafuList[startGregorianMonth - 1] 
             : `${wafuList[startGregorianMonth - 1]} ／ ${wafuList[endGregorianMonth - 1]}`;
         
-        tspanNew.setAttribute("x", cx + 860);
-        tspanNew.setAttribute("y", cy - 850 + (stWafu.fontSize * 0.9) + stGreText.offsetRadius);
+        tspanNew.setAttribute("x", cX + 1210); // ★ こちらも同様に移動
+        tspanNew.setAttribute("y", cY - 850 + (stWafu.fontSize * 0.9) + (stGreText.offsetRadius||0));
         tspanNew.setAttribute("text-anchor", "end");
         tspanNew.setAttribute("fill", stGreText.fill);
         tspanNew.setAttribute("font-size", stGreText.fontSize + "px");
@@ -1139,8 +1198,6 @@ function drawKoyomiEvents(startDate) {
             tspanNew.setAttribute("stroke-linejoin", "round");
             tspanNew.setAttribute("paint-order", "stroke fill");
         }
-        
-        tspanNew.setAttribute("transform", `rotate(${-globalRotation}, ${cx}, ${cy})`);
         tspanNew.textContent = `${newWafuStr}（新暦）`;
         wafuTextLayer.appendChild(tspanNew);
     }
@@ -1150,21 +1207,25 @@ function drawKoyomiEvents(startDate) {
 function drawHaikus(startDate) {
     const layer = document.getElementById("layer-haiku");
     if(layer) layer.innerHTML = "";
-    if (concentricRings.length === 0) return;
+    const rings = window.concentricRings || [];
+    if (rings.length === 0) return;
 
     const st = window.layerSettings.haikuText;
     if (!st || st.opacity === 0) return;
 
-    // 二十七宿の外側に配置（offsetRadius でUIから微調整可能）
-    const rBase = concentricRings[concentricRings.length - 1] + 90 + st.offsetRadius;
+    const cX = typeof cx !== 'undefined' ? cx : 0;
+    const cY = typeof cy !== 'undefined' ? cy : 0;
+    const svgNS_val = "http://www.w3.org/2000/svg";
+
+    const rBase = rings[rings.length - 1] + 90 + (st.offsetRadius || 0);
     
     for (let i = 0; i < window.currentMonthDays; i++) {
         const loopDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
         const dateStr = formatDateStr(loopDate);
-        const haikus = window.haikuDatabase[dateStr] || [];
+        const haikus = (window.haikuDatabase || {})[dateStr] || [];
         
         if (haikus.length > 0) {
-            const absoluteSegment = (currentStartSegment + i * 4) % 120;
+            const absoluteSegment = ((window.currentStartSegment || 0) + i * 4) % 120;
             const baseAngle = absoluteSegment * 3;
             
             const displayCount = Math.min(haikus.length, 3);
@@ -1177,9 +1238,9 @@ function drawHaikus(startDate) {
             
             for(let j=0; j < displayCount; j++) {
                 const angle = baseAngle + angles[j];
-                const pt = polarToCartesian(cx, cy, rBase, angle);
+                const pt = polarToCartesian(cX, cY, rBase, angle);
                 
-                const text = document.createElementNS(svgNS, "text");
+                const text = document.createElementNS(svgNS_val, "text");
                 text.setAttribute("x", pt.x);
                 text.setAttribute("y", pt.y);
                 text.setAttribute("fill", st.fill);
@@ -1204,8 +1265,8 @@ function drawHaikus(startDate) {
             
             if (hasMore) {
                 const angle = baseAngle + 11.5;
-                const pt = polarToCartesian(cx, cy, rBase + 10, angle);
-                const moreText = document.createElementNS(svgNS, "text");
+                const pt = polarToCartesian(cX, cY, rBase + 10, angle);
+                const moreText = document.createElementNS(svgNS_val, "text");
                 moreText.setAttribute("x", pt.x);
                 moreText.setAttribute("y", pt.y);
                 moreText.setAttribute("fill", "#d25b4e"); 
