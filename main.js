@@ -1,31 +1,6 @@
 // main.js (司令塔・初期化モジュール)
 
-const svgNS = "http://www.w3.org/2000/svg";
-const container = document.getElementById('calendar-container') || document.body;
-const loader = document.getElementById('loader') || { style: {} };
-let svg, masterGroup, bgGroup;
-
-const viewBox = { x: -841.89 / 2, y: -841.89 / 2, w: 841.89, h: 841.89 };
-const cx = 0, cy = 0;
-
-const PALAU_LAT = 7.3397;
-const PALAU_LON = 134.4733;
-
-const synodicMonth = 29.530588853; 
-const baseDate = new Date('2025-12-20T00:00:00+09:00'); 
-
-let currentCycle = 0;
-let currentStartSegment = 0;
-let globalRotation = 0;
-let concentricRings = [];
-
-let apiRainData = new Array(720).fill(null);
-let localRainData = {};
-let highLowTidePoints = [];
-let calendarData = {};
 window.haikuDatabase = {}; // ★俳句データ用
-
-const iconDrop = `<path d="M12 2c0 0-4.5 6.4-4.5 9.5a4.5 4.5 0 0 0 9 0C16.5 8.4 12 2 12 2z"/>`;
 
 window.defaultLayerSettings = {
     canvasBg: { fill: "#f5f5f0" },
@@ -61,7 +36,7 @@ window.defaultLayerSettings = {
     eventChurch: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#6b5b4e", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     eventSonota: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#555555", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     // ★ 俳句用の初期設定
-    haikuText: { fontFamily: "'Shippori Mincho', serif", fontSize: 7.5, fill: "#2c3e50", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 35 },
+    haikuText: { fontFamily: "'Shippori Mincho', serif", fontSize: 8, fill: "#2c3e50", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 40 },
     lunar: {
         fontFamily: "'Shippori Mincho', serif", fontSize: 11, fontWeight: "normal", opacity: 1, offsetRadius: 0,
         phases: {
@@ -124,6 +99,7 @@ window.applyGlobalSettings = () => {
 
 let koyomiDatabase = {};
 const KOYOMI_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRqoX31YV0YAO3Mq4WatmLhjP7uUSF6dPMy3D2H3ktEFDFg1X1gJmoIXkul9JpS4aLgK9Ze3SSbV9BZ/pub?gid=0&single=true&output=csv';
+// ★ 俳句スプレッドシートのURL
 const HAIKU_CSV_URL = 'https://docs.google.com/spreadsheets/d/1m0y8AOJNx1Ad4I44poPheQAQNki1-QQIwi9wSw8jaBg/export?format=csv&gid=126185184';
 
 function formatDateStr(dateObj) {
@@ -134,7 +110,7 @@ function formatDateStr(dateObj) {
 }
 
 async function fetchMeteoData(startDateMs) {
-    if(loader && loader.style) loader.style.display = 'flex';
+    if(typeof loader !== 'undefined' && loader.style) loader.style.display = 'flex';
     const dStart = new Date(startDateMs);
     const dEnd = new Date(startDateMs + 30 * 86400000);
     const startStr = formatDateStr(dStart);
@@ -153,7 +129,7 @@ async function fetchMeteoData(startDateMs) {
             }
         }
     } catch(e) {}
-    if(loader && loader.style) loader.style.display = 'none';
+    if(typeof loader !== 'undefined' && loader.style) loader.style.display = 'none';
 }
 
 async function loadLocalCSV() {
@@ -300,10 +276,12 @@ async function updateCalendarCycle() {
     // ★ 俳句の描画呼び出し
     if (typeof drawHaikus === 'function') drawHaikus(startDate);
 
-    if (masterGroup) masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
+    if (typeof masterGroup !== 'undefined' && masterGroup) {
+        masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
+    }
 
     const stBase = window.layerSettings.baseSvg;
-    if (bgGroup) {
+    if (typeof bgGroup !== 'undefined' && bgGroup) {
         bgGroup.style.opacity = stBase.opacity;
         Array.from(bgGroup.querySelectorAll('*')).forEach(el => {
             if (stBase.stroke !== "") {
@@ -327,8 +305,10 @@ loadLocalCSV().then(() => {
     fetch('calendar.svg')
         .then(response => response.text())
         .then(svgCode => {
-            if (container) container.innerHTML = svgCode;
-            svg = container ? container.querySelector('svg') : document.querySelector('svg');
+            const containerEl = document.getElementById('calendar-container') || document.body;
+            if (containerEl) containerEl.innerHTML = svgCode;
+            
+            svg = containerEl ? containerEl.querySelector('svg') : document.querySelector('svg');
             if (!svg) return;
             
             svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
@@ -378,7 +358,7 @@ loadLocalCSV().then(() => {
                 "layer-daily-rain-text",      
                 "layer-guide-time",           
                 "layer-wafu-text",
-                "layer-haiku" // ★ 俳句用のレイヤーを追加
+                "layer-haiku" // ★ 俳句用のレイヤー
             ];
 
             const defs = document.createElementNS(svgNS, "defs");
