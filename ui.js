@@ -9,7 +9,7 @@ function initUI() {
     navDiv.className = 'panel-ui';
     navDiv.style = "position:fixed; top:30px; right:30px; background:rgba(25,30,40,0.85); padding:10px 15px; border-radius:8px; color:#d4af37; z-index:100; display:flex; gap:15px; align-items:center; border: 1px solid rgba(212,175,55,0.3); backdrop-filter: blur(10px);";
     navDiv.innerHTML = `
-        <button id="prevBtn" style="background:transparent; border:1px solid #d4af37; color:#d4af37; padding:4px 8px; cursor:border-radius:4px;">◀</button>
+        <button id="prevBtn" style="background:transparent; border:1px solid #d4af37; color:#d4af37; padding:4px 8px; cursor:pointer; border-radius:4px;">◀</button>
         <div id="cycleDisplay" title="クリックして年月を移動" style="font-weight:bold; font-size:14px; text-align:center; min-width:120px; cursor:pointer; padding:4px; border-radius:4px; transition:background 0.2s;">--</div>
         <button id="nextBtn" style="background:#d4af37; border:none; color:#000; padding:4px 8px; cursor:pointer; border-radius:4px; font-weight:bold;">▶</button>
     `;
@@ -72,7 +72,6 @@ function initUI() {
         };
     }
 
-    // ★ 俳句設定ボタンの自動追加
     if (panelContent) {
         const labels = panelContent.querySelectorAll('label');
         let targetLabel = null;
@@ -121,38 +120,35 @@ function initUI() {
             </button>
         `;
         
-        const applyBtn = document.getElementById('btn-apply-global');
-        if (applyBtn) {
-            applyBtn.onmouseover = function() { this.style.background = '#0284c7'; };
-            applyBtn.onmouseout = function() { this.style.background = '#0ea5e9'; };
-            applyBtn.onclick = () => {
-                if(confirm("現在の色や設定を、すべての月の基本デザインとして適用しますか？")) {
-                    if(typeof window.applyGlobalSettings === 'function') {
-                        window.applyGlobalSettings();
-                        if(typeof updateCalendarCycle === 'function') updateCalendarCycle();
-                    }
+        document.getElementById('btn-apply-global').onmouseover = function() { this.style.background = '#0284c7'; };
+        document.getElementById('btn-apply-global').onmouseout = function() { this.style.background = '#0ea5e9'; };
+        document.getElementById('btn-apply-global').onclick = () => {
+            if(confirm("現在の色や設定を、すべての月の基本デザインとして適用しますか？")) {
+                if(typeof window.applyGlobalSettings === 'function') {
+                    window.applyGlobalSettings();
+                    if(typeof updateCalendarCycle === 'function') updateCalendarCycle();
                 }
-            };
-        }
+            }
+        };
     }
 
     const designPanel = document.createElement('div');
     designPanel.id = 'design-panel';
     designPanel.className = 'panel-ui';
-    designPanel.style = "display:none; position:fixed; top:100px; left:50%; background:rgba(255,255,255,0.98); padding:0 20px 20px 20px; border-radius:12px; border:1px solid rgba(212,175,55,0.5); color:#2c3e50; z-index:200; box-shadow:0 10px 40px rgba(0,0,0,0.2); min-width:320px; backdrop-filter:blur(10px);";
+    designPanel.style = "display:none; position:fixed; top:100px; left:50%; background:rgba(25,30,40,0.95); padding:0 20px 20px 20px; border-radius:12px; border:1px solid rgba(212,175,55,0.5); color:#fff; z-index:200; box-shadow:0 10px 40px rgba(0,0,0,0.8); min-width:320px; backdrop-filter:blur(10px);";
     designPanel.innerHTML = `
         <div id="dp-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid rgba(212,175,55,0.3); padding:12px 0 10px 0; cursor:grab; user-select:none;">
             <div id="dp-title" style="color:#d4af37; font-weight:bold; font-size:15px;">デザイン設定</div>
             <div style="display:flex; gap:10px; align-items:center;">
-                <button id="dp-reset" title="この項目を初期化" style="background:rgba(255,100,100,0.1); border:1px solid #ff8888; color:#d25b4e; border-radius:4px; font-size:11px; padding:2px 6px; cursor:pointer;">初期化</button>
-                <button id="dp-close" style="background:none; border:none; color:#888; cursor:pointer; font-size:20px; padding:0; line-height:1;">×</button>
+                <button id="dp-reset" title="この項目を初期化" style="background:rgba(255,100,100,0.2); border:1px solid #ff8888; color:#ff8888; border-radius:4px; font-size:11px; padding:2px 6px; cursor:pointer;">初期化</button>
+                <button id="dp-close" style="background:none; border:none; color:#fff; cursor:pointer; font-size:20px; padding:0; line-height:1;">×</button>
             </div>
         </div>
         <div style="display:flex; flex-direction:column; gap:12px; font-size:13px; max-height: 65vh; overflow-y: auto; padding-right: 5px;">
             
             <div id="dp-row-lunar-phase" style="display:none; flex-direction:column; gap:8px;">
                 <label style="display:flex; justify-content:space-between; align-items:center; color:#d4af37; font-weight:bold;">編集対象の月相: 
-                    <select id="dp-lunar-phase" style="background:#fff; color:#2c3e50; border:1px solid #ccc; padding:4px; border-radius:4px; width:150px; font-weight:bold;">
+                    <select id="dp-lunar-phase" style="background:#111; color:#d4af37; border:1px solid #d4af37; padding:4px; border-radius:4px; width:150px; font-weight:bold;">
                         <option value="normal">通常 (平月)</option>
                         <option value="newMoon">新月 (一日)</option>
                         <option value="firstQuarter">上弦 (八日)</option>
@@ -160,12 +156,12 @@ function initUI() {
                         <option value="lastQuarter">下弦 (二十三日)</option>
                     </select>
                 </label>
-                <hr style="border:0; border-top:1px dashed #ccc; margin:0;">
+                <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin:0;">
             </div>
 
             <div id="dp-group-text" style="display:flex; flex-direction:column; gap:12px;">
                 <label id="dp-row-font" style="display:flex; justify-content:space-between; align-items:center;">フォント: 
-                    <select id="dp-font" style="background:#fff; color:#2c3e50; border:1px solid #ccc; padding:4px; border-radius:4px; width:150px;">
+                    <select id="dp-font" style="background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px; width:150px;">
                         <option value="'Shippori Mincho', serif">明朝体 (Shippori)</option>
                         <option value="'YuMincho', 'Yu Mincho', serif">游明朝 (Yu Mincho)</option>
                         <option value="'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif">ゴシック体 (標準)</option>
@@ -175,10 +171,10 @@ function initUI() {
                     </select>
                 </label>
                 <label id="dp-row-size" style="display:flex; justify-content:space-between; align-items:center;">文字サイズ: 
-                    <input type="number" id="dp-size" style="width:60px; background:#fff; color:#2c3e50; border:1px solid #ccc; padding:4px; border-radius:4px;" step="0.5">
+                    <input type="number" id="dp-size" style="width:60px; background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px;" step="0.5">
                 </label>
                 <label id="dp-row-lang" style="display:none; justify-content:space-between; align-items:center;">表示言語: 
-                    <select id="dp-lang" style="background:#fff; color:#2c3e50; border:1px solid #ccc; padding:4px; border-radius:4px; width:120px;">
+                    <select id="dp-lang" style="background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px; width:120px;">
                         <option value="en">英語 (Sun-Sat)</option>
                         <option value="ja">日本語 (日-土)</option>
                     </select>
@@ -198,20 +194,20 @@ function initUI() {
                 </label>
             </div>
 
-            <div id="dp-group-mansion-colors" style="display:none; flex-direction:column; gap:12px; margin-top:5px; padding-top:10px; border-top:1px dashed #ccc;">
+            <div id="dp-group-mansion-colors" style="display:none; flex-direction:column; gap:12px; margin-top:5px; padding-top:10px; border-top:1px dashed rgba(255,255,255,0.2);">
                 <label style="display:flex; justify-content:space-between; align-items:center;">東方青龍 (角〜箕): <input type="color" id="dp-color-east" style="background:none; border:none; width:30px; height:30px; cursor:pointer;"></label>
                 <label style="display:flex; justify-content:space-between; align-items:center;">北方玄武 (斗〜壁): <input type="color" id="dp-color-north" style="background:none; border:none; width:30px; height:30px; cursor:pointer;"></label>
                 <label style="display:flex; justify-content:space-between; align-items:center;">西方白虎 (奎〜参): <input type="color" id="dp-color-west" style="background:none; border:none; width:30px; height:30px; cursor:pointer;"></label>
                 <label style="display:flex; justify-content:space-between; align-items:center;">南方朱雀 (井〜軫): <input type="color" id="dp-color-south" style="background:none; border:none; width:30px; height:30px; cursor:pointer;"></label>
-                <hr style="border:0; border-top:1px dashed #ccc; margin:0;">
+                <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin:0;">
                 <label style="display:flex; justify-content:space-between; align-items:center;">星の大きさ: <input type="range" id="dp-mansion-star-size" min="0.1" max="5" step="0.1" style="width:100px; accent-color:#d4af37;"> <span id="dp-mansion-star-size-val" style="width:30px; text-align:right;">1.5</span></label>
                 <label style="display:flex; justify-content:space-between; align-items:center;">背景帯の色: <input type="color" id="dp-mansion-bg-color" style="background:none; border:none; width:30px; height:30px; cursor:pointer;"></label>
                 <label style="display:flex; justify-content:space-between; align-items:center;">背景帯の透明度: <input type="range" id="dp-mansion-bg-opacity" min="0" max="1" step="0.05" style="width:100px; accent-color:#d4af37;"> <span id="dp-mansion-bg-opacity-val" style="width:30px; text-align:right;">0.05</span></label>
             </div>
 
-            <div id="dp-group-shape" style="display:none; flex-direction:column; gap:12px; margin-top:5px; padding-top:10px; border-top:1px dashed #ccc;">
+            <div id="dp-group-shape" style="display:none; flex-direction:column; gap:12px; margin-top:5px; padding-top:10px; border-top:1px dashed rgba(255,255,255,0.2);">
                 <label id="dp-row-shape-type" style="display:flex; justify-content:space-between; align-items:center;">背景図形: 
-                    <select id="dp-shape" style="background:#fff; color:#2c3e50; border:1px solid #ccc; padding:4px; border-radius:4px; width:100px;">
+                    <select id="dp-shape" style="background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px; width:100px;">
                         <option value="none">なし</option>
                         <option value="circle">丸</option>
                         <option value="rect">四角</option>
@@ -251,13 +247,13 @@ function initUI() {
                 </label>
             </div>
 
-            <div id="dp-group-common" style="display:flex; flex-direction:column; gap:12px; margin-top:5px; padding-top:10px; border-top:1px dashed #ccc;">
+            <div id="dp-group-common" style="display:flex; flex-direction:column; gap:12px; margin-top:5px; padding-top:10px; border-top:1px dashed rgba(255,255,255,0.2);">
                 <label id="dp-row-opacity" style="display:flex; justify-content:space-between; align-items:center;">透明度 (全体): 
                     <input type="range" id="dp-opacity" min="0" max="1" step="0.05" style="width:100px; accent-color:#d4af37;">
                     <span id="dp-opacity-val" style="width:30px; text-align:right;">1</span>
                 </label>
                 <label id="dp-row-offset" style="display:flex; justify-content:space-between; align-items:center;">位置 (文字のY軸微調整): 
-                    <input type="number" id="dp-offset" style="width:60px; background:#fff; color:#2c3e50; border:1px solid #ccc; padding:4px; border-radius:4px;" step="1">
+                    <input type="number" id="dp-offset" style="width:60px; background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px;" step="1">
                 </label>
             </div>
 
@@ -299,7 +295,8 @@ function initUI() {
         const select = document.getElementById('theme-select');
         if(!select) return;
         select.innerHTML = '<option value="default">デフォルト設定</option>';
-        for(let name in window.savedThemes) {
+        const tMap = window.savedThemes || {};
+        for(let name in tMap) {
             const opt = document.createElement('option');
             opt.value = name;
             opt.textContent = name;
@@ -311,13 +308,16 @@ function initUI() {
     const btnThemeSave = document.getElementById('btn-theme-save');
     if (btnThemeSave) {
         btnThemeSave.onclick = () => {
-            const name = document.getElementById('theme-name-input').value.trim();
+            const nameInput = document.getElementById('theme-name-input');
+            const name = nameInput ? nameInput.value.trim() : "";
             if(!name) return alert("保存するテーマ名を入力してください");
+            if(!window.savedThemes) window.savedThemes = {};
             window.savedThemes[name] = JSON.parse(JSON.stringify(window.layerSettings));
             localStorage.setItem('polarCalendarThemesV1', JSON.stringify(window.savedThemes));
             updateThemeSelect();
-            document.getElementById('theme-select').value = name;
-            document.getElementById('theme-name-input').value = "";
+            const sel = document.getElementById('theme-select');
+            if(sel) sel.value = name;
+            if(nameInput) nameInput.value = "";
             alert(`テーマ「${name}」を保存しました！`);
         };
     }
@@ -325,19 +325,19 @@ function initUI() {
     const btnThemeLoad = document.getElementById('btn-theme-load');
     if (btnThemeLoad) {
         btnThemeLoad.onclick = () => {
-            const name = document.getElementById('theme-select').value;
+            const sel = document.getElementById('theme-select');
+            const name = sel ? sel.value : 'default';
             if(name === 'default') {
                 window.layerSettings = JSON.parse(JSON.stringify(window.defaultLayerSettings));
-            } else if(window.savedThemes[name]) {
+            } else if(window.savedThemes && window.savedThemes[name]) {
                 window.layerSettings = JSON.parse(JSON.stringify(window.savedThemes[name]));
             }
-            window.saveLayerSettings();
+            if(typeof window.saveLayerSettings === 'function') window.saveLayerSettings();
             location.reload();
         };
     }
 
     let currentDesignTarget = null;
-    
     const targetNames = {
         canvasBg: "キャンバス背景", baseSvg: "ベース図形", lunarShadow: "月相シャドウ", astroPins: "天文学的ピン (朔望)", 
         dateLines: "日付区切り線 (30等分)", lunarMansion: "二十七宿", tideGraph: "潮汐波形", rainGraph: "毎時降水量 (棒線)", 
@@ -352,7 +352,7 @@ function initUI() {
     };
 
     const loadPanelData = () => {
-        const st = window.layerSettings[currentDesignTarget];
+        const st = (window.layerSettings || {})[currentDesignTarget];
         if (!st) return;
 
         ['dp-row-lunar-phase', 'dp-group-text', 'dp-group-shape', 'dp-row-shape-type', 'dp-row-shape-fill', 'dp-row-shape-stroke', 'dp-row-shape-stroke-width', 'dp-shape-stroke-orig', 'dp-shape-stroke-orig-text', 'dp-row-offset', 'dp-row-lang', 'dp-row-density', 'dp-row-shape-scale', 'dp-row-radius-offset', 'dp-group-mansion-colors'].forEach(id => {
@@ -361,12 +361,16 @@ function initUI() {
         });
 
         if (currentDesignTarget === 'canvasBg') {
-            document.getElementById('dp-row-opacity').style.display = 'none';
+            const op = document.getElementById('dp-row-opacity');
+            if(op) op.style.display = 'none';
         } else {
-            document.getElementById('dp-row-opacity').style.display = 'flex';
+            const op = document.getElementById('dp-row-opacity');
+            if(op) op.style.display = 'flex';
             if (st.opacity !== undefined) {
-                document.getElementById('dp-opacity').value = st.opacity;
-                document.getElementById('dp-opacity-val').innerText = st.opacity;
+                const dop = document.getElementById('dp-opacity');
+                const dval = document.getElementById('dp-opacity-val');
+                if(dop) dop.value = st.opacity;
+                if(dval) dval.innerText = st.opacity;
             }
         }
 
@@ -374,264 +378,417 @@ function initUI() {
         const isShapeTarget = ['baseSvg', 'lunarShadow', 'astroPins', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTideLine', 'guideRainLine', 'canvasBg'].includes(currentDesignTarget);
 
         if (isTextTarget) {
-            document.getElementById('dp-group-text').style.display = 'flex';
-            if(st.offsetRadius !== undefined) document.getElementById('dp-row-offset').style.display = 'flex';
+            const gt = document.getElementById('dp-group-text');
+            if(gt) gt.style.display = 'flex';
+            const ro = document.getElementById('dp-row-offset');
+            if(st.offsetRadius !== undefined && ro) ro.style.display = 'flex';
             
-            document.getElementById('dp-font').value = st.fontFamily || "Arial";
-            document.getElementById('dp-size').value = st.fontSize || 10;
-            if(st.offsetRadius !== undefined) document.getElementById('dp-offset').value = st.offsetRadius;
+            const df = document.getElementById('dp-font');
+            const ds = document.getElementById('dp-size');
+            const dof = document.getElementById('dp-offset');
+            if(df) df.value = st.fontFamily || "Arial";
+            if(ds) ds.value = st.fontSize || 10;
+            if(st.offsetRadius !== undefined && dof) dof.value = st.offsetRadius;
             
             if (currentDesignTarget !== 'lunar') {
-                document.getElementById('dp-color').value = st.fill || "#ffffff";
-                document.getElementById('dp-bold').checked = st.fontWeight === "bold";
-                document.getElementById('dp-stroke-color').value = st.stroke || "#000000";
-                document.getElementById('dp-stroke-width').value = st.strokeWidth || 0;
-                document.getElementById('dp-stroke-val').innerText = st.strokeWidth || 0;
+                const dc = document.getElementById('dp-color');
+                const db = document.getElementById('dp-bold');
+                const dsc = document.getElementById('dp-stroke-color');
+                const dsw = document.getElementById('dp-stroke-width');
+                const dsv = document.getElementById('dp-stroke-val');
+                if(dc) dc.value = st.fill || "#ffffff";
+                if(db) db.checked = st.fontWeight === "bold";
+                if(dsc) dsc.value = st.stroke || "#000000";
+                if(dsw) dsw.value = st.strokeWidth || 0;
+                if(dsv) dsv.innerText = st.strokeWidth || 0;
             }
         }
 
         if (currentDesignTarget === 'weekday') {
-            document.getElementById('dp-row-lang').style.display = 'flex';
-            document.getElementById('dp-lang').value = st.lang || 'en';
+            const rl = document.getElementById('dp-row-lang');
+            const dl = document.getElementById('dp-lang');
+            if(rl) rl.style.display = 'flex';
+            if(dl) dl.value = st.lang || 'en';
         }
 
         if (currentDesignTarget === 'dailyRainBg') {
-            document.getElementById('dp-row-density').style.display = 'flex';
-            document.getElementById('dp-density').value = st.density || 0.35;
-            document.getElementById('dp-density-val').innerText = st.density || 0.35;
+            const rd = document.getElementById('dp-row-density');
+            const den = document.getElementById('dp-density');
+            const dval = document.getElementById('dp-density-val');
+            if(rd) rd.style.display = 'flex';
+            if(den) den.value = st.density || 0.35;
+            if(dval) dval.innerText = st.density || 0.35;
         }
 
         if (currentDesignTarget === 'lunarMansion') {
-            document.getElementById('dp-group-mansion-colors').style.display = 'flex';
-            document.getElementById('dp-color-east').value = st.colorEast || "#888888";
-            document.getElementById('dp-color-south').value = st.colorSouth || "#888888";
-            document.getElementById('dp-color-west').value = st.colorWest || "#888888";
-            document.getElementById('dp-color-north').value = st.colorNorth || "#888888";
+            const gmc = document.getElementById('dp-group-mansion-colors');
+            if(gmc) gmc.style.display = 'flex';
+            const ce = document.getElementById('dp-color-east');
+            const cs = document.getElementById('dp-color-south');
+            const cw = document.getElementById('dp-color-west');
+            const cn = document.getElementById('dp-color-north');
+            if(ce) ce.value = st.colorEast || "#888888";
+            if(cs) cs.value = st.colorSouth || "#888888";
+            if(cw) cw.value = st.colorWest || "#888888";
+            if(cn) cn.value = st.colorNorth || "#888888";
             
-            document.getElementById('dp-mansion-star-size').value = st.starSize !== undefined ? st.starSize : 1.5;
-            document.getElementById('dp-mansion-star-size-val').innerText = st.starSize !== undefined ? st.starSize : 1.5;
-            document.getElementById('dp-mansion-bg-color').value = st.bgRingColor || "#ffffff";
-            document.getElementById('dp-mansion-bg-opacity').value = st.bgRingOpacity !== undefined ? st.bgRingOpacity : 0.05;
-            document.getElementById('dp-mansion-bg-opacity-val').innerText = st.bgRingOpacity !== undefined ? st.bgRingOpacity : 0.05;
+            const ss = document.getElementById('dp-mansion-star-size');
+            const ssv = document.getElementById('dp-mansion-star-size-val');
+            if(ss) ss.value = st.starSize !== undefined ? st.starSize : 1.5;
+            if(ssv) ssv.innerText = st.starSize !== undefined ? st.starSize : 1.5;
+            
+            const bc = document.getElementById('dp-mansion-bg-color');
+            const bo = document.getElementById('dp-mansion-bg-opacity');
+            const bov = document.getElementById('dp-mansion-bg-opacity-val');
+            if(bc) bc.value = st.bgRingColor || "#ffffff";
+            if(bo) bo.value = st.bgRingOpacity !== undefined ? st.bgRingOpacity : 0.05;
+            if(bov) bov.innerText = st.bgRingOpacity !== undefined ? st.bgRingOpacity : 0.05;
 
-            document.getElementById('dp-row-color').style.display = 'none';
-            document.getElementById('dp-row-stroke-color').style.display = 'none';
-            document.getElementById('dp-row-stroke-width').style.display = 'none';
+            const rc = document.getElementById('dp-row-color');
+            const rsc = document.getElementById('dp-row-stroke-color');
+            const rsw = document.getElementById('dp-row-stroke-width');
+            if(rc) rc.style.display = 'none';
+            if(rsc) rsc.style.display = 'none';
+            if(rsw) rsw.style.display = 'none';
         }
 
         if (isShapeTarget) {
-            document.getElementById('dp-group-shape').style.display = 'flex';
+            const gs = document.getElementById('dp-group-shape');
+            if(gs) gs.style.display = 'flex';
             
             if (currentDesignTarget === 'astroPins') {
-                document.getElementById('dp-row-shape-scale').style.display = 'flex';
-                document.getElementById('dp-shape-scale').value = st.scale || 1;
-                document.getElementById('dp-shape-scale-val').innerText = st.scale || 1;
+                const rss = document.getElementById('dp-row-shape-scale');
+                const sss = document.getElementById('dp-shape-scale');
+                const ssv = document.getElementById('dp-shape-scale-val');
+                if(rss) rss.style.display = 'flex';
+                if(sss) sss.value = st.scale || 1;
+                if(ssv) ssv.innerText = st.scale || 1;
                 
-                document.getElementById('dp-row-radius-offset').style.display = 'flex';
-                document.getElementById('dp-radius-offset').value = st.radiusOffset || 0;
-                document.getElementById('dp-radius-offset-val').innerText = st.radiusOffset || 0;
+                const rro = document.getElementById('dp-row-radius-offset');
+                const dro = document.getElementById('dp-radius-offset');
+                const drov = document.getElementById('dp-radius-offset-val');
+                if(rro) rro.style.display = 'flex';
+                if(dro) dro.value = st.radiusOffset || 0;
+                if(drov) drov.innerText = st.radiusOffset || 0;
             }
 
             if (currentDesignTarget === 'canvasBg' || currentDesignTarget === 'dailyRainBg') {
-                document.getElementById('dp-row-shape-fill').style.display = 'flex';
-                document.getElementById('dp-row-shape-stroke').style.display = 'none';
-                document.getElementById('dp-row-shape-stroke-width').style.display = 'none';
-                document.getElementById('dp-shape-fill-trans').style.display = 'none';
-                document.getElementById('dp-shape-fill-trans-text').style.display = 'none';
+                const rsf = document.getElementById('dp-row-shape-fill');
+                const rst = document.getElementById('dp-row-shape-stroke');
+                const rstw = document.getElementById('dp-row-shape-stroke-width');
+                const ft = document.getElementById('dp-shape-fill-trans');
+                const ftt = document.getElementById('dp-shape-fill-trans-text');
+                if(rsf) rsf.style.display = 'flex';
+                if(rst) rst.style.display = 'none';
+                if(rstw) rstw.style.display = 'none';
+                if(ft) ft.style.display = 'none';
+                if(ftt) ftt.style.display = 'none';
             } else {
-                document.getElementById('dp-row-shape-fill').style.display = 'flex';
-                document.getElementById('dp-row-shape-stroke').style.display = 'flex';
+                const rsf = document.getElementById('dp-row-shape-fill');
+                const rst = document.getElementById('dp-row-shape-stroke');
+                const ft = document.getElementById('dp-shape-fill-trans');
+                const ftt = document.getElementById('dp-shape-fill-trans-text');
+                if(rsf) rsf.style.display = 'flex';
+                if(rst) rst.style.display = 'flex';
                 if (currentDesignTarget !== 'baseSvg') {
-                    document.getElementById('dp-row-shape-stroke-width').style.display = 'flex';
+                    const rstw = document.getElementById('dp-row-shape-stroke-width');
+                    if(rstw) rstw.style.display = 'flex';
                 }
-                document.getElementById('dp-shape-fill-trans').style.display = 'inline-block';
-                document.getElementById('dp-shape-fill-trans-text').style.display = 'inline-block';
+                if(ft) ft.style.display = 'inline-block';
+                if(ftt) ftt.style.display = 'inline-block';
             }
 
             if(st.fill !== undefined) {
                 const isTrans = (st.fill === "none" || st.fill === "transparent");
-                document.getElementById('dp-shape-fill-trans').checked = isTrans;
-                document.getElementById('dp-shape-fill').value = isTrans ? "#000000" : st.fill;
+                const ft = document.getElementById('dp-shape-fill-trans');
+                const sf = document.getElementById('dp-shape-fill');
+                if(ft) ft.checked = isTrans;
+                if(sf) sf.value = isTrans ? "#000000" : st.fill;
             }
             
             if(st.stroke !== undefined || st.shapeStroke !== undefined) {
-                document.getElementById('dp-shape-stroke').value = st.stroke !== undefined ? st.stroke : st.shapeStroke;
-                document.getElementById('dp-shape-stroke-width').value = st.strokeWidth !== undefined ? st.strokeWidth : st.shapeStrokeWidth;
-                if(document.getElementById('dp-shape-stroke-width-val')) {
-                    document.getElementById('dp-shape-stroke-width-val').innerText = document.getElementById('dp-shape-stroke-width').value;
-                }
+                const ss = document.getElementById('dp-shape-stroke');
+                const ssw = document.getElementById('dp-shape-stroke-width');
+                const sswv = document.getElementById('dp-shape-stroke-width-val');
+                if(ss) ss.value = st.stroke !== undefined ? st.stroke : st.shapeStroke;
+                if(ssw) ssw.value = st.strokeWidth !== undefined ? st.strokeWidth : st.shapeStrokeWidth;
+                if(sswv && ssw) sswv.innerText = ssw.value;
             }
 
             if (currentDesignTarget === 'baseSvg') {
-                document.getElementById('dp-row-shape-fill').style.display = 'none';
-                document.getElementById('dp-shape-stroke-orig').style.display = 'inline-block';
-                document.getElementById('dp-shape-stroke-orig-text').style.display = 'inline-block';
+                const rsf = document.getElementById('dp-row-shape-fill');
+                const sso = document.getElementById('dp-shape-stroke-orig');
+                const ssot = document.getElementById('dp-shape-stroke-orig-text');
+                const ss = document.getElementById('dp-shape-stroke');
+                if(rsf) rsf.style.display = 'none';
+                if(sso) sso.style.display = 'inline-block';
+                if(ssot) ssot.style.display = 'inline-block';
                 const isOrig = (st.stroke === "");
-                document.getElementById('dp-shape-stroke-orig').checked = !isOrig;
-                document.getElementById('dp-shape-stroke').value = isOrig ? "#000000" : st.stroke;
+                if(sso) sso.checked = !isOrig;
+                if(ss) ss.value = isOrig ? "#000000" : st.stroke;
             } else {
-                document.getElementById('dp-shape-stroke-orig').style.display = 'none';
-                document.getElementById('dp-shape-stroke-orig-text').style.display = 'none';
+                const sso = document.getElementById('dp-shape-stroke-orig');
+                const ssot = document.getElementById('dp-shape-stroke-orig-text');
+                if(sso) sso.style.display = 'none';
+                if(ssot) ssot.style.display = 'none';
             }
         }
 
         if (currentDesignTarget === 'lunar') {
-            document.getElementById('dp-row-lunar-phase').style.display = 'flex';
-            document.getElementById('dp-group-shape').style.display = 'flex';
-            ['dp-row-shape-type', 'dp-row-shape-scale', 'dp-row-shape-fill', 'dp-row-shape-stroke', 'dp-row-shape-stroke-width'].forEach(id => document.getElementById(id).style.display = 'flex');
+            const rlp = document.getElementById('dp-row-lunar-phase');
+            const gs = document.getElementById('dp-group-shape');
+            if(rlp) rlp.style.display = 'flex';
+            if(gs) gs.style.display = 'flex';
+            ['dp-row-shape-type', 'dp-row-shape-scale', 'dp-row-shape-fill', 'dp-row-shape-stroke', 'dp-row-shape-stroke-width'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.style.display = 'flex';
+            });
 
-            const phase = document.getElementById('dp-lunar-phase').value;
-            const pst = st.phases[phase];
-            
-            document.getElementById('dp-color').value = pst.fill;
-            document.getElementById('dp-bold').checked = (st.fontWeight === "bold");
-            
-            document.getElementById('dp-shape').value = pst.shape;
-            document.getElementById('dp-shape-scale').value = pst.scale || 1;
-            document.getElementById('dp-shape-scale-val').innerText = pst.scale || 1;
-            
-            const isTrans = (pst.bgFill === "transparent" || pst.bgFill === "none");
-            document.getElementById('dp-shape-fill-trans').checked = isTrans;
-            document.getElementById('dp-shape-fill-trans-text').innerText = "透明";
-            document.getElementById('dp-shape-fill').value = isTrans ? "#000000" : pst.bgFill;
-            
-            document.getElementById('dp-shape-stroke').value = pst.shapeStroke;
-            document.getElementById('dp-shape-stroke-width').value = pst.shapeStrokeWidth;
-            document.getElementById('dp-shape-stroke-width-val').innerText = pst.shapeStrokeWidth;
+            const lp = document.getElementById('dp-lunar-phase');
+            if(lp) {
+                const phase = lp.value;
+                const pst = st.phases[phase];
+                const dc = document.getElementById('dp-color');
+                const db = document.getElementById('dp-bold');
+                const dsh = document.getElementById('dp-shape');
+                const dshs = document.getElementById('dp-shape-scale');
+                const dshsv = document.getElementById('dp-shape-scale-val');
+                const dft = document.getElementById('dp-shape-fill-trans');
+                const dftt = document.getElementById('dp-shape-fill-trans-text');
+                const dsf = document.getElementById('dp-shape-fill');
+                const dsstr = document.getElementById('dp-shape-stroke');
+                const dsstw = document.getElementById('dp-shape-stroke-width');
+                const dsstwv = document.getElementById('dp-shape-stroke-width-val');
+
+                if(dc) dc.value = pst.fill;
+                if(db) db.checked = (st.fontWeight === "bold");
+                if(dsh) dsh.value = pst.shape;
+                if(dshs) dshs.value = pst.scale || 1;
+                if(dshsv && dshs) dshsv.innerText = dshs.value;
+                
+                const isTrans = (pst.bgFill === "transparent" || pst.bgFill === "none");
+                if(dft) dft.checked = isTrans;
+                if(dftt) dftt.innerText = "透明";
+                if(dsf) dsf.value = isTrans ? "#000000" : pst.bgFill;
+                if(dsstr) dsstr.value = pst.shapeStroke;
+                if(dsstw) dsstw.value = pst.shapeStrokeWidth;
+                if(dsstwv && dsstw) dsstwv.innerText = dsstw.value;
+            }
         }
     };
 
-    document.getElementById('dp-close').onclick = () => {
-        designPanel.style.display = 'none';
-    };
+    const dpClose = document.getElementById('dp-close');
+    if (dpClose) {
+        dpClose.onclick = () => { designPanel.style.display = 'none'; };
+    }
 
-    document.getElementById('dp-reset').onclick = () => {
-        if (confirm(`「${targetNames[currentDesignTarget]}」のデザイン設定を初期状態に戻しますか？`)) {
-            window.layerSettings[currentDesignTarget] = JSON.parse(JSON.stringify(window.defaultLayerSettings[currentDesignTarget]));
-            window.saveLayerSettings();
-            loadPanelData();
-            updateDesign();
-        }
-    };
+    const dpReset = document.getElementById('dp-reset');
+    if (dpReset) {
+        dpReset.onclick = () => {
+            if (confirm(`「${targetNames[currentDesignTarget]}」のデザイン設定を初期状態に戻しますか？`)) {
+                if (window.defaultLayerSettings && window.layerSettings) {
+                    window.layerSettings[currentDesignTarget] = JSON.parse(JSON.stringify(window.defaultLayerSettings[currentDesignTarget]));
+                    if(typeof window.saveLayerSettings === 'function') window.saveLayerSettings();
+                    loadPanelData();
+                    if (typeof updateDesign === 'function') updateDesign();
+                }
+            }
+        };
+    }
 
-    document.getElementById('reset-all-settings').onclick = () => {
-        if (confirm('⚠️ すべてのデザイン設定を完全に初期化しますか？\n（各月のデザイン設定もすべて消去されます）')) {
-            localStorage.removeItem('polarCalendarSettingsV5');
-            window.appSettings = { global: JSON.parse(JSON.stringify(window.defaultLayerSettings)), months: {} };
-            window.layerSettings = JSON.parse(JSON.stringify(window.defaultLayerSettings));
-            window.saveLayerSettings();
-            location.reload();
-        }
-    };
+    const resetAll = document.getElementById('reset-all-settings');
+    if (resetAll) {
+        resetAll.onclick = () => {
+            if (confirm('⚠️ すべてのデザイン設定を完全に初期化しますか？\n（各月のデザイン設定もすべて消去されます）')) {
+                localStorage.removeItem('polarCalendarSettingsV5');
+                window.appSettings = { global: JSON.parse(JSON.stringify(window.defaultLayerSettings)), months: {} };
+                window.layerSettings = JSON.parse(JSON.stringify(window.defaultLayerSettings));
+                if(typeof window.saveLayerSettings === 'function') window.saveLayerSettings();
+                location.reload();
+            }
+        };
+    }
 
     document.addEventListener('click', (e) => {
-        if (e.target.classList.contains('layer-settings-btn')) {
+        if (e.target && e.target.classList && e.target.classList.contains('layer-settings-btn')) {
             currentDesignTarget = e.target.getAttribute('data-target');
-            document.getElementById('dp-title').innerText = `${targetNames[currentDesignTarget]} の設定`;
-            designPanel.style.transform = 'translate(-50%, -50%)';
-            designPanel.style.left = '50%';
-            designPanel.style.top = '50%';
-            loadPanelData();
-            designPanel.style.display = 'block';
+            const dt = document.getElementById('dp-title');
+            if(dt) dt.innerText = `${targetNames[currentDesignTarget]} の設定`;
+            if(designPanel) {
+                designPanel.style.transform = 'translate(-50%, -50%)';
+                designPanel.style.left = '50%';
+                designPanel.style.top = '50%';
+                loadPanelData();
+                designPanel.style.display = 'block';
+            }
         }
     });
 
     const updateDesign = () => {
-        if (!currentDesignTarget) return;
+        if (!currentDesignTarget || !window.layerSettings) return;
         const st = window.layerSettings[currentDesignTarget];
+        if (!st) return;
 
-        if(document.getElementById('dp-opacity').style.display !== 'none') {
-            st.opacity = parseFloat(document.getElementById('dp-opacity').value);
-            document.getElementById('dp-opacity-val').innerText = st.opacity;
+        const op = document.getElementById('dp-opacity');
+        if(op && op.style.display !== 'none') {
+            st.opacity = parseFloat(op.value);
+            const opv = document.getElementById('dp-opacity-val');
+            if(opv) opv.innerText = st.opacity;
         }
 
         const isTextTarget = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'wafuText', 'gregorianText', 'dailyRainText', 'guideTime', 'guideTideText', 'guideRainText', 'lunarMansion', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar', 'haikuText'].includes(currentDesignTarget);
 
         if (isTextTarget) {
-            st.fontFamily = document.getElementById('dp-font').value;
-            st.fontSize = parseFloat(document.getElementById('dp-size').value);
-            if(st.offsetRadius !== undefined) st.offsetRadius = parseFloat(document.getElementById('dp-offset').value);
+            const df = document.getElementById('dp-font');
+            const ds = document.getElementById('dp-size');
+            const dof = document.getElementById('dp-offset');
+            if(df) st.fontFamily = df.value;
+            if(ds) st.fontSize = parseFloat(ds.value);
+            if(st.offsetRadius !== undefined && dof) st.offsetRadius = parseFloat(dof.value);
             
             if (currentDesignTarget !== 'lunar') {
-                st.fill = document.getElementById('dp-color').value;
-                st.fontWeight = document.getElementById('dp-bold').checked ? "bold" : "normal";
-                st.stroke = document.getElementById('dp-stroke-color').value;
-                st.strokeWidth = parseFloat(document.getElementById('dp-stroke-width').value);
-                document.getElementById('dp-stroke-val').innerText = st.strokeWidth;
+                const dc = document.getElementById('dp-color');
+                const db = document.getElementById('dp-bold');
+                const dsc = document.getElementById('dp-stroke-color');
+                const dsw = document.getElementById('dp-stroke-width');
+                const dsv = document.getElementById('dp-stroke-val');
+                if(dc) st.fill = dc.value;
+                if(db) st.fontWeight = db.checked ? "bold" : "normal";
+                if(dsc) st.stroke = dsc.value;
+                if(dsw) {
+                    st.strokeWidth = parseFloat(dsw.value);
+                    if(dsv) dsv.innerText = st.strokeWidth;
+                }
             }
         }
 
-        if (currentDesignTarget === 'weekday') st.lang = document.getElementById('dp-lang').value;
+        if (currentDesignTarget === 'weekday') {
+            const dl = document.getElementById('dp-lang');
+            if(dl) st.lang = dl.value;
+        }
         
         if (currentDesignTarget === 'dailyRainBg') {
-            st.density = parseFloat(document.getElementById('dp-density').value);
-            document.getElementById('dp-density-val').innerText = st.density;
+            const den = document.getElementById('dp-density');
+            if(den) {
+                st.density = parseFloat(den.value);
+                const dval = document.getElementById('dp-density-val');
+                if(dval) dval.innerText = st.density;
+            }
         }
 
         if (currentDesignTarget === 'lunarMansion') {
-            st.colorEast = document.getElementById('dp-color-east').value;
-            st.colorSouth = document.getElementById('dp-color-south').value;
-            st.colorWest = document.getElementById('dp-color-west').value;
-            st.colorNorth = document.getElementById('dp-color-north').value;
+            const ce = document.getElementById('dp-color-east');
+            const cs = document.getElementById('dp-color-south');
+            const cw = document.getElementById('dp-color-west');
+            const cn = document.getElementById('dp-color-north');
+            if(ce) st.colorEast = ce.value;
+            if(cs) st.colorSouth = cs.value;
+            if(cw) st.colorWest = cw.value;
+            if(cn) st.colorNorth = cn.value;
             
-            st.starSize = parseFloat(document.getElementById('dp-mansion-star-size').value);
-            document.getElementById('dp-mansion-star-size-val').innerText = st.starSize;
-            st.bgRingColor = document.getElementById('dp-mansion-bg-color').value;
-            st.bgRingOpacity = parseFloat(document.getElementById('dp-mansion-bg-opacity').value);
-            document.getElementById('dp-mansion-bg-opacity-val').innerText = st.bgRingOpacity;
+            const ss = document.getElementById('dp-mansion-star-size');
+            if(ss) {
+                st.starSize = parseFloat(ss.value);
+                const ssv = document.getElementById('dp-mansion-star-size-val');
+                if(ssv) ssv.innerText = st.starSize;
+            }
+            const bc = document.getElementById('dp-mansion-bg-color');
+            const bo = document.getElementById('dp-mansion-bg-opacity');
+            if(bc) st.bgRingColor = bc.value;
+            if(bo) {
+                st.bgRingOpacity = parseFloat(bo.value);
+                const bov = document.getElementById('dp-mansion-bg-opacity-val');
+                if(bov) bov.innerText = st.bgRingOpacity;
+            }
         }
 
         if (currentDesignTarget === 'canvasBg') {
-            st.fill = document.getElementById('dp-shape-fill').value;
-            document.body.style.backgroundColor = st.fill;
+            const sf = document.getElementById('dp-shape-fill');
+            if(sf) {
+                st.fill = sf.value;
+                document.body.style.backgroundColor = st.fill;
+            }
         }
 
         const isShapeTarget = ['baseSvg', 'lunarShadow', 'astroPins', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTideLine', 'guideRainLine'].includes(currentDesignTarget);
 
         if(isShapeTarget) {
-            if(st.fill !== undefined) st.fill = document.getElementById('dp-shape-fill-trans').checked ? "none" : document.getElementById('dp-shape-fill').value;
+            const ft = document.getElementById('dp-shape-fill-trans');
+            const sf = document.getElementById('dp-shape-fill');
+            if(st.fill !== undefined && ft && sf) {
+                st.fill = ft.checked ? "none" : sf.value;
+            }
             
             if (currentDesignTarget === 'astroPins') {
-                st.scale = parseFloat(document.getElementById('dp-shape-scale').value);
-                document.getElementById('dp-shape-scale-val').innerText = st.scale;
-                
-                st.radiusOffset = parseFloat(document.getElementById('dp-radius-offset').value);
-                document.getElementById('dp-radius-offset-val').innerText = st.radiusOffset;
+                const sc = document.getElementById('dp-shape-scale');
+                if(sc) {
+                    st.scale = parseFloat(sc.value);
+                    const scv = document.getElementById('dp-shape-scale-val');
+                    if(scv) scv.innerText = st.scale;
+                }
+                const ro = document.getElementById('dp-radius-offset');
+                if(ro) {
+                    st.radiusOffset = parseFloat(ro.value);
+                    const rov = document.getElementById('dp-radius-offset-val');
+                    if(rov) rov.innerText = st.radiusOffset;
+                }
             }
 
             if(currentDesignTarget === 'baseSvg') {
-                st.stroke = document.getElementById('dp-shape-stroke-orig').checked ? document.getElementById('dp-shape-stroke').value : "";
+                const sso = document.getElementById('dp-shape-stroke-orig');
+                const ss = document.getElementById('dp-shape-stroke');
+                if(sso && ss) st.stroke = sso.checked ? ss.value : "";
             } else if (currentDesignTarget !== 'canvasBg' && currentDesignTarget !== 'dailyRainBg') {
-                if(st.stroke !== undefined) st.stroke = document.getElementById('dp-shape-stroke').value;
-                if(st.strokeWidth !== undefined) st.strokeWidth = parseFloat(document.getElementById('dp-shape-stroke-width').value);
-                if(st.shapeStroke !== undefined) st.shapeStroke = document.getElementById('dp-shape-stroke').value;
-                if(st.shapeStrokeWidth !== undefined) st.shapeStrokeWidth = parseFloat(document.getElementById('dp-shape-stroke-width').value);
+                const ss = document.getElementById('dp-shape-stroke');
+                const ssw = document.getElementById('dp-shape-stroke-width');
+                if(st.stroke !== undefined && ss) st.stroke = ss.value;
+                if(st.strokeWidth !== undefined && ssw) st.strokeWidth = parseFloat(ssw.value);
+                if(st.shapeStroke !== undefined && ss) st.shapeStroke = ss.value;
+                if(st.shapeStrokeWidth !== undefined && ssw) st.shapeStrokeWidth = parseFloat(ssw.value);
             }
-            if(document.getElementById('dp-shape-stroke-width-val')) {
-                document.getElementById('dp-shape-stroke-width-val').innerText = document.getElementById('dp-shape-stroke-width').value;
-            }
+            const ssw = document.getElementById('dp-shape-stroke-width');
+            const sswv = document.getElementById('dp-shape-stroke-width-val');
+            if(sswv && ssw) sswv.innerText = ssw.value;
         }
 
         if (currentDesignTarget === 'lunar') {
-            const phase = document.getElementById('dp-lunar-phase').value;
-            const pst = st.phases[phase];
-            pst.fill = document.getElementById('dp-color').value;
-            st.fontWeight = document.getElementById('dp-bold').checked ? "bold" : "normal";
-            
-            pst.shape = document.getElementById('dp-shape').value;
-            pst.scale = parseFloat(document.getElementById('dp-shape-scale').value);
-            document.getElementById('dp-shape-scale-val').innerText = pst.scale;
-            
-            pst.bgFill = document.getElementById('dp-shape-fill-trans').checked ? "transparent" : document.getElementById('dp-shape-fill').value;
-            pst.shapeStroke = document.getElementById('dp-shape-stroke').value;
-            pst.shapeStrokeWidth = parseFloat(document.getElementById('dp-shape-stroke-width').value);
-            document.getElementById('dp-shape-stroke-width-val').innerText = pst.shapeStrokeWidth;
+            const lp = document.getElementById('dp-lunar-phase');
+            if(lp) {
+                const phase = lp.value;
+                const pst = st.phases[phase];
+                const dc = document.getElementById('dp-color');
+                const db = document.getElementById('dp-bold');
+                if(dc) pst.fill = dc.value;
+                if(db) st.fontWeight = db.checked ? "bold" : "normal";
+                
+                const dsh = document.getElementById('dp-shape');
+                const sc = document.getElementById('dp-shape-scale');
+                if(dsh) pst.shape = dsh.value;
+                if(sc) {
+                    pst.scale = parseFloat(sc.value);
+                    const scv = document.getElementById('dp-shape-scale-val');
+                    if(scv) scv.innerText = pst.scale;
+                }
+                
+                const ft = document.getElementById('dp-shape-fill-trans');
+                const sf = document.getElementById('dp-shape-fill');
+                if(ft && sf) pst.bgFill = ft.checked ? "transparent" : sf.value;
+                
+                const ss = document.getElementById('dp-shape-stroke');
+                const ssw = document.getElementById('dp-shape-stroke-width');
+                if(ss) pst.shapeStroke = ss.value;
+                if(ssw) {
+                    pst.shapeStrokeWidth = parseFloat(ssw.value);
+                    const sswv = document.getElementById('dp-shape-stroke-width-val');
+                    if(sswv) sswv.innerText = pst.shapeStrokeWidth;
+                }
+            }
         }
 
-        window.saveLayerSettings();
+        if(typeof window.saveLayerSettings === 'function') window.saveLayerSettings();
 
         if (currentDesignTarget === 'baseSvg') {
-            const bgGroup = document.getElementById('bg-group');
+            const bgGroup = document.getElementById('bg-group') || window.bgGroup;
             if(bgGroup) {
                 bgGroup.style.opacity = st.opacity;
                 Array.from(bgGroup.querySelectorAll('*')).forEach(el => {
@@ -677,148 +834,191 @@ function initUI() {
         }
     });
 
-    document.getElementById('prevBtn').onclick = () => {
-        currentCycle--;
-        if (typeof updateCalendarCycle === 'function') updateCalendarCycle();
-        if (document.getElementById('design-panel').style.display === 'block') loadPanelData();
-    };
+    const pBtn = document.getElementById('prevBtn');
+    if (pBtn) {
+        pBtn.onclick = () => {
+            if (typeof currentCycle !== 'undefined') window.currentCycle--;
+            if (typeof updateCalendarCycle === 'function') updateCalendarCycle();
+            if (designPanel && designPanel.style.display === 'block') loadPanelData();
+        };
+    }
 
-    document.getElementById('nextBtn').onclick = () => {
-        currentCycle++;
-        if (typeof updateCalendarCycle === 'function') updateCalendarCycle();
-        if (document.getElementById('design-panel').style.display === 'block') loadPanelData();
-    };
+    const nBtn = document.getElementById('nextBtn');
+    if (nBtn) {
+        nBtn.onclick = () => {
+            if (typeof currentCycle !== 'undefined') window.currentCycle++;
+            if (typeof updateCalendarCycle === 'function') updateCalendarCycle();
+            if (designPanel && designPanel.style.display === 'block') loadPanelData();
+        };
+    }
 
-    document.getElementById('printBtn').onclick = () => window.print();
+    const prBtn = document.getElementById('printBtn');
+    if (prBtn) prBtn.onclick = () => window.print();
 
     const cycleDisplay = document.getElementById('cycleDisplay');
-    cycleDisplay.onmouseover = () => { cycleDisplay.style.background = "rgba(255,255,255,0.1)"; };
-    cycleDisplay.onmouseout = () => { cycleDisplay.style.background = "transparent"; };
-    cycleDisplay.onclick = () => {
-        jumpDiv.style.display = jumpDiv.style.display === 'none' ? 'flex' : 'none';
-    };
+    if (cycleDisplay) {
+        cycleDisplay.onmouseover = () => { cycleDisplay.style.background = "rgba(255,255,255,0.1)"; };
+        cycleDisplay.onmouseout = () => { cycleDisplay.style.background = "transparent"; };
+        cycleDisplay.onclick = () => {
+            if(jumpDiv) jumpDiv.style.display = jumpDiv.style.display === 'none' ? 'flex' : 'none';
+        };
+    }
 
-    document.getElementById('jumpGoBtn').onclick = () => {
-        const val = document.getElementById('jumpInput').value;
-        if(!val) return;
-        const targetDate = new Date(val + "-15");
-        const diffMs = targetDate.getTime() - baseDate.getTime();
-        const diffDays = diffMs / (1000 * 60 * 60 * 24);
-        currentCycle = Math.round(diffDays / synodicMonth);
-        jumpDiv.style.display = 'none';
-        if (typeof updateCalendarCycle === 'function') updateCalendarCycle();
-        if (document.getElementById('design-panel').style.display === 'block') loadPanelData();
-    };
+    const jGo = document.getElementById('jumpGoBtn');
+    if (jGo) {
+        jGo.onclick = () => {
+            const jInp = document.getElementById('jumpInput');
+            if(!jInp || !jInp.value) return;
+            const targetDate = new Date(jInp.value + "-15");
+            const bDate = typeof baseDate !== 'undefined' ? baseDate : new Date('2025-12-20T00:00:00+09:00');
+            const sMonth = typeof synodicMonth !== 'undefined' ? synodicMonth : 29.530588853;
+            const diffMs = targetDate.getTime() - bDate.getTime();
+            const diffDays = diffMs / (1000 * 60 * 60 * 24);
+            window.currentCycle = Math.round(diffDays / sMonth);
+            if(jumpDiv) jumpDiv.style.display = 'none';
+            if (typeof updateCalendarCycle === 'function') updateCalendarCycle();
+            if (designPanel && designPanel.style.display === 'block') loadPanelData();
+        };
+    }
 
     const btnPointer = document.getElementById('tool-pointer');
     const btnPaint = document.getElementById('tool-paint');
     const btnErase = document.getElementById('tool-erase');
 
     const setTool = (tool, mode = null) => {
-        currentTool = tool;
-        if (tool === 'pointer' && mode) interactionMode = mode;
+        window.currentTool = tool;
+        if (tool === 'pointer' && mode) window.interactionMode = mode;
         
         [btnPointer, btnPaint, btnErase].forEach(b => {
-            b.style.background = 'transparent';
-            b.style.borderColor = 'transparent';
-            b.style.color = '#fff';
+            if(b) {
+                b.style.background = 'transparent';
+                b.style.borderColor = 'transparent';
+                b.style.color = '#fff';
+            }
         });
 
-        paletteDiv.style.display = (tool === 'paint') ? 'grid' : 'none';
+        if (paletteDiv) paletteDiv.style.display = (tool === 'paint') ? 'grid' : 'none';
 
         const activeBtn = tool === 'pointer' ? btnPointer : tool === 'paint' ? btnPaint : btnErase;
-        activeBtn.style.background = 'rgba(212,175,55,0.85)';
-        activeBtn.style.borderColor = '#d4af37';
-        activeBtn.style.color = '#000';
+        if (activeBtn) {
+            activeBtn.style.background = 'rgba(212,175,55,0.85)';
+            activeBtn.style.borderColor = '#d4af37';
+            activeBtn.style.color = '#000';
+        }
 
-        if (currentTool === 'pointer') {
-            if (interactionMode === 'pan') {
-                btnPointer.innerHTML = iconPan;
+        if (tool === 'pointer' && btnPointer) {
+            if (window.interactionMode === 'pan') {
+                btnPointer.innerHTML = typeof iconPan !== 'undefined' ? iconPan : '👆';
                 btnPointer.title = "移動 (V)";
             } else {
-                btnPointer.innerHTML = iconRotate;
+                btnPointer.innerHTML = typeof iconRotate !== 'undefined' ? iconRotate : '🔄';
                 btnPointer.title = "回転 (V)";
             }
         }
 
-        const appCont = document.getElementById('calendar-container') || document.body;
-        if (tool === 'pointer') appCont.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize';
-        else if (tool === 'paint') appCont.style.cursor = 'crosshair';
-        else if (tool === 'erase') appCont.style.cursor = 'cell';
+        // ★ カーソルを強制適用するCSS注入（文字の上でも十字にならないようにする）
+        let cursorStyle = 'default';
+        if (tool === 'pointer') cursorStyle = window.interactionMode === 'pan' ? 'grab' : 'ew-resize';
+        else if (tool === 'paint') cursorStyle = 'crosshair';
+        else if (tool === 'erase') cursorStyle = 'cell';
+
+        let cursorStyleBlock = document.getElementById("cursor-style-block");
+        if (!cursorStyleBlock) {
+            cursorStyleBlock = document.createElement("style");
+            cursorStyleBlock.id = "cursor-style-block";
+            document.head.appendChild(cursorStyleBlock);
+        }
+        cursorStyleBlock.innerHTML = `
+            #container, #container svg, .calendar-container, .calendar-container svg { cursor: ${cursorStyle} !important; }
+            text { cursor: inherit; user-select: none; -webkit-user-select: none; }
+            text[style*="cursor: pointer"] { cursor: pointer !important; }
+        `;
     };
 
-    let previousTool = 'pointer';
-    let isSpacePressed = false;
+    window.previousTool = 'pointer';
+    window.isSpacePressed = false;
 
     document.addEventListener('keydown', (e) => {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
         if (e.code === 'Space') {
             e.preventDefault();
-            if (!isSpacePressed) {
-                isSpacePressed = true;
-                previousTool = currentTool;
+            if (!window.isSpacePressed) {
+                window.isSpacePressed = true;
+                window.previousTool = window.currentTool || 'pointer';
                 setTool('pointer', 'pan');
             }
             return;
         }
         const key = e.key.toLowerCase();
-        if (key === 'v') setTool('pointer', interactionMode === 'pan' ? 'rotate' : 'pan');
+        if (key === 'v') setTool('pointer', window.interactionMode === 'pan' ? 'rotate' : 'pan');
         if (key === 'b') setTool('paint');
         if (key === 'e') setTool('erase');
     });
 
     document.addEventListener('keyup', (e) => {
         if (e.code === 'Space') {
-            isSpacePressed = false;
-            setTool(previousTool);
+            window.isSpacePressed = false;
+            setTool(window.previousTool || 'pointer');
         }
     });
 
-    btnPointer.onclick = () => setTool('pointer', interactionMode === 'pan' ? 'rotate' : 'pan');
-    btnPaint.onclick = () => setTool('paint');
-    btnErase.onclick = () => setTool('erase');
+    if(btnPointer) btnPointer.onclick = () => setTool('pointer', window.interactionMode === 'pan' ? 'rotate' : 'pan');
+    if(btnPaint) btnPaint.onclick = () => setTool('paint');
+    if(btnErase) btnErase.onclick = () => setTool('erase');
 
-    document.getElementById('homeBtn').onclick = () => {
-        globalRotation = -currentStartSegment * 3;
-        masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
-        viewBox = { x: 0, y: 0, w: 1841.3719, h: 2382.9518 };
-        svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
-    };
+    const hBtn = document.getElementById('homeBtn');
+    if (hBtn) {
+        hBtn.onclick = () => {
+            window.globalRotation = -(window.currentStartSegment || 0) * 3;
+            if (window.masterGroup) window.masterGroup.setAttribute('transform', `rotate(${window.globalRotation}, ${typeof cx !== 'undefined'?cx:0}, ${typeof cy !== 'undefined'?cy:0})`);
+            const vb = typeof viewBox !== 'undefined' ? viewBox : { x: -841.89 / 2, y: -841.89 / 2, w: 841.89, h: 841.89 };
+            window.viewBox = { x: 0, y: 0, w: 1841.3719, h: 2382.9518 }; 
+            if (window.svg) window.svg.setAttribute('viewBox', `${window.viewBox.x} ${window.viewBox.y} ${window.viewBox.w} ${window.viewBox.h}`);
+        };
+    }
 
     const colors = [
         "#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", "#22c55e", "#10b981", "#14b8a6", "#06b6d4", "#0ea5e9",
         "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#ec4899", "#f43f5e", "#fb7185", "#a8a29e", "#57534e"
     ];
 
+    window.activeBrush = window.activeBrush || colors[0];
+
     colors.forEach(color => {
         const div = document.createElement('div');
         div.style = `width:100%; aspect-ratio:1; background-color:${color}; border-radius:4px; border:2px solid transparent; cursor:pointer; transition:0.1s; box-sizing:border-box;`;
-        if(typeof activeBrush !== 'undefined' && color === activeBrush) {
+        if(color === window.activeBrush) {
             div.style.borderColor = '#fff';
             div.style.transform = 'scale(1.1)';
         }
         div.onclick = () => {
-            paletteDiv.querySelectorAll('div').forEach(el => {
-                el.style.borderColor = 'transparent';
-                el.style.transform = 'scale(1)';
-            });
+            if(paletteDiv) {
+                paletteDiv.querySelectorAll('div').forEach(el => {
+                    el.style.borderColor = 'transparent';
+                    el.style.transform = 'scale(1)';
+                });
+            }
             div.style.borderColor = '#fff';
             div.style.transform = 'scale(1.1)';
-            if(typeof activeBrush !== 'undefined') activeBrush = color;
+            window.activeBrush = color;
         };
-        paletteDiv.appendChild(div);
+        if(paletteDiv) paletteDiv.appendChild(div);
     });
 
-    document.getElementById('clearBtn').onclick = () => {
-        if(currentTool !== 'paint') return alert("ペン(B)で消したい色を選択してください。");
-        if(confirm(`現在の月（輪）から、選択中の色をすべて削除しますか？`)) {
-            for (const key in calendarData) {
-                if (key.startsWith(`c${currentCycle}_`) && calendarData[key].color === activeBrush) delete calendarData[key];
+    const cBtn = document.getElementById('clearBtn');
+    if (cBtn) {
+        cBtn.onclick = () => {
+            if(window.currentTool !== 'paint') return alert("ペン(B)で消したい色を選択してください。");
+            if(confirm(`現在の月（輪）から、選択中の色をすべて削除しますか？`)) {
+                const cData = window.calendarData || {};
+                for (const key in cData) {
+                    if (key.startsWith(`c${window.currentCycle || 0}_`) && cData[key].color === window.activeBrush) delete cData[key];
+                }
+                localStorage.setItem('polarCalendarDataV27', JSON.stringify(cData));
+                if (typeof renderSavedData === 'function') renderSavedData();
             }
-            localStorage.setItem('polarCalendarDataV27', JSON.stringify(calendarData));
-            if(typeof renderSavedData === 'function') renderSavedData();
-        }
-    };
+        };
+    }
 
     setTool('pointer', 'pan');
 
@@ -863,7 +1063,7 @@ function initUI() {
         if(!check("toggle-holiday")) addHiddenRule(".layer-holiday");
         if(!check("toggle-event-important")) addHiddenRule(".layer-event-important");
 
-        styleBlock.innerHTML = css;
+        if (styleBlock) styleBlock.innerHTML = css;
 
         if (typeof drawKoyomiEvents === 'function' && window.lastKoyomiStartDate) {
             drawKoyomiEvents(window.lastKoyomiStartDate);
@@ -871,14 +1071,14 @@ function initUI() {
     };
 
     document.body.addEventListener("change", (e) => {
-        if (e.target && e.target.type === 'checkbox' && e.target.id.startsWith('toggle-')) {
+        if (e.target && e.target.type === 'checkbox' && e.target.id && e.target.id.startsWith('toggle-')) {
             updateLayerVisibility();
         }
     });
     updateLayerVisibility();
 }
 
-// ★ 和風縦書き短冊モーダル
+// ★ 和風縦書きモーダルを開く関数（表示崩れを修正）
 window.openHaikuModal = function(dateStr, haikus) {
     let modal = document.getElementById('haiku-modal');
     if(!modal) {
@@ -889,16 +1089,19 @@ window.openHaikuModal = function(dateStr, haikus) {
             <div style="background:#fdfbf7; padding:50px 40px 40px 40px; border-radius:8px; max-width:80%; max-height:80%; overflow-x:auto; overflow-y:hidden; display:flex; flex-direction:column; align-items:center; position:relative; box-shadow:0 10px 40px rgba(0,0,0,0.8); border: 1px solid #d4af37;">
                 <button id="haiku-modal-close" style="position:absolute; top:10px; right:15px; background:none; border:none; font-size:28px; cursor:pointer; color:#888;">×</button>
                 <div id="haiku-modal-date" style="font-family:'Shippori Mincho', serif; font-size:16px; color:#888; margin-bottom:20px; letter-spacing:2px;"></div>
-                <div id="haiku-modal-content" style="font-family:'Shippori Mincho', serif; font-size:18px; color:#2c3e50; writing-mode: vertical-rl; max-height: 60vh; text-align: left;">
+                <div id="haiku-modal-content" style="display:block; font-family:'Shippori Mincho', serif; font-size:18px; color:#2c3e50; writing-mode: vertical-rl; max-height: 60vh;">
                 </div>
             </div>
         `;
         document.body.appendChild(modal);
         
-        document.getElementById('haiku-modal-close').onclick = () => {
-            modal.style.opacity = '0';
-            setTimeout(() => modal.style.display = 'none', 300);
-        };
+        const closeBtn = document.getElementById('haiku-modal-close');
+        if(closeBtn) {
+            closeBtn.onclick = () => {
+                modal.style.opacity = '0';
+                setTimeout(() => modal.style.display = 'none', 300);
+            };
+        }
         modal.onclick = (e) => {
             if(e.target === modal) {
                 modal.style.opacity = '0';
@@ -907,18 +1110,20 @@ window.openHaikuModal = function(dateStr, haikus) {
         };
     }
     
-    document.getElementById('haiku-modal-date').textContent = dateStr.replace(/-/g, '年').replace(/年(\d+)$/, '月$1日');
+    const dEl = document.getElementById('haiku-modal-date');
+    if(dEl) dEl.textContent = dateStr.replace(/-/g, '年').replace(/年(\d+)$/, '月$1日');
     
     const content = document.getElementById('haiku-modal-content');
-    content.innerHTML = '';
-    
-    // 短冊を右から左へ並べる
-    haikus.forEach(h => {
-        const div = document.createElement('div');
-        div.style = "border-left:1px dashed rgba(212, 175, 55, 0.5); margin-left:20px; padding-left:20px; line-height:2; letter-spacing:3px; white-space: nowrap;";
-        div.textContent = h;
-        content.appendChild(div);
-    });
+    if(content) {
+        content.innerHTML = '';
+        haikus.forEach(h => {
+            const div = document.createElement('div');
+            // ★ flexを使わず、自然な縦書きの流れで右から左へ並べる
+            div.style = "border-left:1px dashed rgba(212, 175, 55, 0.5); padding-left:15px; margin-left:15px; line-height:2; letter-spacing:3px; white-space: pre-wrap;";
+            div.textContent = h;
+            content.appendChild(div);
+        });
+    }
     
     modal.style.display = 'flex';
     void modal.offsetWidth; 
@@ -926,90 +1131,105 @@ window.openHaikuModal = function(dateStr, haikus) {
 };
 
 function initInteractions() {
-    const appContainer = document.getElementById('calendar-container') || document.body;
+    const appContainer = document.getElementById('container') || document.getElementById('calendar-container') || document.body;
     
     appContainer.addEventListener('wheel', (e) => {
         e.preventDefault();
         const zoomFactor = e.deltaY > 0 ? 1.05 : 0.95;
-        if (typeof svg === 'undefined' || !svg) return;
-        const pt = svg.createSVGPoint();
+        if (!window.svg) return;
+        const pt = window.svg.createSVGPoint();
         pt.x = e.clientX;
         pt.y = e.clientY;
-        const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+        const svgP = pt.matrixTransform(window.svg.getScreenCTM().inverse());
         
-        viewBox.w *= zoomFactor;
-        viewBox.h *= zoomFactor;
-        viewBox.x = svgP.x - (svgP.x - viewBox.x) * zoomFactor;
-        viewBox.y = svgP.y - (svgP.y - viewBox.y) * zoomFactor;
+        const vb = window.viewBox || { x: -841.89 / 2, y: -841.89 / 2, w: 841.89, h: 841.89 };
+        vb.w *= zoomFactor;
+        vb.h *= zoomFactor;
+        vb.x = svgP.x - (svgP.x - vb.x) * zoomFactor;
+        vb.y = svgP.y - (svgP.y - vb.y) * zoomFactor;
         
-        svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+        window.svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
     }, { passive: false });
 
-    let isInteractionActive = false;
-    let startPos = { x: 0, y: 0 }, dragDistance = 0;
-    let startGlobalRotation = 0, startAngleOffset = 0;
-    let lastPaintedCell = null;
+    window.isInteractionActive = false;
+    window.startPos = { x: 0, y: 0 };
+    window.dragDistance = 0;
+    window.startGlobalRotation = 0;
+    window.startAngleOffset = 0;
+    window.lastPaintedCell = null;
 
     appContainer.addEventListener('mousedown', (e) => {
-        dragDistance = 0;
-        isInteractionActive = true;
-        lastPaintedCell = null;
+        window.dragDistance = 0;
+        window.isInteractionActive = true;
+        window.lastPaintedCell = null;
 
-        if (currentTool === 'pointer') {
-            appContainer.style.cursor = interactionMode === 'pan' ? 'grabbing' : 'ew-resize';
-            if (interactionMode === 'rotate') {
-                if(typeof svg === 'undefined' || !svg) return;
-                const pt = svg.createSVGPoint();
+        if (window.currentTool === 'pointer') {
+            const cur = window.interactionMode === 'pan' ? 'grabbing' : 'ew-resize';
+            
+            // ★ マウスダウン時も強制的にカーソルを上書き
+            let cursorStyleBlock = document.getElementById("cursor-style-block");
+            if (cursorStyleBlock) {
+                cursorStyleBlock.innerHTML = `
+                    #container, #container svg, .calendar-container, .calendar-container svg { cursor: ${cur} !important; }
+                    text { cursor: inherit; user-select: none; -webkit-user-select: none; }
+                    text[style*="cursor: pointer"] { cursor: pointer !important; }
+                `;
+            }
+
+            if (window.interactionMode === 'rotate') {
+                if(!window.svg) return;
+                const pt = window.svg.createSVGPoint();
                 pt.x = e.clientX;
                 pt.y = e.clientY;
-                const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-                startAngleOffset = Math.atan2(svgP.y - cy, svgP.x - cx) * 180 / Math.PI;
-                startGlobalRotation = globalRotation;
+                const svgP = pt.matrixTransform(window.svg.getScreenCTM().inverse());
+                window.startAngleOffset = Math.atan2(svgP.y - (typeof cy !== 'undefined'?cy:0), svgP.x - (typeof cx !== 'undefined'?cx:0)) * 180 / Math.PI;
+                window.startGlobalRotation = window.globalRotation || 0;
             } else {
-                startPos = { x: e.clientX, y: e.clientY };
+                window.startPos = { x: e.clientX, y: e.clientY };
             }
         }
     });
 
     window.addEventListener('mousemove', (e) => {
-        if (isInteractionActive && currentTool === 'pointer') {
-            if (interactionMode === 'pan') {
-                const dxScreen = startPos.x - e.clientX, dyScreen = startPos.y - e.clientY;
-                dragDistance += Math.abs(dxScreen) + Math.abs(dyScreen);
-                if(typeof viewBox !== 'undefined' && appContainer && typeof svg !== 'undefined' && svg) {
-                    viewBox.x += dxScreen * (viewBox.w / appContainer.clientWidth);
-                    viewBox.y += dyScreen * (viewBox.h / appContainer.clientHeight);
-                    svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+        if (window.isInteractionActive && window.currentTool === 'pointer') {
+            if (window.interactionMode === 'pan') {
+                const dxScreen = window.startPos.x - e.clientX, dyScreen = window.startPos.y - e.clientY;
+                window.dragDistance += Math.abs(dxScreen) + Math.abs(dyScreen);
+                const vb = window.viewBox;
+                if(vb && appContainer && window.svg) {
+                    vb.x += dxScreen * (vb.w / appContainer.clientWidth);
+                    vb.y += dyScreen * (vb.h / appContainer.clientHeight);
+                    window.svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
                 }
-                startPos = { x: e.clientX, y: e.clientY };
-            } else if (interactionMode === 'rotate') {
-                if(typeof svg === 'undefined' || !svg) return;
-                const pt = svg.createSVGPoint();
+                window.startPos = { x: e.clientX, y: e.clientY };
+            } else if (window.interactionMode === 'rotate') {
+                if(!window.svg) return;
+                const pt = window.svg.createSVGPoint();
                 pt.x = e.clientX;
                 pt.y = e.clientY;
-                const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
-                const currentAngleOffset = Math.atan2(svgP.y - cy, svgP.x - cx) * 180 / Math.PI;
+                const svgP = pt.matrixTransform(window.svg.getScreenCTM().inverse());
+                const currentAngleOffset = Math.atan2(svgP.y - (typeof cy !== 'undefined'?cy:0), svgP.x - (typeof cx !== 'undefined'?cx:0)) * 180 / Math.PI;
                 
-                let delta = currentAngleOffset - startAngleOffset;
+                let delta = currentAngleOffset - window.startAngleOffset;
                 if (delta > 180) delta -= 360;
                 if (delta < -180) delta += 360;
                 
-                globalRotation = startGlobalRotation + delta;
-                if(typeof masterGroup !== 'undefined' && masterGroup) {
-                    masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
+                window.globalRotation = window.startGlobalRotation + delta;
+                if(window.masterGroup) {
+                    window.masterGroup.setAttribute('transform', `rotate(${window.globalRotation}, ${typeof cx !== 'undefined'?cx:0}, ${typeof cy !== 'undefined'?cy:0})`);
                 }
-                dragDistance += Math.abs(delta) * 5;
-                startGlobalRotation = globalRotation;
-                startAngleOffset = currentAngleOffset;
+                window.dragDistance += Math.abs(delta) * 5;
+                window.startGlobalRotation = window.globalRotation;
+                window.startAngleOffset = currentAngleOffset;
             }
         }
 
-        if (typeof svg === 'undefined' || !svg || typeof masterGroup === 'undefined' || !masterGroup) return;
-        const pt = svg.createSVGPoint();
+        if (!window.svg || !window.masterGroup) return;
+        const pt = window.svg.createSVGPoint();
         pt.x = e.clientX;
         pt.y = e.clientY;
-        const ptM = pt.matrixTransform(masterGroup.getScreenCTM().inverse());
-        const dx = ptM.x - cx, dy = ptM.y - cy;
+        const ptM = pt.matrixTransform(window.masterGroup.getScreenCTM().inverse());
+        const dx = ptM.x - (typeof cx !== 'undefined'?cx:0), dy = ptM.y - (typeof cy !== 'undefined'?cy:0);
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         let angle = Math.atan2(dy, dx) * (180 / Math.PI);
@@ -1027,7 +1247,7 @@ function initInteractions() {
         }
 
         if (ringInfo) {
-            const relSegment = (absSegment - currentStartSegment + 120) % 120;
+            const relSegment = (absSegment - (window.currentStartSegment || 0) + 120) % 120;
             const day = Math.floor(relSegment / 4) + 1;
             const timeSlot = relSegment % 4;
             const timeLabels = ["0:00〜6:00", "6:00〜12:00", "12:00〜18:00", "18:00〜24:00"];
@@ -1035,13 +1255,14 @@ function initInteractions() {
             sb.innerText = `第 ${day} 日目 ｜ ${timeLabels[timeSlot]} ｜ ${ringInfo.name}`;
             sb.style.color = "#fff";
 
-            if (isInteractionActive && (currentTool === 'paint' || currentTool === 'erase')) {
-                const cellKey = `c${currentCycle}_abs${absSegment}_${ringInfo.layerId}`;
-                if (lastPaintedCell !== cellKey) {
-                    if (currentTool === 'erase') delete calendarData[cellKey];
-                    else calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
+            if (window.isInteractionActive && (window.currentTool === 'paint' || window.currentTool === 'erase')) {
+                const cellKey = `c${window.currentCycle || 0}_abs${absSegment}_${ringInfo.layerId}`;
+                if (window.lastPaintedCell !== cellKey) {
+                    const cData = window.calendarData || {};
+                    if (window.currentTool === 'erase') delete cData[cellKey];
+                    else cData[cellKey] = { color: window.activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
                     if (typeof renderSavedData === 'function') renderSavedData();
-                    lastPaintedCell = cellKey;
+                    window.lastPaintedCell = cellKey;
                 }
             }
         } else {
@@ -1051,22 +1272,32 @@ function initInteractions() {
     });
 
     window.addEventListener('mouseup', () => {
-        isInteractionActive = false;
-        if (typeof currentTool !== 'undefined' && currentTool === 'pointer' && appContainer) {
-            appContainer.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize';
+        window.isInteractionActive = false;
+        if (window.currentTool === 'pointer') {
+            const cur = window.interactionMode === 'pan' ? 'grab' : 'ew-resize';
+            
+            // ★ マウスを離した時もカーソルを元に戻す
+            let cursorStyleBlock = document.getElementById("cursor-style-block");
+            if (cursorStyleBlock) {
+                cursorStyleBlock.innerHTML = `
+                    #container, #container svg, .calendar-container, .calendar-container svg { cursor: ${cur} !important; }
+                    text { cursor: inherit; user-select: none; -webkit-user-select: none; }
+                    text[style*="cursor: pointer"] { cursor: pointer !important; }
+                `;
+            }
         }
-        if (typeof calendarData !== 'undefined') localStorage.setItem('polarCalendarDataV27', JSON.stringify(calendarData));
+        if (window.calendarData) localStorage.setItem('polarCalendarDataV27', JSON.stringify(window.calendarData));
     });
 
-    if(typeof svg !== 'undefined' && svg) {
-        svg.addEventListener('click', (e) => {
-            if (dragDistance > 5 || currentTool === 'pointer') return;
-            const pt = svg.createSVGPoint();
+    if(window.svg) {
+        window.svg.addEventListener('click', (e) => {
+            if (window.dragDistance > 5 || window.currentTool === 'pointer') return;
+            const pt = window.svg.createSVGPoint();
             pt.x = e.clientX;
             pt.y = e.clientY;
-            if(typeof masterGroup === 'undefined' || !masterGroup) return;
-            const ptM = pt.matrixTransform(masterGroup.getScreenCTM().inverse());
-            const dx = ptM.x - cx, dy = ptM.y - cy;
+            if(!window.masterGroup) return;
+            const ptM = pt.matrixTransform(window.masterGroup.getScreenCTM().inverse());
+            const dx = ptM.x - (typeof cx !== 'undefined'?cx:0), dy = ptM.y - (typeof cy !== 'undefined'?cy:0);
             const distance = Math.sqrt(dx * dx + dy * dy);
             let angle = Math.atan2(dy, dx) * (180 / Math.PI);
             angle = (angle + 90 + 360) % 360;
@@ -1076,14 +1307,15 @@ function initInteractions() {
             if(typeof getRingInfo === 'function') ringInfo = getRingInfo(distance);
             if (!ringInfo) return;
 
-            const cellKey = `c${currentCycle}_abs${absSegment}_${ringInfo.layerId}`;
+            const cellKey = `c${window.currentCycle || 0}_abs${absSegment}_${ringInfo.layerId}`;
+            const cData = window.calendarData || {};
             
-            if (currentTool === 'erase') delete calendarData[cellKey];
-            else if (currentTool === 'paint') {
-                calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
+            if (window.currentTool === 'erase') delete cData[cellKey];
+            else if (window.currentTool === 'paint') {
+                cData[cellKey] = { color: window.activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
             }
             
-            localStorage.setItem('polarCalendarDataV27', JSON.stringify(calendarData));
+            localStorage.setItem('polarCalendarDataV27', JSON.stringify(cData));
             if(typeof renderSavedData === 'function') renderSavedData();
         });
     }
