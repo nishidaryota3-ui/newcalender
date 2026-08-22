@@ -138,7 +138,10 @@ body {
 
 /* ▼▼ 印刷用の完璧なレイアウト設定 ▼▼ */
 @media print {
-    @page { margin: 10mm; }
+    @page { 
+        size: landscape; /* 用紙を横向きに強制指定 */
+        margin: 10mm; 
+    }
 
     /* 全てのUIパネルを完全に非表示にする */
     #nav-bar, #jumpMenu, #tools-palette, #palette-container, #layer-panel, #design-panel, #status-bar {
