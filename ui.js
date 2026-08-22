@@ -1,4 +1,33 @@
-// ui.js (UI構築・イベントモジュール)
+// ui.js (UI構築・イベントモジュール) - 軽量化・データ駆動版
+
+// ▼▼ リファクタリング：ターゲットの分類と再描画ルールを定数化 ▼▼
+const TEXT_TARGETS = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'wafuText', 'gregorianText', 'dailyRainText', 'guideTime', 'guideTideText', 'guideRainText', 'lunarMansion', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar', 'haikuText'];
+const SHAPE_TARGETS = ['baseSvg', 'lunarShadow', 'astroPins', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTideLine', 'guideRainLine', 'canvasBg'];
+
+const TARGET_NAMES = {
+    canvasBg: "キャンバス背景", baseSvg: "ベース図形", lunarShadow: "月相シャドウ", astroPins: "天文学的ピン (朔望)", 
+    dateLines: "日付区切り線 (30等分)", lunarMansion: "二十七宿", tideGraph: "潮汐波形", rainGraph: "毎時降水量 (棒線)", 
+    dailyRainBg: "日別総降水量 (背景)", dailyRainText: "日別総降水量 (数値)", guideTime: "時間ガイド (0/6/12/18)", 
+    guideTideLine: "潮位ガイド (ft) 目盛り線", guideTideText: "潮位ガイド (ft) 文字", 
+    guideRainLine: "降水量ガイド (mm) 目盛り線", guideRainText: "降水量ガイド (mm) 文字", 
+    gregorian: "新暦日付", weekday: "曜日", lunar: "旧暦 (月相対応)", 
+    sekki: "24節気", kou: "72候", wafuText: "右上 月名 (旧暦)", gregorianText: "右上 月名 (新暦)", 
+    holiday: "祝日 (上段)", zassetsu: "雑節 (中段)", important: "重要年中行事 (下段)", 
+    eventShinto: "神事", eventBuddhism: "仏事", eventChurch: "教会行事", eventSonota: "その他", haikuText: "俳句 (一番外周)"
+};
+
+// ▼▼ リファクタリング：チェックボックスIDと隠す対象のCSSセレクタの対応表 ▼▼
+const LAYER_VISIBILITY_MAP = {
+    "toggle-base-svg": "#bg-group", "toggle-lunar-shadow": "#layer-shadow", "toggle-astro-pins": "#layer-astronomical-pins",
+    "toggle-layer-lunar": "#layer-lunar-mansion", "toggle-tide-graph": "#layer-tide-wave", "toggle-rain-graph": "#layer-rain-graph",
+    "toggle-daily-rain-bg": "#layer-daily-rain-bg", "toggle-daily-rain-text": "#layer-daily-rain-text", "toggle-date-lines": "#layer-lines",
+    "toggle-guide-time": "#layer-guide-time", "toggle-haiku-text": "#layer-haiku", "toggle-guide-tide-line": ".layer-guide-tide-line",
+    "toggle-guide-tide-text": ".layer-guide-tide-text", "toggle-guide-rain-line": ".layer-guide-rain-line", "toggle-guide-rain-text": ".layer-guide-rain-text",
+    "toggle-date-gregorian": ".layer-date-gregorian", "toggle-date-lunar": ".layer-date-lunar", "toggle-date-weekday": ".layer-date-weekday",
+    "toggle-wafu-text": ".layer-wafu-text", "toggle-gregorian-text": ".layer-gregorian-text", "toggle-sekki": ".layer-sekki",
+    "toggle-kou": ".layer-kou", "toggle-zassetsu": ".layer-zassetsu", "toggle-holiday": ".layer-holiday", "toggle-event-important": ".layer-event-important"
+};
+// ▲▲ ここまで ▲▲
 
 function initUI() {
     const oldPalette = document.getElementById('palette');
@@ -72,7 +101,6 @@ function initUI() {
         };
     }
 
-    // ★ レイヤーパネルの中に自動で「俳句」の設定行を追加
     if (panelContent) {
         const labels = panelContent.querySelectorAll('label');
         let targetLabel = null;
@@ -101,21 +129,17 @@ function initUI() {
         themeBox.style.borderColor = "rgba(212, 175, 55, 0.3)";
         themeBox.innerHTML = `
             <div style="font-size:12px; color:#d4af37; margin-bottom:8px; font-weight:bold; text-align:center;">テーマ (プリセット) 管理</div>
-            
             <div style="display:flex; gap:5px; margin-bottom:6px; align-items:center;">
                 <select id="theme-select" style="flex:1; min-width:0; background:#222; color:#fff; border:1px solid #555; border-radius:4px; font-size:12px; height:26px; box-sizing:border-box; padding:0 4px;">
                     <option value="default">デフォルト設定</option>
                 </select>
                 <button id="btn-theme-load" style="width:50px; background:#d4af37; border:none; color:#000; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px; height:26px; box-sizing:border-box; padding:0;">読込</button>
             </div>
-            
             <div style="display:flex; gap:5px; margin-bottom:12px; align-items:center;">
                 <input type="text" id="theme-name-input" placeholder="テーマ名を入力" style="flex:1; min-width:0; background:#222; color:#fff; border:1px solid #555; border-radius:4px; font-size:12px; height:26px; box-sizing:border-box; padding:0 6px;">
                 <button id="btn-theme-save" style="width:50px; background:rgba(56,189,248,0.2); border:1px solid #38bdf8; color:#38bdf8; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px; height:26px; box-sizing:border-box; padding:0;">保存</button>
             </div>
-            
             <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin:0 0 10px 0;">
-            
             <button id="btn-apply-global" style="background:#0ea5e9; color:#fff; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold; width:100%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: 0.2s;">
                 デザインを全月適用
             </button>
@@ -137,6 +161,7 @@ function initUI() {
     designPanel.id = 'design-panel';
     designPanel.className = 'panel-ui';
     designPanel.style = "display:none; position:fixed; top:100px; left:50%; background:rgba(25,30,40,0.95); padding:0 20px 20px 20px; border-radius:12px; border:1px solid rgba(212,175,55,0.5); color:#fff; z-index:200; box-shadow:0 10px 40px rgba(0,0,0,0.8); min-width:320px; backdrop-filter:blur(10px);";
+    // ※ HTML文字列部分は変更なしのため省略せずそのまま構築
     designPanel.innerHTML = `
         <div id="dp-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid rgba(212,175,55,0.3); padding:12px 0 10px 0; cursor:grab; user-select:none;">
             <div id="dp-title" style="color:#d4af37; font-weight:bold; font-size:15px;">デザイン設定</div>
@@ -146,7 +171,6 @@ function initUI() {
             </div>
         </div>
         <div style="display:flex; flex-direction:column; gap:12px; font-size:13px; max-height: 65vh; overflow-y: auto; padding-right: 5px;">
-            
             <div id="dp-row-lunar-phase" style="display:none; flex-direction:column; gap:8px;">
                 <label style="display:flex; justify-content:space-between; align-items:center; color:#d4af37; font-weight:bold;">編集対象の月相: 
                     <select id="dp-lunar-phase" style="background:#111; color:#d4af37; border:1px solid #d4af37; padding:4px; border-radius:4px; width:150px; font-weight:bold;">
@@ -159,7 +183,6 @@ function initUI() {
                 </label>
                 <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin:0;">
             </div>
-
             <div id="dp-group-text" style="display:flex; flex-direction:column; gap:12px;">
                 <label id="dp-row-font" style="display:flex; justify-content:space-between; align-items:center;">フォント: 
                     <select id="dp-font" style="background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px; width:150px;">
@@ -194,7 +217,6 @@ function initUI() {
                     <span id="dp-stroke-val" style="width:30px; text-align:right;">0</span>
                 </label>
             </div>
-
             <div id="dp-group-mansion-colors" style="display:none; flex-direction:column; gap:12px; margin-top:5px; padding-top:10px; border-top:1px dashed rgba(255,255,255,0.2);">
                 <label style="display:flex; justify-content:space-between; align-items:center;">東方青龍 (角〜箕): <input type="color" id="dp-color-east" style="background:none; border:none; width:30px; height:30px; cursor:pointer;"></label>
                 <label style="display:flex; justify-content:space-between; align-items:center;">北方玄武 (斗〜壁): <input type="color" id="dp-color-north" style="background:none; border:none; width:30px; height:30px; cursor:pointer;"></label>
@@ -205,7 +227,6 @@ function initUI() {
                 <label style="display:flex; justify-content:space-between; align-items:center;">背景帯の色: <input type="color" id="dp-mansion-bg-color" style="background:none; border:none; width:30px; height:30px; cursor:pointer;"></label>
                 <label style="display:flex; justify-content:space-between; align-items:center;">背景帯の透明度: <input type="range" id="dp-mansion-bg-opacity" min="0" max="1" step="0.05" style="width:100px; accent-color:#d4af37;"> <span id="dp-mansion-bg-opacity-val" style="width:30px; text-align:right;">0.05</span></label>
             </div>
-
             <div id="dp-group-shape" style="display:none; flex-direction:column; gap:12px; margin-top:5px; padding-top:10px; border-top:1px dashed rgba(255,255,255,0.2);">
                 <label id="dp-row-shape-type" style="display:flex; justify-content:space-between; align-items:center;">背景図形: 
                     <select id="dp-shape" style="background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px; width:100px;">
@@ -247,7 +268,6 @@ function initUI() {
                     <span id="dp-shape-stroke-width-val" style="width:30px; text-align:right;">0</span>
                 </label>
             </div>
-
             <div id="dp-group-common" style="display:flex; flex-direction:column; gap:12px; margin-top:5px; padding-top:10px; border-top:1px dashed rgba(255,255,255,0.2);">
                 <label id="dp-row-opacity" style="display:flex; justify-content:space-between; align-items:center;">透明度 (全体): 
                     <input type="range" id="dp-opacity" min="0" max="1" step="0.05" style="width:100px; accent-color:#d4af37;">
@@ -257,7 +277,6 @@ function initUI() {
                     <input type="number" id="dp-offset" style="width:60px; background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px;" step="1">
                 </label>
             </div>
-
         </div>
     `;
     document.body.appendChild(designPanel);
@@ -301,13 +320,14 @@ function initUI() {
             select.appendChild(opt);
         }
     };
-    updateThemeSelect();
+    if (window.savedThemes) updateThemeSelect();
 
     const btnThemeSave = document.getElementById('btn-theme-save');
     if (btnThemeSave) {
         btnThemeSave.onclick = () => {
             const name = document.getElementById('theme-name-input').value.trim();
             if(!name) return alert("保存するテーマ名を入力してください");
+            if (!window.savedThemes) window.savedThemes = {};
             window.savedThemes[name] = JSON.parse(JSON.stringify(window.layerSettings));
             localStorage.setItem('polarCalendarThemesV1', JSON.stringify(window.savedThemes));
             updateThemeSelect();
@@ -323,7 +343,7 @@ function initUI() {
             const name = document.getElementById('theme-select').value;
             if(name === 'default') {
                 window.layerSettings = JSON.parse(JSON.stringify(window.defaultLayerSettings));
-            } else if(window.savedThemes[name]) {
+            } else if(window.savedThemes && window.savedThemes[name]) {
                 window.layerSettings = JSON.parse(JSON.stringify(window.savedThemes[name]));
             }
             window.saveLayerSettings();
@@ -333,47 +353,33 @@ function initUI() {
 
     let currentDesignTarget = null;
     
-    const targetNames = {
-        canvasBg: "キャンバス背景", baseSvg: "ベース図形", lunarShadow: "月相シャドウ", astroPins: "天文学的ピン (朔望)", 
-        dateLines: "日付区切り線 (30等分)", lunarMansion: "二十七宿", tideGraph: "潮汐波形", rainGraph: "毎時降水量 (棒線)", 
-        dailyRainBg: "日別総降水量 (背景)", dailyRainText: "日別総降水量 (数値)", guideTime: "時間ガイド (0/6/12/18)", 
-        guideTideLine: "潮位ガイド (ft) 目盛り線", guideTideText: "潮位ガイド (ft) 文字", 
-        guideRainLine: "降水量ガイド (mm) 目盛り線", guideRainText: "降水量ガイド (mm) 文字", 
-        gregorian: "新暦日付", weekday: "曜日", lunar: "旧暦 (月相対応)", 
-        sekki: "24節気", kou: "72候", wafuText: "右上 月名 (旧暦)", gregorianText: "右上 月名 (新暦)", 
-        holiday: "祝日 (上段)", zassetsu: "雑節 (中段)", important: "重要年中行事 (下段)", 
-        eventShinto: "神事", eventBuddhism: "仏事", eventChurch: "教会行事", eventSonota: "その他",
-        haikuText: "俳句 (一番外周)"
-    };
-
+    // ▼▼ リファクタリング：デザインパネルへのデータ読み込みを整理 ▼▼
     const loadPanelData = () => {
         const st = window.layerSettings[currentDesignTarget];
         if (!st) return;
 
+        // 全行を一旦隠す
         ['dp-row-lunar-phase', 'dp-group-text', 'dp-group-shape', 'dp-row-shape-type', 'dp-row-shape-fill', 'dp-row-shape-stroke', 'dp-row-shape-stroke-width', 'dp-shape-stroke-orig', 'dp-shape-stroke-orig-text', 'dp-row-offset', 'dp-row-lang', 'dp-row-density', 'dp-row-shape-scale', 'dp-row-radius-offset', 'dp-group-mansion-colors'].forEach(id => {
             document.getElementById(id).style.display = 'none';
         });
 
-        if (currentDesignTarget === 'canvasBg') {
-            document.getElementById('dp-row-opacity').style.display = 'none';
-        } else {
-            document.getElementById('dp-row-opacity').style.display = 'flex';
-            if (st.opacity !== undefined) {
-                document.getElementById('dp-opacity').value = st.opacity;
-                document.getElementById('dp-opacity-val').innerText = st.opacity;
-            }
+        document.getElementById('dp-row-opacity').style.display = currentDesignTarget === 'canvasBg' ? 'none' : 'flex';
+        if (st.opacity !== undefined && currentDesignTarget !== 'canvasBg') {
+            document.getElementById('dp-opacity').value = st.opacity;
+            document.getElementById('dp-opacity-val').innerText = st.opacity;
         }
 
-        const isTextTarget = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'wafuText', 'gregorianText', 'dailyRainText', 'guideTime', 'guideTideText', 'guideRainText', 'lunarMansion', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar', 'haikuText'].includes(currentDesignTarget);
-        const isShapeTarget = ['baseSvg', 'lunarShadow', 'astroPins', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTideLine', 'guideRainLine', 'canvasBg'].includes(currentDesignTarget);
+        const isTextTarget = TEXT_TARGETS.includes(currentDesignTarget);
+        const isShapeTarget = SHAPE_TARGETS.includes(currentDesignTarget);
 
         if (isTextTarget) {
             document.getElementById('dp-group-text').style.display = 'flex';
-            if(st.offsetRadius !== undefined) document.getElementById('dp-row-offset').style.display = 'flex';
-            
+            if(st.offsetRadius !== undefined) {
+                document.getElementById('dp-row-offset').style.display = 'flex';
+                document.getElementById('dp-offset').value = st.offsetRadius;
+            }
             document.getElementById('dp-font').value = st.fontFamily || "Arial";
             document.getElementById('dp-size').value = st.fontSize || 10;
-            if(st.offsetRadius !== undefined) document.getElementById('dp-offset').value = st.offsetRadius;
             
             if (currentDesignTarget !== 'lunar') {
                 document.getElementById('dp-color').value = st.fill || "#ffffff";
@@ -397,10 +403,7 @@ function initUI() {
 
         if (currentDesignTarget === 'lunarMansion') {
             document.getElementById('dp-group-mansion-colors').style.display = 'flex';
-            document.getElementById('dp-color-east').value = st.colorEast || "#888888";
-            document.getElementById('dp-color-south').value = st.colorSouth || "#888888";
-            document.getElementById('dp-color-west').value = st.colorWest || "#888888";
-            document.getElementById('dp-color-north').value = st.colorNorth || "#888888";
+            ['East', 'South', 'West', 'North'].forEach(dir => document.getElementById(`dp-color-${dir.toLowerCase()}`).value = st[`color${dir}`] || "#888888");
             
             document.getElementById('dp-mansion-star-size').value = st.starSize !== undefined ? st.starSize : 1.5;
             document.getElementById('dp-mansion-star-size-val').innerText = st.starSize !== undefined ? st.starSize : 1.5;
@@ -420,27 +423,17 @@ function initUI() {
                 document.getElementById('dp-row-shape-scale').style.display = 'flex';
                 document.getElementById('dp-shape-scale').value = st.scale || 1;
                 document.getElementById('dp-shape-scale-val').innerText = st.scale || 1;
-                
                 document.getElementById('dp-row-radius-offset').style.display = 'flex';
                 document.getElementById('dp-radius-offset').value = st.radiusOffset || 0;
                 document.getElementById('dp-radius-offset-val').innerText = st.radiusOffset || 0;
             }
 
-            if (currentDesignTarget === 'canvasBg' || currentDesignTarget === 'dailyRainBg') {
-                document.getElementById('dp-row-shape-fill').style.display = 'flex';
-                document.getElementById('dp-row-shape-stroke').style.display = 'none';
-                document.getElementById('dp-row-shape-stroke-width').style.display = 'none';
-                document.getElementById('dp-shape-fill-trans').style.display = 'none';
-                document.getElementById('dp-shape-fill-trans-text').style.display = 'none';
-            } else {
-                document.getElementById('dp-row-shape-fill').style.display = 'flex';
-                document.getElementById('dp-row-shape-stroke').style.display = 'flex';
-                if (currentDesignTarget !== 'baseSvg') {
-                    document.getElementById('dp-row-shape-stroke-width').style.display = 'flex';
-                }
-                document.getElementById('dp-shape-fill-trans').style.display = 'inline-block';
-                document.getElementById('dp-shape-fill-trans-text').style.display = 'inline-block';
-            }
+            const noStrokeMode = (currentDesignTarget === 'canvasBg' || currentDesignTarget === 'dailyRainBg');
+            document.getElementById('dp-row-shape-fill').style.display = 'flex';
+            document.getElementById('dp-row-shape-stroke').style.display = noStrokeMode ? 'none' : 'flex';
+            document.getElementById('dp-row-shape-stroke-width').style.display = (noStrokeMode || currentDesignTarget === 'baseSvg') ? 'none' : 'flex';
+            document.getElementById('dp-shape-fill-trans').style.display = noStrokeMode ? 'none' : 'inline-block';
+            document.getElementById('dp-shape-fill-trans-text').style.display = noStrokeMode ? 'none' : 'inline-block';
 
             if(st.fill !== undefined) {
                 const isTrans = (st.fill === "none" || st.fill === "transparent");
@@ -451,9 +444,7 @@ function initUI() {
             if(st.stroke !== undefined || st.shapeStroke !== undefined) {
                 document.getElementById('dp-shape-stroke').value = st.stroke !== undefined ? st.stroke : st.shapeStroke;
                 document.getElementById('dp-shape-stroke-width').value = st.strokeWidth !== undefined ? st.strokeWidth : st.shapeStrokeWidth;
-                if(document.getElementById('dp-shape-stroke-width-val')) {
-                    document.getElementById('dp-shape-stroke-width-val').innerText = document.getElementById('dp-shape-stroke-width').value;
-                }
+                if(document.getElementById('dp-shape-stroke-width-val')) document.getElementById('dp-shape-stroke-width-val').innerText = document.getElementById('dp-shape-stroke-width').value;
             }
 
             if (currentDesignTarget === 'baseSvg') {
@@ -474,9 +465,7 @@ function initUI() {
             document.getElementById('dp-group-shape').style.display = 'flex';
             ['dp-row-shape-type', 'dp-row-shape-scale', 'dp-row-shape-fill', 'dp-row-shape-stroke', 'dp-row-shape-stroke-width'].forEach(id => document.getElementById(id).style.display = 'flex');
 
-            const phase = document.getElementById('dp-lunar-phase').value;
-            const pst = st.phases[phase];
-            
+            const pst = st.phases[document.getElementById('dp-lunar-phase').value];
             document.getElementById('dp-color').value = pst.fill;
             document.getElementById('dp-bold').checked = (st.fontWeight === "bold");
             
@@ -494,20 +483,17 @@ function initUI() {
             document.getElementById('dp-shape-stroke-width-val').innerText = pst.shapeStrokeWidth;
         }
     };
+    // ▲▲ ここまで ▲▲
 
-    document.getElementById('dp-close').onclick = () => {
-        designPanel.style.display = 'none';
-    };
-
+    document.getElementById('dp-close').onclick = () => { designPanel.style.display = 'none'; };
     document.getElementById('dp-reset').onclick = () => {
-        if (confirm(`「${targetNames[currentDesignTarget]}」のデザイン設定を初期状態に戻しますか？`)) {
+        if (confirm(`「${TARGET_NAMES[currentDesignTarget]}」のデザイン設定を初期状態に戻しますか？`)) {
             window.layerSettings[currentDesignTarget] = JSON.parse(JSON.stringify(window.defaultLayerSettings[currentDesignTarget]));
             window.saveLayerSettings();
             loadPanelData();
             updateDesign();
         }
     };
-
     document.getElementById('reset-all-settings').onclick = () => {
         if (confirm('⚠️ すべてのデザイン設定を完全に初期化しますか？\n（各月のデザイン設定もすべて消去されます）')) {
             localStorage.removeItem('polarCalendarSettingsV5');
@@ -521,7 +507,7 @@ function initUI() {
     document.addEventListener('click', (e) => {
         if (e.target.classList.contains('layer-settings-btn')) {
             currentDesignTarget = e.target.getAttribute('data-target');
-            document.getElementById('dp-title').innerText = `${targetNames[currentDesignTarget]} の設定`;
+            document.getElementById('dp-title').innerText = `${TARGET_NAMES[currentDesignTarget]} の設定`;
             designPanel.style.transform = 'translate(-50%, -50%)';
             designPanel.style.left = '50%';
             designPanel.style.top = '50%';
@@ -529,6 +515,47 @@ function initUI() {
             designPanel.style.display = 'block';
         }
     });
+
+    // ▼▼ リファクタリング：再描画のトリガーをグループ化して整理 ▼▼
+    const triggerRedraw = (target) => {
+        const needsStartTime = ['tideGraph', 'guideTideLine', 'guideTideText', 'rainGraph', 'guideRainLine', 'guideRainText', 'lunarShadow', 'astroPins', 'lunarMansion'];
+        const needsStartDate = ['dailyRainBg', 'dailyRainText', 'haikuText', 'gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar', 'wafuText', 'gregorianText'];
+        
+        if (target === 'baseSvg') {
+            const bgGroup = document.getElementById('bg-group');
+            if(bgGroup) {
+                bgGroup.style.opacity = window.layerSettings.baseSvg.opacity;
+                Array.from(bgGroup.querySelectorAll('*')).forEach(el => {
+                    if (window.layerSettings.baseSvg.stroke !== "") el.setAttribute('stroke', window.layerSettings.baseSvg.stroke);
+                    else {
+                        const orig = el.getAttribute('data-orig-stroke');
+                        if(orig) el.setAttribute('stroke', orig);
+                        else el.removeAttribute('stroke');
+                    }
+                });
+            }
+            return;
+        }
+        if (target === 'canvasBg') return;
+
+        if (target === 'dateLines' && typeof drawDynamicLines === 'function') drawDynamicLines();
+        else if (target === 'guideTime' && typeof drawTimeLabels === 'function') drawTimeLabels();
+        
+        if (window.lastCycleStartTimeMs && needsStartTime.includes(target)) {
+            if (target.includes('Tide') && typeof drawTideGraph === 'function') drawTideGraph(window.lastCycleStartTimeMs);
+            else if (target.includes('Rain') && typeof drawRainfallGraph === 'function') drawRainfallGraph(window.lastCycleStartTimeMs);
+            else if (target === 'lunarShadow' && typeof drawLunarShadow === 'function') drawLunarShadow(window.lastCycleStartTimeMs);
+            else if (target === 'astroPins' && typeof drawAstronomicalPins === 'function') drawAstronomicalPins(window.lastCycleStartTimeMs);
+            else if (target === 'lunarMansion' && typeof drawLunarMansions === 'function') drawLunarMansions(window.lastCycleStartTimeMs);
+        }
+
+        if (window.lastKoyomiStartDate && needsStartDate.includes(target)) {
+            if (target.includes('dailyRain') && typeof drawDailyRainStats === 'function') drawDailyRainStats(window.lastKoyomiStartDate);
+            else if (target === 'haikuText' && typeof drawHaikus === 'function') drawHaikus(window.lastKoyomiStartDate);
+            else if (typeof drawKoyomiEvents === 'function') drawKoyomiEvents(window.lastKoyomiStartDate);
+        }
+    };
+    // ▲▲ ここまで ▲▲
 
     const updateDesign = () => {
         if (!currentDesignTarget) return;
@@ -539,9 +566,7 @@ function initUI() {
             document.getElementById('dp-opacity-val').innerText = st.opacity;
         }
 
-        const isTextTarget = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'wafuText', 'gregorianText', 'dailyRainText', 'guideTime', 'guideTideText', 'guideRainText', 'lunarMansion', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar', 'haikuText'].includes(currentDesignTarget);
-
-        if (isTextTarget) {
+        if (TEXT_TARGETS.includes(currentDesignTarget)) {
             st.fontFamily = document.getElementById('dp-font').value;
             st.fontSize = parseFloat(document.getElementById('dp-size').value);
             if(st.offsetRadius !== undefined) st.offsetRadius = parseFloat(document.getElementById('dp-offset').value);
@@ -556,18 +581,13 @@ function initUI() {
         }
 
         if (currentDesignTarget === 'weekday') st.lang = document.getElementById('dp-lang').value;
-        
         if (currentDesignTarget === 'dailyRainBg') {
             st.density = parseFloat(document.getElementById('dp-density').value);
             document.getElementById('dp-density-val').innerText = st.density;
         }
 
         if (currentDesignTarget === 'lunarMansion') {
-            st.colorEast = document.getElementById('dp-color-east').value;
-            st.colorSouth = document.getElementById('dp-color-south').value;
-            st.colorWest = document.getElementById('dp-color-west').value;
-            st.colorNorth = document.getElementById('dp-color-north').value;
-            
+            ['East', 'South', 'West', 'North'].forEach(dir => st[`color${dir}`] = document.getElementById(`dp-color-${dir.toLowerCase()}`).value);
             st.starSize = parseFloat(document.getElementById('dp-mansion-star-size').value);
             document.getElementById('dp-mansion-star-size-val').innerText = st.starSize;
             st.bgRingColor = document.getElementById('dp-mansion-bg-color').value;
@@ -580,15 +600,12 @@ function initUI() {
             document.body.style.backgroundColor = st.fill;
         }
 
-        const isShapeTarget = ['baseSvg', 'lunarShadow', 'astroPins', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTideLine', 'guideRainLine'].includes(currentDesignTarget);
-
-        if(isShapeTarget) {
+        if(SHAPE_TARGETS.includes(currentDesignTarget)) {
             if(st.fill !== undefined) st.fill = document.getElementById('dp-shape-fill-trans').checked ? "none" : document.getElementById('dp-shape-fill').value;
             
             if (currentDesignTarget === 'astroPins') {
                 st.scale = parseFloat(document.getElementById('dp-shape-scale').value);
                 document.getElementById('dp-shape-scale-val').innerText = st.scale;
-                
                 st.radiusOffset = parseFloat(document.getElementById('dp-radius-offset').value);
                 document.getElementById('dp-radius-offset-val').innerText = st.radiusOffset;
             }
@@ -601,14 +618,11 @@ function initUI() {
                 if(st.shapeStroke !== undefined) st.shapeStroke = document.getElementById('dp-shape-stroke').value;
                 if(st.shapeStrokeWidth !== undefined) st.shapeStrokeWidth = parseFloat(document.getElementById('dp-shape-stroke-width').value);
             }
-            if(document.getElementById('dp-shape-stroke-width-val')) {
-                document.getElementById('dp-shape-stroke-width-val').innerText = document.getElementById('dp-shape-stroke-width').value;
-            }
+            if(document.getElementById('dp-shape-stroke-width-val')) document.getElementById('dp-shape-stroke-width-val').innerText = document.getElementById('dp-shape-stroke-width').value;
         }
 
         if (currentDesignTarget === 'lunar') {
-            const phase = document.getElementById('dp-lunar-phase').value;
-            const pst = st.phases[phase];
+            const pst = st.phases[document.getElementById('dp-lunar-phase').value];
             pst.fill = document.getElementById('dp-color').value;
             st.fontWeight = document.getElementById('dp-bold').checked ? "bold" : "normal";
             
@@ -623,44 +637,7 @@ function initUI() {
         }
 
         window.saveLayerSettings();
-
-        if (currentDesignTarget === 'baseSvg') {
-            const bgGroup = document.getElementById('bg-group');
-            if(bgGroup) {
-                bgGroup.style.opacity = st.opacity;
-                Array.from(bgGroup.querySelectorAll('*')).forEach(el => {
-                    if (st.stroke !== "") {
-                        el.setAttribute('stroke', st.stroke);
-                    } else {
-                        const orig = el.getAttribute('data-orig-stroke');
-                        if(orig) el.setAttribute('stroke', orig);
-                        else el.removeAttribute('stroke');
-                    }
-                });
-            }
-        } else if (currentDesignTarget === 'dateLines') {
-            if (typeof drawDynamicLines === 'function') drawDynamicLines();
-        } else if (currentDesignTarget === 'tideGraph' || currentDesignTarget === 'guideTideLine' || currentDesignTarget === 'guideTideText') {
-            if (window.lastCycleStartTimeMs && typeof drawTideGraph === 'function') drawTideGraph(window.lastCycleStartTimeMs);
-        } else if (currentDesignTarget === 'rainGraph' || currentDesignTarget === 'guideRainLine' || currentDesignTarget === 'guideRainText') {
-            if (window.lastCycleStartTimeMs && typeof drawRainfallGraph === 'function') drawRainfallGraph(window.lastCycleStartTimeMs);
-        } else if (currentDesignTarget === 'lunarShadow') {
-            if (window.lastCycleStartTimeMs && typeof drawLunarShadow === 'function') drawLunarShadow(window.lastCycleStartTimeMs);
-        } else if (currentDesignTarget === 'astroPins') {
-            if (window.lastCycleStartTimeMs && typeof drawAstronomicalPins === 'function') drawAstronomicalPins(window.lastCycleStartTimeMs);
-        } else if (currentDesignTarget === 'lunarMansion') {
-            if (window.lastCycleStartTimeMs && typeof drawLunarMansions === 'function') drawLunarMansions(window.lastCycleStartTimeMs);
-        } else if (currentDesignTarget === 'guideTime') {
-            if (typeof drawTimeLabels === 'function') drawTimeLabels();
-        } else if (currentDesignTarget === 'dailyRainBg' || currentDesignTarget === 'dailyRainText') {
-            if (window.lastKoyomiStartDate && typeof drawDailyRainStats === 'function') drawDailyRainStats(window.lastKoyomiStartDate);
-        } else if (window.lastKoyomiStartDate) {
-            if (typeof drawKoyomiEvents === 'function') drawKoyomiEvents(window.lastKoyomiStartDate);
-        }
-        
-        if (currentDesignTarget === 'haikuText' && window.lastKoyomiStartDate) {
-            if (typeof drawHaikus === 'function') drawHaikus(window.lastKoyomiStartDate);
-        }
+        triggerRedraw(currentDesignTarget); // リファクタリングした関数を呼び出し
     };
 
     ['dp-lunar-phase', 'dp-font', 'dp-size', 'dp-color', 'dp-bold', 'dp-stroke-color', 'dp-stroke-width', 'dp-shape', 'dp-shape-scale', 'dp-lang', 'dp-density', 'dp-color-east', 'dp-color-south', 'dp-color-west', 'dp-color-north', 'dp-mansion-star-size', 'dp-mansion-bg-color', 'dp-mansion-bg-opacity', 'dp-shape-fill-trans', 'dp-shape-fill', 'dp-shape-stroke-orig', 'dp-shape-stroke', 'dp-shape-stroke-width', 'dp-opacity', 'dp-offset', 'dp-radius-offset'].forEach(id => {
@@ -688,17 +665,14 @@ function initUI() {
     const cycleDisplay = document.getElementById('cycleDisplay');
     cycleDisplay.onmouseover = () => { cycleDisplay.style.background = "rgba(255,255,255,0.1)"; };
     cycleDisplay.onmouseout = () => { cycleDisplay.style.background = "transparent"; };
-    cycleDisplay.onclick = () => {
-        jumpDiv.style.display = jumpDiv.style.display === 'none' ? 'flex' : 'none';
-    };
+    cycleDisplay.onclick = () => { jumpDiv.style.display = jumpDiv.style.display === 'none' ? 'flex' : 'none'; };
 
     document.getElementById('jumpGoBtn').onclick = () => {
         const val = document.getElementById('jumpInput').value;
         if(!val) return;
         const targetDate = new Date(val + "-15");
         const diffMs = targetDate.getTime() - baseDate.getTime();
-        const diffDays = diffMs / (1000 * 60 * 60 * 24);
-        currentCycle = Math.round(diffDays / synodicMonth);
+        currentCycle = Math.round((diffMs / (1000 * 60 * 60 * 24)) / synodicMonth);
         jumpDiv.style.display = 'none';
         if(typeof updateCalendarCycle === 'function') updateCalendarCycle();
         if (document.getElementById('design-panel').style.display === 'block') loadPanelData();
@@ -779,11 +753,7 @@ function initUI() {
         svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
     };
 
-    const colors = [
-        "#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", "#22c55e", "#10b981", "#14b8a6", "#06b6d4", "#0ea5e9",
-        "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#ec4899", "#f43f5e", "#fb7185", "#a8a29e", "#57534e"
-    ];
-
+    const colors = ["#ef4444", "#f97316", "#f59e0b", "#eab308", "#84cc16", "#22c55e", "#10b981", "#14b8a6", "#06b6d4", "#0ea5e9", "#3b82f6", "#6366f1", "#8b5cf6", "#a855f7", "#d946ef", "#ec4899", "#f43f5e", "#fb7185", "#a8a29e", "#57534e"];
     colors.forEach(color => {
         const div = document.createElement('div');
         div.style = `width:100%; aspect-ratio:1; background-color:${color}; border-radius:4px; border:2px solid transparent; cursor:pointer; transition:0.1s; box-sizing:border-box;`;
@@ -792,10 +762,7 @@ function initUI() {
             div.style.transform = 'scale(1.1)';
         }
         div.onclick = () => {
-            paletteDiv.querySelectorAll('div').forEach(el => {
-                el.style.borderColor = 'transparent';
-                el.style.transform = 'scale(1)';
-            });
+            paletteDiv.querySelectorAll('div').forEach(el => { el.style.borderColor = 'transparent'; el.style.transform = 'scale(1)'; });
             div.style.borderColor = '#fff';
             div.style.transform = 'scale(1.1)';
             if(typeof activeBrush !== 'undefined') activeBrush = color;
@@ -823,51 +790,23 @@ function initUI() {
         document.head.appendChild(styleBlock);
     }
 
+    // ▼▼ リファクタリング：表示/非表示の切り替えをマッピング処理化 ▼▼
     const updateLayerVisibility = () => {
         let css = "";
-        const addHiddenRule = (selector) => { css += `${selector} { display: none !important; }\n`; };
-
-        const check = (id) => { const el = document.getElementById(id); return el ? el.checked : true; };
-
-        if(!check("toggle-base-svg")) addHiddenRule("#bg-group");
-        if(!check("toggle-lunar-shadow")) addHiddenRule("#layer-shadow");
-        if(!check("toggle-astro-pins")) addHiddenRule("#layer-astronomical-pins");
-        if(!check("toggle-layer-lunar")) addHiddenRule("#layer-lunar-mansion");
-        if(!check("toggle-tide-graph")) addHiddenRule("#layer-tide-wave");
-        if(!check("toggle-rain-graph")) addHiddenRule("#layer-rain-graph");
-        if(!check("toggle-daily-rain-bg")) addHiddenRule("#layer-daily-rain-bg");
-        if(!check("toggle-daily-rain-text")) addHiddenRule("#layer-daily-rain-text");
-        if(!check("toggle-date-lines")) addHiddenRule("#layer-lines");
-        if(!check("toggle-guide-time")) addHiddenRule("#layer-guide-time");
-        if(!check("toggle-haiku-text")) addHiddenRule("#layer-haiku"); 
-        
-        if(!check("toggle-guide-tide-line")) addHiddenRule(".layer-guide-tide-line");
-        if(!check("toggle-guide-tide-text")) addHiddenRule(".layer-guide-tide-text");
-        if(!check("toggle-guide-rain-line")) addHiddenRule(".layer-guide-rain-line");
-        if(!check("toggle-guide-rain-text")) addHiddenRule(".layer-guide-rain-text");
-
-        if(!check("toggle-date-gregorian")) addHiddenRule(".layer-date-gregorian");
-        if(!check("toggle-date-lunar")) addHiddenRule(".layer-date-lunar");
-        if(!check("toggle-date-weekday")) addHiddenRule(".layer-date-weekday");
-        if(!check("toggle-wafu-text")) addHiddenRule(".layer-wafu-text");
-        if(!check("toggle-gregorian-text")) addHiddenRule(".layer-gregorian-text");
-        if(!check("toggle-sekki")) addHiddenRule(".layer-sekki");
-        if(!check("toggle-kou")) addHiddenRule(".layer-kou");
-        if(!check("toggle-zassetsu")) addHiddenRule(".layer-zassetsu");
-        if(!check("toggle-holiday")) addHiddenRule(".layer-holiday");
-        if(!check("toggle-event-important")) addHiddenRule(".layer-event-important");
-
+        for (const [toggleId, selector] of Object.entries(LAYER_VISIBILITY_MAP)) {
+            const el = document.getElementById(toggleId);
+            if (el && !el.checked) css += `${selector} { display: none !important; }\n`;
+        }
         styleBlock.innerHTML = css;
 
         if (typeof drawKoyomiEvents === 'function' && window.lastKoyomiStartDate) {
             drawKoyomiEvents(window.lastKoyomiStartDate);
         }
     };
+    // ▲▲ ここまで ▲▲
 
     document.body.addEventListener("change", (e) => {
-        if (e.target && e.target.type === 'checkbox' && e.target.id.startsWith('toggle-')) {
-            updateLayerVisibility();
-        }
+        if (e.target && e.target.type === 'checkbox' && e.target.id.startsWith('toggle-')) updateLayerVisibility();
     });
     updateLayerVisibility();
 }
@@ -901,7 +840,6 @@ window.openHaikuModal = function(dateStr, haikus) {
     }
     
     document.getElementById('haiku-modal-date').textContent = dateStr.replace(/-/g, '年').replace(/年(\d+)$/, '月$1日');
-    
     const content = document.getElementById('haiku-modal-content');
     content.innerHTML = '';
     
