@@ -63,17 +63,34 @@ function initUI() {
         };
     }
 
-    // ★ 古い「テーマ保存」のUIを「月別設定」のUIに書き換える
+    // ★ プリセット管理と全月一括適用のハイブリッドUI
     const themeBox = document.querySelector('#layer-panel-content > div:first-child');
     if (themeBox) {
-        themeBox.style.background = "rgba(14, 165, 233, 0.1)";
-        themeBox.style.borderColor = "rgba(14, 165, 233, 0.3)";
+        themeBox.style.background = "rgba(0, 0, 0, 0.3)";
+        themeBox.style.borderColor = "rgba(212, 175, 55, 0.3)";
         themeBox.innerHTML = `
-           
-            <button id="btn-apply-global" style="background:#0ea5e9; color:#fff; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold; width:100%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: 0.2s;">
-                デザインを全月に適用
+            <div style="font-size:12px; color:#d4af37; margin-bottom:5px; font-weight:bold;">テーマ (プリセット) 管理</div>
+            <div style="display:flex; gap:5px; margin-bottom:8px;">
+                <select id="theme-select" style="flex:1; background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px; font-size:12px;">
+                    <option value="default">デフォルト設定</option>
+                </select>
+                <button id="btn-theme-load" style="background:#d4af37; border:none; color:#000; padding:4px 8px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px;">読込</button>
+            </div>
+            <div style="display:flex; gap:5px; margin-bottom:12px;">
+                <input type="text" id="theme-name-input" placeholder="テーマ名を入力" style="flex:1; background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px; font-size:12px;">
+                <button id="btn-theme-save" style="background:rgba(56,189,248,0.2); border:1px solid #38bdf8; color:#38bdf8; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:12px;">保存</button>
+            </div>
+            
+            <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin:0 0 10px 0;">
+            
+            <div style="font-size:10px; color:#38bdf8; margin-bottom:6px; font-weight:bold; text-align:center; white-space:nowrap; letter-spacing:-0.2px;">
+                ※デザインの変更は「表示中の月」に自動保存されます
+            </div>
+            <button id="btn-apply-global" style="background:#0ea5e9; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold; width:100%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: 0.2s;">
+                デザインを全月適用
             </button>
         `;
+        
         document.getElementById('btn-apply-global').onmouseover = function() { this.style.background = '#0284c7'; };
         document.getElementById('btn-apply-global').onmouseout = function() { this.style.background = '#0ea5e9'; };
         document.getElementById('btn-apply-global').onclick = () => {
@@ -242,6 +259,48 @@ function initUI() {
         isDraggingPanel = false;
         if(dpHeader) dpHeader.style.cursor = 'grab';
     });
+
+    // ★ プリセット管理のイベントリスナー（復活）
+    const updateThemeSelect = () => {
+        const select = document.getElementById('theme-select');
+        if(!select) return;
+        select.innerHTML = '<option value="default">デフォルト設定</option>';
+        for(let name in window.savedThemes) {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            select.appendChild(opt);
+        }
+    };
+    updateThemeSelect();
+
+    const btnThemeSave = document.getElementById('btn-theme-save');
+    if (btnThemeSave) {
+        btnThemeSave.onclick = () => {
+            const name = document.getElementById('theme-name-input').value.trim();
+            if(!name) return alert("保存するテーマ名を入力してください");
+            window.savedThemes[name] = JSON.parse(JSON.stringify(window.layerSettings));
+            localStorage.setItem('polarCalendarThemesV1', JSON.stringify(window.savedThemes));
+            updateThemeSelect();
+            document.getElementById('theme-select').value = name;
+            document.getElementById('theme-name-input').value = "";
+            alert(`テーマ「${name}」を保存しました！`);
+        };
+    }
+
+    const btnThemeLoad = document.getElementById('btn-theme-load');
+    if (btnThemeLoad) {
+        btnThemeLoad.onclick = () => {
+            const name = document.getElementById('theme-select').value;
+            if(name === 'default') {
+                window.layerSettings = JSON.parse(JSON.stringify(window.defaultLayerSettings));
+            } else if(window.savedThemes[name]) {
+                window.layerSettings = JSON.parse(JSON.stringify(window.savedThemes[name]));
+            }
+            window.saveLayerSettings();
+            location.reload();
+        };
+    }
 
     let currentDesignTarget = null;
     
@@ -419,7 +478,6 @@ function initUI() {
         }
     };
 
-    // ★ 全リセットの動作もV5ストレージの消去に変更
     document.getElementById('reset-all-settings').onclick = () => {
         if (confirm('⚠️ すべてのデザイン設定を完全に初期化しますか？\n（各月のデザイン設定もすべて消去されます）')) {
             localStorage.removeItem('polarCalendarSettingsV5');
@@ -580,7 +638,6 @@ function initUI() {
         }
     });
 
-    // ★ 月をめくったときにデザインパネルの数値を更新する
     document.getElementById('prevBtn').onclick = () => {
         currentCycle--;
         updateCalendarCycle();
