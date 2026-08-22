@@ -1,4 +1,3 @@
-
 // ui.js (UI構築・イベントモジュール)
 
 function initUI() {
@@ -33,14 +32,14 @@ function initUI() {
     toolsDiv.className = 'panel-ui';
     toolsDiv.style = "position:fixed; top:100px; left:20px; background:rgba(25,30,40,0.9); padding:8px; border-radius:8px; z-index:100; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 4px 20px rgba(0,0,0,0.5); display:flex; flex-direction:column; gap:8px; width:44px; box-sizing:border-box;";
     toolsDiv.innerHTML = `
-        <button id="tool-pointer" title="移動/回転切替 (V)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:rgba(212,175,55,0.85); border:1px solid #d4af37; color:#000; padding:0; display:flex; justify-content:center; align-items:center;">${typeof iconPan !== 'undefined' ? iconPan : '👆'}</button>
-        <button id="tool-paint" title="塗る (B)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#fff; padding:0; display:flex; justify-content:center; align-items:center;">${typeof iconPaint !== 'undefined' ? iconPaint : '🖌️'}</button>
-        <button id="tool-erase" title="消す (E)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#fff; padding:0; display:flex; justify-content:center; align-items:center;">${typeof iconErase !== 'undefined' ? iconErase : '🧽'}</button>
+        <button id="tool-pointer" title="移動/回転切替 (V)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:rgba(212,175,55,0.85); border:1px solid #d4af37; color:#000; padding:0; display:flex; justify-content:center; align-items:center;">${iconPan}</button>
+        <button id="tool-paint" title="塗る (B)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#fff; padding:0; display:flex; justify-content:center; align-items:center;">${iconPaint}</button>
+        <button id="tool-erase" title="消す (E)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#fff; padding:0; display:flex; justify-content:center; align-items:center;">${iconErase}</button>
         <hr style="border-color:rgba(255,255,255,0.1); width:100%; margin:4px 0;">
-        <button id="clearBtn" title="選択色を全消去" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#fff; padding:0; display:flex; justify-content:center; align-items:center;">${typeof iconTrash !== 'undefined' ? iconTrash : '🗑️'}</button>
-        <button id="printBtn" title="印刷 (A3)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#38bdf8; padding:0; display:flex; justify-content:center; align-items:center;">${typeof iconPrint !== 'undefined' ? iconPrint : '🖨️'}</button>
+        <button id="clearBtn" title="選択色を全消去" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#fff; padding:0; display:flex; justify-content:center; align-items:center;">${iconTrash}</button>
+        <button id="printBtn" title="印刷 (A3)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#38bdf8; padding:0; display:flex; justify-content:center; align-items:center;">${iconPrint}</button>
         <hr style="border-color:rgba(255,255,255,0.1); width:100%; margin:4px 0;">
-        <button id="homeBtn" title="新月を真上にリセット" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#38bdf8; padding:0; display:flex; justify-content:center; align-items:center;">${typeof iconHome !== 'undefined' ? iconHome : '🏠'}</button>
+        <button id="homeBtn" title="新月を真上にリセット" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#38bdf8; padding:0; display:flex; justify-content:center; align-items:center;">${iconHome}</button>
     `;
     document.body.appendChild(toolsDiv);
 
@@ -101,17 +100,21 @@ function initUI() {
         themeBox.style.borderColor = "rgba(212, 175, 55, 0.3)";
         themeBox.innerHTML = `
             <div style="font-size:12px; color:#d4af37; margin-bottom:8px; font-weight:bold; text-align:center;">テーマ (プリセット) 管理</div>
+            
             <div style="display:flex; gap:5px; margin-bottom:6px; align-items:center;">
                 <select id="theme-select" style="flex:1; min-width:0; background:#222; color:#fff; border:1px solid #555; border-radius:4px; font-size:12px; height:26px; box-sizing:border-box; padding:0 4px;">
                     <option value="default">デフォルト設定</option>
                 </select>
                 <button id="btn-theme-load" style="width:50px; background:#d4af37; border:none; color:#000; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px; height:26px; box-sizing:border-box; padding:0;">読込</button>
             </div>
+            
             <div style="display:flex; gap:5px; margin-bottom:12px; align-items:center;">
                 <input type="text" id="theme-name-input" placeholder="テーマ名を入力" style="flex:1; min-width:0; background:#222; color:#fff; border:1px solid #555; border-radius:4px; font-size:12px; height:26px; box-sizing:border-box; padding:0 6px;">
                 <button id="btn-theme-save" style="width:50px; background:rgba(56,189,248,0.2); border:1px solid #38bdf8; color:#38bdf8; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px; height:26px; box-sizing:border-box; padding:0;">保存</button>
             </div>
+            
             <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin:0 0 10px 0;">
+            
             <button id="btn-apply-global" style="background:#0ea5e9; color:#fff; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold; width:100%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: 0.2s;">
                 デザインを全月適用
             </button>
@@ -125,7 +128,7 @@ function initUI() {
                 if(confirm("現在の色や設定を、すべての月の基本デザインとして適用しますか？")) {
                     if(typeof window.applyGlobalSettings === 'function') {
                         window.applyGlobalSettings();
-                        if(typeof updateCalendarCycle === 'function') updateCalendarCycle();
+                        updateCalendarCycle();
                     }
                 }
             };
@@ -295,8 +298,7 @@ function initUI() {
         const select = document.getElementById('theme-select');
         if(!select) return;
         select.innerHTML = '<option value="default">デフォルト設定</option>';
-        const tMap = window.savedThemes || {};
-        for(let name in tMap) {
+        for(let name in window.savedThemes) {
             const opt = document.createElement('option');
             opt.value = name;
             opt.textContent = name;
@@ -308,16 +310,13 @@ function initUI() {
     const btnThemeSave = document.getElementById('btn-theme-save');
     if (btnThemeSave) {
         btnThemeSave.onclick = () => {
-            const nameInput = document.getElementById('theme-name-input');
-            const name = nameInput ? nameInput.value.trim() : "";
+            const name = document.getElementById('theme-name-input').value.trim();
             if(!name) return alert("保存するテーマ名を入力してください");
-            if(!window.savedThemes) window.savedThemes = {};
             window.savedThemes[name] = JSON.parse(JSON.stringify(window.layerSettings));
             localStorage.setItem('polarCalendarThemesV1', JSON.stringify(window.savedThemes));
             updateThemeSelect();
-            const sel = document.getElementById('theme-select');
-            if(sel) sel.value = name;
-            if(nameInput) nameInput.value = "";
+            document.getElementById('theme-select').value = name;
+            document.getElementById('theme-name-input').value = "";
             alert(`テーマ「${name}」を保存しました！`);
         };
     }
@@ -325,14 +324,13 @@ function initUI() {
     const btnThemeLoad = document.getElementById('btn-theme-load');
     if (btnThemeLoad) {
         btnThemeLoad.onclick = () => {
-            const sel = document.getElementById('theme-select');
-            const name = sel ? sel.value : 'default';
+            const name = document.getElementById('theme-select').value;
             if(name === 'default') {
                 window.layerSettings = JSON.parse(JSON.stringify(window.defaultLayerSettings));
-            } else if(window.savedThemes && window.savedThemes[name]) {
+            } else if(window.savedThemes[name]) {
                 window.layerSettings = JSON.parse(JSON.stringify(window.savedThemes[name]));
             }
-            if(typeof window.saveLayerSettings === 'function') window.saveLayerSettings();
+            window.saveLayerSettings();
             location.reload();
         };
     }
@@ -352,7 +350,7 @@ function initUI() {
     };
 
     const loadPanelData = () => {
-        const st = (window.layerSettings || {})[currentDesignTarget];
+        const st = window.layerSettings[currentDesignTarget];
         if (!st) return;
 
         ['dp-row-lunar-phase', 'dp-group-text', 'dp-group-shape', 'dp-row-shape-type', 'dp-row-shape-fill', 'dp-row-shape-stroke', 'dp-row-shape-stroke-width', 'dp-shape-stroke-orig', 'dp-shape-stroke-orig-text', 'dp-row-offset', 'dp-row-lang', 'dp-row-density', 'dp-row-shape-scale', 'dp-row-radius-offset', 'dp-group-mansion-colors'].forEach(id => {
@@ -550,30 +548,29 @@ function initUI() {
                 const pst = st.phases[phase];
                 const dc = document.getElementById('dp-color');
                 const db = document.getElementById('dp-bold');
-                if(dc) pst.fill = dc.value;
-                if(db) st.fontWeight = db.checked ? "bold" : "normal";
-                
                 const dsh = document.getElementById('dp-shape');
-                const sc = document.getElementById('dp-shape-scale');
-                if(dsh) pst.shape = dsh.value;
-                if(sc) {
-                    pst.scale = parseFloat(sc.value);
-                    const scv = document.getElementById('dp-shape-scale-val');
-                    if(scv) scv.innerText = pst.scale;
-                }
+                const dshs = document.getElementById('dp-shape-scale');
+                const dshsv = document.getElementById('dp-shape-scale-val');
+                const dft = document.getElementById('dp-shape-fill-trans');
+                const dftt = document.getElementById('dp-shape-fill-trans-text');
+                const dsf = document.getElementById('dp-shape-fill');
+                const dsstr = document.getElementById('dp-shape-stroke');
+                const dsstw = document.getElementById('dp-shape-stroke-width');
+                const dsstwv = document.getElementById('dp-shape-stroke-width-val');
+
+                if(dc) dc.value = pst.fill;
+                if(db) db.checked = (st.fontWeight === "bold");
+                if(dsh) dsh.value = pst.shape;
+                if(dshs) dshs.value = pst.scale || 1;
+                if(dshsv && dshs) dshsv.innerText = dshs.value;
                 
-                const ft = document.getElementById('dp-shape-fill-trans');
-                const sf = document.getElementById('dp-shape-fill');
-                if(ft && sf) pst.bgFill = ft.checked ? "transparent" : sf.value;
-                
-                const ss = document.getElementById('dp-shape-stroke');
-                const ssw = document.getElementById('dp-shape-stroke-width');
-                if(ss) pst.shapeStroke = ss.value;
-                if(ssw) {
-                    pst.shapeStrokeWidth = parseFloat(ssw.value);
-                    const sswv = document.getElementById('dp-shape-stroke-width-val');
-                    if(sswv) sswv.innerText = pst.shapeStrokeWidth;
-                }
+                const isTrans = (pst.bgFill === "transparent" || pst.bgFill === "none");
+                if(dft) dft.checked = isTrans;
+                if(dftt) dftt.innerText = "透明";
+                if(dsf) dsf.value = isTrans ? "#000000" : pst.bgFill;
+                if(dsstr) dsstr.value = pst.shapeStroke;
+                if(dsstw) dsstw.value = pst.shapeStrokeWidth;
+                if(dsstwv && dsstw) dsstwv.innerText = dsstw.value;
             }
         }
     };
@@ -589,9 +586,9 @@ function initUI() {
             if (confirm(`「${targetNames[currentDesignTarget]}」のデザイン設定を初期状態に戻しますか？`)) {
                 if (window.defaultLayerSettings && window.layerSettings) {
                     window.layerSettings[currentDesignTarget] = JSON.parse(JSON.stringify(window.defaultLayerSettings[currentDesignTarget]));
-                    if(typeof window.saveLayerSettings === 'function') window.saveLayerSettings();
+                    window.saveLayerSettings();
                     loadPanelData();
-                    if (typeof updateDesign === 'function') updateDesign();
+                    updateDesign();
                 }
             }
         };
@@ -604,7 +601,7 @@ function initUI() {
                 localStorage.removeItem('polarCalendarSettingsV5');
                 window.appSettings = { global: JSON.parse(JSON.stringify(window.defaultLayerSettings)), months: {} };
                 window.layerSettings = JSON.parse(JSON.stringify(window.defaultLayerSettings));
-                if(typeof window.saveLayerSettings === 'function') window.saveLayerSettings();
+                window.saveLayerSettings();
                 location.reload();
             }
         };
@@ -786,10 +783,10 @@ function initUI() {
             }
         }
 
-        if(typeof window.saveLayerSettings === 'function') window.saveLayerSettings();
+        window.saveLayerSettings();
 
         if (currentDesignTarget === 'baseSvg') {
-            const bgGroup = document.getElementById('bg-group') || window.bgGroup;
+            const bgGroup = document.getElementById('bg-group');
             if(bgGroup) {
                 bgGroup.style.opacity = st.opacity;
                 Array.from(bgGroup.querySelectorAll('*')).forEach(el => {
@@ -838,7 +835,7 @@ function initUI() {
     const pBtn = document.getElementById('prevBtn');
     if (pBtn) {
         pBtn.onclick = () => {
-            if (typeof currentCycle !== 'undefined') window.currentCycle--;
+            currentCycle--;
             if (typeof updateCalendarCycle === 'function') updateCalendarCycle();
             if (designPanel && designPanel.style.display === 'block') loadPanelData();
         };
@@ -847,7 +844,7 @@ function initUI() {
     const nBtn = document.getElementById('nextBtn');
     if (nBtn) {
         nBtn.onclick = () => {
-            if (typeof currentCycle !== 'undefined') window.currentCycle++;
+            currentCycle++;
             if (typeof updateCalendarCycle === 'function') updateCalendarCycle();
             if (designPanel && designPanel.style.display === 'block') loadPanelData();
         };
@@ -861,6 +858,7 @@ function initUI() {
         cycleDisplay.onmouseover = () => { cycleDisplay.style.background = "rgba(255,255,255,0.1)"; };
         cycleDisplay.onmouseout = () => { cycleDisplay.style.background = "transparent"; };
         cycleDisplay.onclick = () => {
+            const jumpDiv = document.getElementById('jumpMenu');
             if(jumpDiv) jumpDiv.style.display = jumpDiv.style.display === 'none' ? 'flex' : 'none';
         };
     }
@@ -871,11 +869,10 @@ function initUI() {
             const jInp = document.getElementById('jumpInput');
             if(!jInp || !jInp.value) return;
             const targetDate = new Date(jInp.value + "-15");
-            const bDate = typeof baseDate !== 'undefined' ? baseDate : new Date('2025-12-20T00:00:00+09:00');
-            const sMonth = typeof synodicMonth !== 'undefined' ? synodicMonth : 29.530588853;
-            const diffMs = targetDate.getTime() - bDate.getTime();
+            const diffMs = targetDate.getTime() - baseDate.getTime();
             const diffDays = diffMs / (1000 * 60 * 60 * 24);
-            window.currentCycle = Math.round(diffDays / sMonth);
+            currentCycle = Math.round(diffDays / synodicMonth);
+            const jumpDiv = document.getElementById('jumpMenu');
             if(jumpDiv) jumpDiv.style.display = 'none';
             if (typeof updateCalendarCycle === 'function') updateCalendarCycle();
             if (designPanel && designPanel.style.display === 'block') loadPanelData();
@@ -898,6 +895,7 @@ function initUI() {
             }
         });
 
+        const paletteDiv = document.getElementById('palette-container');
         if (paletteDiv) paletteDiv.style.display = (tool === 'paint') ? 'grid' : 'none';
 
         const activeBtn = tool === 'pointer' ? btnPointer : tool === 'paint' ? btnPaint : btnErase;
@@ -909,15 +907,14 @@ function initUI() {
 
         if (tool === 'pointer' && btnPointer) {
             if (window.interactionMode === 'pan') {
-                btnPointer.innerHTML = typeof iconPan !== 'undefined' ? iconPan : '👆';
+                btnPointer.innerHTML = iconPan;
                 btnPointer.title = "移動 (V)";
             } else {
-                btnPointer.innerHTML = typeof iconRotate !== 'undefined' ? iconRotate : '🔄';
+                btnPointer.innerHTML = iconRotate;
                 btnPointer.title = "回転 (V)";
             }
         }
 
-        // ★ カーソルを強制適用するCSSを注入してIビーム（文字選択十字）を無効化
         let cursorStyle = 'default';
         if (tool === 'pointer') cursorStyle = window.interactionMode === 'pan' ? 'grab' : 'ew-resize';
         else if (tool === 'paint') cursorStyle = 'crosshair';
@@ -930,9 +927,9 @@ function initUI() {
             document.head.appendChild(cursorStyleBlock);
         }
         cursorStyleBlock.innerHTML = `
-            #calendar-container, #calendar-container svg { cursor: ${cursorStyle} !important; }
-            #calendar-container svg text { cursor: inherit; user-select: none; -webkit-user-select: none; }
-            #calendar-container svg text[style*="cursor: pointer"] { cursor: pointer !important; }
+            #container, #container svg, .calendar-container, .calendar-container svg { cursor: ${cursorStyle} !important; }
+            text { cursor: inherit; user-select: none; -webkit-user-select: none; }
+            text[style*="cursor: pointer"] { cursor: pointer !important; }
         `;
     };
 
@@ -970,11 +967,10 @@ function initUI() {
     const hBtn = document.getElementById('homeBtn');
     if (hBtn) {
         hBtn.onclick = () => {
-            window.globalRotation = -(window.currentStartSegment || 0) * 3;
-            if (window.masterGroup) window.masterGroup.setAttribute('transform', `rotate(${window.globalRotation}, ${typeof cx !== 'undefined'?cx:0}, ${typeof cy !== 'undefined'?cy:0})`);
-            const vb = typeof viewBox !== 'undefined' ? viewBox : { x: -841.89 / 2, y: -841.89 / 2, w: 841.89, h: 841.89 };
-            window.viewBox = { x: 0, y: 0, w: 1841.3719, h: 2382.9518 }; 
-            if (window.svg) window.svg.setAttribute('viewBox', `${window.viewBox.x} ${window.viewBox.y} ${window.viewBox.w} ${window.viewBox.h}`);
+            globalRotation = -currentStartSegment * 3;
+            if (masterGroup) masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
+            viewBox.x = 0; viewBox.y = 0; viewBox.w = 1841.3719; viewBox.h = 2382.9518;
+            if (svg) svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
         };
     }
 
@@ -984,6 +980,7 @@ function initUI() {
     ];
 
     window.activeBrush = window.activeBrush || colors[0];
+    const paletteDiv = document.getElementById('palette-container');
 
     colors.forEach(color => {
         const div = document.createElement('div');
@@ -1011,11 +1008,10 @@ function initUI() {
         cBtn.onclick = () => {
             if(window.currentTool !== 'paint') return alert("ペン(B)で消したい色を選択してください。");
             if(confirm(`現在の月（輪）から、選択中の色をすべて削除しますか？`)) {
-                const cData = window.calendarData || {};
-                for (const key in cData) {
-                    if (key.startsWith(`c${window.currentCycle || 0}_`) && cData[key].color === window.activeBrush) delete cData[key];
+                for (const key in calendarData) {
+                    if (key.startsWith(`c${currentCycle}_`) && calendarData[key].color === window.activeBrush) delete calendarData[key];
                 }
-                localStorage.setItem('polarCalendarDataV27', JSON.stringify(cData));
+                localStorage.setItem('polarCalendarDataV27', JSON.stringify(calendarData));
                 if (typeof renderSavedData === 'function') renderSavedData();
             }
         };
@@ -1130,24 +1126,23 @@ window.openHaikuModal = function(dateStr, haikus) {
 };
 
 function initInteractions() {
-    const appContainer = document.getElementById('calendar-container') || document.body;
+    const appContainer = document.getElementById('container') || document.getElementById('calendar-container') || document.body;
     
     appContainer.addEventListener('wheel', (e) => {
         e.preventDefault();
         const zoomFactor = e.deltaY > 0 ? 1.05 : 0.95;
-        if (typeof window.svg === 'undefined' || !window.svg) return;
-        const pt = window.svg.createSVGPoint();
+        if (!svg) return;
+        const pt = svg.createSVGPoint();
         pt.x = e.clientX;
         pt.y = e.clientY;
-        const svgP = pt.matrixTransform(window.svg.getScreenCTM().inverse());
+        const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
         
-        const vb = window.viewBox || { x: -841.89 / 2, y: -841.89 / 2, w: 841.89, h: 841.89 };
-        vb.w *= zoomFactor;
-        vb.h *= zoomFactor;
-        vb.x = svgP.x - (svgP.x - vb.x) * zoomFactor;
-        vb.y = svgP.y - (svgP.y - vb.y) * zoomFactor;
+        viewBox.w *= zoomFactor;
+        viewBox.h *= zoomFactor;
+        viewBox.x = svgP.x - (svgP.x - viewBox.x) * zoomFactor;
+        viewBox.y = svgP.y - (svgP.y - viewBox.y) * zoomFactor;
         
-        window.svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+        svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
     }, { passive: false });
 
     window.isInteractionActive = false;
@@ -1165,24 +1160,23 @@ function initInteractions() {
         if (window.currentTool === 'pointer') {
             const cur = window.interactionMode === 'pan' ? 'grabbing' : 'ew-resize';
             
-            // ★ マウスダウン時も強制的にカーソルを上書き
             let cursorStyleBlock = document.getElementById("cursor-style-block");
             if (cursorStyleBlock) {
                 cursorStyleBlock.innerHTML = `
-                    #calendar-container, #calendar-container svg { cursor: ${cur} !important; }
-                    #calendar-container svg text { cursor: inherit; user-select: none; -webkit-user-select: none; }
-                    #calendar-container svg text[style*="cursor: pointer"] { cursor: pointer !important; }
+                    #container, #container svg, .calendar-container, .calendar-container svg { cursor: ${cur} !important; }
+                    text { cursor: inherit; user-select: none; -webkit-user-select: none; }
+                    text[style*="cursor: pointer"] { cursor: pointer !important; }
                 `;
             }
 
             if (window.interactionMode === 'rotate') {
-                if(typeof window.svg === 'undefined' || !window.svg) return;
-                const pt = window.svg.createSVGPoint();
+                if(!svg) return;
+                const pt = svg.createSVGPoint();
                 pt.x = e.clientX;
                 pt.y = e.clientY;
-                const svgP = pt.matrixTransform(window.svg.getScreenCTM().inverse());
-                window.startAngleOffset = Math.atan2(svgP.y - (typeof cy !== 'undefined'?cy:0), svgP.x - (typeof cx !== 'undefined'?cx:0)) * 180 / Math.PI;
-                window.startGlobalRotation = window.globalRotation || 0;
+                const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+                window.startAngleOffset = Math.atan2(svgP.y - cy, svgP.x - cx) * 180 / Math.PI;
+                window.startGlobalRotation = globalRotation;
             } else {
                 window.startPos = { x: e.clientX, y: e.clientY };
             }
@@ -1194,41 +1188,40 @@ function initInteractions() {
             if (window.interactionMode === 'pan') {
                 const dxScreen = window.startPos.x - e.clientX, dyScreen = window.startPos.y - e.clientY;
                 window.dragDistance += Math.abs(dxScreen) + Math.abs(dyScreen);
-                const vb = window.viewBox;
-                if(vb && appContainer && typeof window.svg !== 'undefined' && window.svg) {
-                    vb.x += dxScreen * (vb.w / appContainer.clientWidth);
-                    vb.y += dyScreen * (vb.h / appContainer.clientHeight);
-                    window.svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+                if(appContainer && svg) {
+                    viewBox.x += dxScreen * (viewBox.w / appContainer.clientWidth);
+                    viewBox.y += dyScreen * (viewBox.h / appContainer.clientHeight);
+                    svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
                 }
                 window.startPos = { x: e.clientX, y: e.clientY };
             } else if (window.interactionMode === 'rotate') {
-                if(typeof window.svg === 'undefined' || !window.svg) return;
-                const pt = window.svg.createSVGPoint();
+                if(!svg) return;
+                const pt = svg.createSVGPoint();
                 pt.x = e.clientX;
                 pt.y = e.clientY;
-                const svgP = pt.matrixTransform(window.svg.getScreenCTM().inverse());
-                const currentAngleOffset = Math.atan2(svgP.y - (typeof cy !== 'undefined'?cy:0), svgP.x - (typeof cx !== 'undefined'?cx:0)) * 180 / Math.PI;
+                const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+                const currentAngleOffset = Math.atan2(svgP.y - cy, svgP.x - cx) * 180 / Math.PI;
                 
                 let delta = currentAngleOffset - window.startAngleOffset;
                 if (delta > 180) delta -= 360;
                 if (delta < -180) delta += 360;
                 
-                window.globalRotation = window.startGlobalRotation + delta;
-                if(typeof window.masterGroup !== 'undefined' && window.masterGroup) {
-                    window.masterGroup.setAttribute('transform', `rotate(${window.globalRotation}, ${typeof cx !== 'undefined'?cx:0}, ${typeof cy !== 'undefined'?cy:0})`);
+                globalRotation = window.startGlobalRotation + delta;
+                if(masterGroup) {
+                    masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
                 }
                 window.dragDistance += Math.abs(delta) * 5;
-                window.startGlobalRotation = window.globalRotation;
+                window.startGlobalRotation = globalRotation;
                 window.startAngleOffset = currentAngleOffset;
             }
         }
 
-        if (typeof window.svg === 'undefined' || !window.svg || typeof window.masterGroup === 'undefined' || !window.masterGroup) return;
-        const pt = window.svg.createSVGPoint();
+        if (!svg || !masterGroup) return;
+        const pt = svg.createSVGPoint();
         pt.x = e.clientX;
         pt.y = e.clientY;
-        const ptM = pt.matrixTransform(window.masterGroup.getScreenCTM().inverse());
-        const dx = ptM.x - (typeof cx !== 'undefined'?cx:0), dy = ptM.y - (typeof cy !== 'undefined'?cy:0);
+        const ptM = pt.matrixTransform(masterGroup.getScreenCTM().inverse());
+        const dx = ptM.x - cx, dy = ptM.y - cy;
         const distance = Math.sqrt(dx * dx + dy * dy);
         
         let angle = Math.atan2(dy, dx) * (180 / Math.PI);
@@ -1246,7 +1239,7 @@ function initInteractions() {
         }
 
         if (ringInfo) {
-            const relSegment = (absSegment - (window.currentStartSegment || 0) + 120) % 120;
+            const relSegment = (absSegment - currentStartSegment + 120) % 120;
             const day = Math.floor(relSegment / 4) + 1;
             const timeSlot = relSegment % 4;
             const timeLabels = ["0:00〜6:00", "6:00〜12:00", "12:00〜18:00", "18:00〜24:00"];
@@ -1255,11 +1248,10 @@ function initInteractions() {
             sb.style.color = "#fff";
 
             if (window.isInteractionActive && (window.currentTool === 'paint' || window.currentTool === 'erase')) {
-                const cellKey = `c${window.currentCycle || 0}_abs${absSegment}_${ringInfo.layerId}`;
+                const cellKey = `c${currentCycle}_abs${absSegment}_${ringInfo.layerId}`;
                 if (window.lastPaintedCell !== cellKey) {
-                    const cData = window.calendarData || {};
-                    if (window.currentTool === 'erase') delete cData[cellKey];
-                    else cData[cellKey] = { color: window.activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
+                    if (window.currentTool === 'erase') delete calendarData[cellKey];
+                    else calendarData[cellKey] = { color: window.activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
                     if (typeof renderSavedData === 'function') renderSavedData();
                     window.lastPaintedCell = cellKey;
                 }
@@ -1275,28 +1267,27 @@ function initInteractions() {
         if (window.currentTool === 'pointer') {
             const cur = window.interactionMode === 'pan' ? 'grab' : 'ew-resize';
             
-            // ★ マウスを離した時もカーソルを元に戻す
             let cursorStyleBlock = document.getElementById("cursor-style-block");
             if (cursorStyleBlock) {
                 cursorStyleBlock.innerHTML = `
-                    #calendar-container, #calendar-container svg { cursor: ${cur} !important; }
-                    #calendar-container svg text { cursor: inherit; user-select: none; -webkit-user-select: none; }
-                    #calendar-container svg text[style*="cursor: pointer"] { cursor: pointer !important; }
+                    #container, #container svg, .calendar-container, .calendar-container svg { cursor: ${cur} !important; }
+                    text { cursor: inherit; user-select: none; -webkit-user-select: none; }
+                    text[style*="cursor: pointer"] { cursor: pointer !important; }
                 `;
             }
         }
-        if (typeof window.calendarData !== 'undefined') localStorage.setItem('polarCalendarDataV27', JSON.stringify(window.calendarData));
+        localStorage.setItem('polarCalendarDataV27', JSON.stringify(calendarData));
     });
 
-    if(typeof window.svg !== 'undefined' && window.svg) {
-        window.svg.addEventListener('click', (e) => {
+    if(svg) {
+        svg.addEventListener('click', (e) => {
             if (window.dragDistance > 5 || window.currentTool === 'pointer') return;
-            const pt = window.svg.createSVGPoint();
+            const pt = svg.createSVGPoint();
             pt.x = e.clientX;
             pt.y = e.clientY;
-            if(typeof window.masterGroup === 'undefined' || !window.masterGroup) return;
-            const ptM = pt.matrixTransform(window.masterGroup.getScreenCTM().inverse());
-            const dx = ptM.x - (typeof cx !== 'undefined'?cx:0), dy = ptM.y - (typeof cy !== 'undefined'?cy:0);
+            if(!masterGroup) return;
+            const ptM = pt.matrixTransform(masterGroup.getScreenCTM().inverse());
+            const dx = ptM.x - cx, dy = ptM.y - cy;
             const distance = Math.sqrt(dx * dx + dy * dy);
             let angle = Math.atan2(dy, dx) * (180 / Math.PI);
             angle = (angle + 90 + 360) % 360;
@@ -1306,15 +1297,14 @@ function initInteractions() {
             if(typeof getRingInfo === 'function') ringInfo = getRingInfo(distance);
             if (!ringInfo) return;
 
-            const cellKey = `c${window.currentCycle || 0}_abs${absSegment}_${ringInfo.layerId}`;
-            const cData = window.calendarData || {};
+            const cellKey = `c${currentCycle}_abs${absSegment}_${ringInfo.layerId}`;
             
-            if (window.currentTool === 'erase') delete cData[cellKey];
+            if (window.currentTool === 'erase') delete calendarData[cellKey];
             else if (window.currentTool === 'paint') {
-                cData[cellKey] = { color: window.activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
+                calendarData[cellKey] = { color: window.activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
             }
             
-            localStorage.setItem('polarCalendarDataV27', JSON.stringify(cData));
+            localStorage.setItem('polarCalendarDataV27', JSON.stringify(calendarData));
             if(typeof renderSavedData === 'function') renderSavedData();
         });
     }
