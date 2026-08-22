@@ -729,8 +729,8 @@ function drawKoyomiEvents(startDate) {
         dateLayer.appendChild(eventMixGroup);
     }
 
+    if (concentricRings.length < 30) return;
     const R = concentricRings;
-    if(R.length < 30) return;
 
     const stG = window.layerSettings.gregorian;
     const stW = window.layerSettings.weekday;
@@ -1097,10 +1097,9 @@ function drawKoyomiEvents(startDate) {
     if(wafuTextLayer) wafuTextLayer.innerHTML = "";
     
     if(wafuTextLayer) {
-        // ★ 旧暦の文字をキャンバス右側へ移動し、回転から除外（固定化）
         const tspanOld = document.createElementNS(svgNS, "text");
         tspanOld.setAttribute("class", "layer-wafu-text");
-        tspanOld.setAttribute("x", cx + 1210); 
+        tspanOld.setAttribute("x", cx + 1210); // ★ 右に移動
         tspanOld.setAttribute("y", cy - 850 + stWafu.offsetRadius);
         tspanOld.setAttribute("text-anchor", "end");
         tspanOld.setAttribute("fill", stWafu.fill);
@@ -1117,7 +1116,6 @@ function drawKoyomiEvents(startDate) {
         tspanOld.textContent = startWafu ? `${startWafu}（旧暦）` : "旧暦取得中";
         wafuTextLayer.appendChild(tspanOld);
         
-        // ★ 新暦の文字を旧暦の真下に固定
         const tspanNew = document.createElementNS(svgNS, "text");
         tspanNew.setAttribute("class", "layer-gregorian-text");
         const wafuList = ['睦月','如月','弥生','卯月','皐月','水無月','文月','葉月','長月','神無月','霜月','師走'];
@@ -1125,7 +1123,7 @@ function drawKoyomiEvents(startDate) {
             ? wafuList[startGregorianMonth - 1] 
             : `${wafuList[startGregorianMonth - 1]} ／ ${wafuList[endGregorianMonth - 1]}`;
         
-        tspanNew.setAttribute("x", cx + 1210); 
+        tspanNew.setAttribute("x", cx + 1210); // ★ 右に移動
         tspanNew.setAttribute("y", cy - 850 + (stWafu.fontSize * 0.9) + stGreText.offsetRadius);
         tspanNew.setAttribute("text-anchor", "end");
         tspanNew.setAttribute("fill", stGreText.fill);
@@ -1144,7 +1142,7 @@ function drawKoyomiEvents(startDate) {
     }
 }
 
-// ★ 俳句を放射状に描画する関数
+// ★ 俳句の描画（一番下に復活）
 function drawHaikus(startDate) {
     const layer = document.getElementById("layer-haiku");
     if(layer) layer.innerHTML = "";
@@ -1153,12 +1151,12 @@ function drawHaikus(startDate) {
     const st = window.layerSettings.haikuText;
     if (!st || st.opacity === 0) return;
 
-    const rBase = concentricRings[concentricRings.length - 1] + 90 + st.offsetRadius;
+    const rBase = concentricRings[concentricRings.length - 1] + 90 + (st.offsetRadius || 0);
     
     for (let i = 0; i < window.currentMonthDays; i++) {
         const loopDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
         const dateStr = formatDateStr(loopDate);
-        const haikus = window.haikuDatabase[dateStr] || [];
+        const haikus = (window.haikuDatabase || {})[dateStr] || [];
         
         if (haikus.length > 0) {
             const absoluteSegment = (currentStartSegment + i * 4) % 120;
@@ -1195,7 +1193,7 @@ function drawHaikus(startDate) {
                 
                 text.setAttribute("transform", `rotate(${angle + 180}, ${pt.x}, ${pt.y})`);
                 text.textContent = haikus[j];
-                text.onclick = () => window.openHaikuModal(dateStr, haikus);
+                text.onclick = () => { if (window.openHaikuModal) window.openHaikuModal(dateStr, haikus); };
                 layer.appendChild(text);
             }
             
@@ -1213,7 +1211,7 @@ function drawHaikus(startDate) {
                 moreText.setAttribute("style", "cursor: pointer;");
                 moreText.setAttribute("transform", `rotate(${angle}, ${pt.x}, ${pt.y})`);
                 moreText.textContent = `＋${haikus.length - 3}`;
-                moreText.onclick = () => window.openHaikuModal(dateStr, haikus);
+                moreText.onclick = () => { if (window.openHaikuModal) window.openHaikuModal(dateStr, haikus); };
                 layer.appendChild(moreText);
             }
         }
