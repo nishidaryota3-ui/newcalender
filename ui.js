@@ -69,11 +69,9 @@ function initUI() {
         themeBox.style.background = "rgba(14, 165, 233, 0.1)";
         themeBox.style.borderColor = "rgba(14, 165, 233, 0.3)";
         themeBox.innerHTML = `
-            <div style="font-size:11px; color:#38bdf8; margin-bottom:8px; font-weight:bold; text-align:center;">
-                ※現在の設定は「表示中の月」専用です
-            </div>
+           
             <button id="btn-apply-global" style="background:#0ea5e9; color:#fff; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold; width:100%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: 0.2s;">
-                このデザインをすべての月に一括適用
+                デザインを全月に適用
             </button>
         `;
         document.getElementById('btn-apply-global').onmouseover = function() { this.style.background = '#0284c7'; };
