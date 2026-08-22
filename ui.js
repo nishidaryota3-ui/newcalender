@@ -49,9 +49,21 @@ function initUI() {
     paletteDiv.style = "position:fixed; top:134px; left:74px; background:rgba(25,30,40,0.9); padding:10px; border-radius:8px; z-index:99; border: 1px solid rgba(255,255,255,0.1); display:none; grid-template-columns:repeat(4, 1fr); gap:6px; width:120px; box-sizing:border-box;";
     document.body.appendChild(paletteDiv);
 
+    // ★「レイヤーパネル」のタイトル行を中央揃えに強制書き換え
+    const lpTitleDiv = document.querySelector('.layer-panel-title');
+    if (lpTitleDiv) {
+        lpTitleDiv.style.justifyContent = 'center';
+        lpTitleDiv.style.position = 'relative';
+        lpTitleDiv.style.textAlign = 'center';
+    }
+
     const btnMinimize = document.getElementById('btn-minimize-panel');
     const panelContent = document.getElementById('layer-panel-content');
     if (btnMinimize && panelContent) {
+        // -ボタンを右端に固定
+        btnMinimize.style.position = 'absolute';
+        btnMinimize.style.right = '10px';
+        
         btnMinimize.onclick = () => {
             if (panelContent.style.display === 'none') {
                 panelContent.style.display = 'block';
@@ -63,30 +75,29 @@ function initUI() {
         };
     }
 
-    // ★ プリセット管理と全月一括適用のハイブリッドUI
+    // ★ プリセット管理と全月一括適用のハイブリッドUI（高さ・幅を完全に揃えた版）
     const themeBox = document.querySelector('#layer-panel-content > div:first-child');
     if (themeBox) {
         themeBox.style.background = "rgba(0, 0, 0, 0.3)";
         themeBox.style.borderColor = "rgba(212, 175, 55, 0.3)";
         themeBox.innerHTML = `
-            <div style="font-size:12px; color:#d4af37; margin-bottom:5px; font-weight:bold;">テーマ (プリセット) 管理</div>
-            <div style="display:flex; gap:5px; margin-bottom:8px;">
-                <select id="theme-select" style="flex:1; background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px; font-size:12px;">
+            <div style="font-size:12px; color:#d4af37; margin-bottom:8px; font-weight:bold; text-align:center;">テーマ (プリセット) 管理</div>
+            
+            <div style="display:flex; gap:5px; margin-bottom:6px; align-items:center;">
+                <select id="theme-select" style="flex:1; background:#222; color:#fff; border:1px solid #555; border-radius:4px; font-size:12px; height:26px; box-sizing:border-box; padding:0 4px;">
                     <option value="default">デフォルト設定</option>
                 </select>
-                <button id="btn-theme-load" style="background:#d4af37; border:none; color:#000; padding:4px 8px; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px;">読込</button>
+                <button id="btn-theme-load" style="background:#d4af37; border:none; color:#000; border-radius:4px; cursor:pointer; font-weight:bold; font-size:12px; height:26px; box-sizing:border-box; padding:0 12px; white-space:nowrap;">読込</button>
             </div>
-            <div style="display:flex; gap:5px; margin-bottom:12px;">
-                <input type="text" id="theme-name-input" placeholder="テーマ名を入力" style="flex:1; background:#222; color:#fff; border:1px solid #555; padding:4px; border-radius:4px; font-size:12px;">
-                <button id="btn-theme-save" style="background:rgba(56,189,248,0.2); border:1px solid #38bdf8; color:#38bdf8; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:12px;">保存</button>
+            
+            <div style="display:flex; gap:5px; margin-bottom:12px; align-items:center;">
+                <input type="text" id="theme-name-input" placeholder="テーマ名を入力" style="flex:1; background:#222; color:#fff; border:1px solid #555; border-radius:4px; font-size:12px; height:26px; box-sizing:border-box; padding:0 6px;">
+                <button id="btn-theme-save" style="background:rgba(56,189,248,0.2); border:1px solid #38bdf8; color:#38bdf8; border-radius:4px; cursor:pointer; font-size:12px; height:26px; box-sizing:border-box; padding:0 12px; white-space:nowrap;">保存</button>
             </div>
             
             <hr style="border:0; border-top:1px dashed rgba(255,255,255,0.2); margin:0 0 10px 0;">
             
-            <div style="font-size:10px; color:#38bdf8; margin-bottom:6px; font-weight:bold; text-align:center; white-space:nowrap; letter-spacing:-0.2px;">
-                ※デザインの変更は「表示中の月」に自動保存されます
-            </div>
-            <button id="btn-apply-global" style="background:#0ea5e9; color:#fff; border:none; padding:6px 12px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold; width:100%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: 0.2s;">
+            <button id="btn-apply-global" style="background:#0ea5e9; color:#fff; border:none; padding:8px 12px; border-radius:4px; cursor:pointer; font-size:12px; font-weight:bold; width:100%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: 0.2s;">
                 デザインを全月適用
             </button>
         `;
@@ -260,7 +271,6 @@ function initUI() {
         if(dpHeader) dpHeader.style.cursor = 'grab';
     });
 
-    // ★ プリセット管理のイベントリスナー（復活）
     const updateThemeSelect = () => {
         const select = document.getElementById('theme-select');
         if(!select) return;
