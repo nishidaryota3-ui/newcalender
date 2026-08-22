@@ -141,7 +141,6 @@ function drawLunarMansions(cycleStartTimeMs) {
     const totalHours = 720; 
     const startAngle = currentStartSegment * 3;
 
-    // ★ 背景リングの色と透明度を適用
     const trackBg = document.createElementNS(svgNS, "circle");
     trackBg.setAttribute("cx", cx);
     trackBg.setAttribute("cy", cy);
@@ -218,7 +217,6 @@ function drawConstellationMark(startAng, endAng, index, rCenter, st, color) {
     const starCount = Math.floor(rand() * 3) + 3;
     const stars = [];
 
-    // ★ 星の大きさを適用
     const starBaseSize = st.starSize !== undefined ? st.starSize : 1.5;
 
     for(let i=0; i<starCount; i++) {
@@ -235,7 +233,6 @@ function drawConstellationMark(startAng, endAng, index, rCenter, st, color) {
         g.appendChild(circle);
     }
 
-    // ★ 星座線の太さを適用
     for(let i=0; i<stars.length - 1; i++) {
         const line = document.createElementNS(svgNS, "line");
         line.setAttribute("x1", stars[i].x);
@@ -322,7 +319,6 @@ function drawDailyRainStats(startDate) {
     }
 }
 
-// 潮汐波形
 function drawTideGraph(cycleStartTimeMs) {
     const waveLayer = document.getElementById("layer-tide-wave");
     const guideLayer = document.getElementById("layer-guide-tide");
@@ -332,7 +328,6 @@ function drawTideGraph(cycleStartTimeMs) {
     if (concentricRings.length < 23) return;
 
     const stGraph = window.layerSettings.tideGraph;
-    // ★ 潮位の線と文字を分離
     const stLine = window.layerSettings.guideTideLine || window.layerSettings.guideTide;
     const stText = window.layerSettings.guideTideText || window.layerSettings.guideTide;
 
@@ -427,7 +422,6 @@ function drawTideGraph(cycleStartTimeMs) {
     if(waveLayer) waveLayer.appendChild(waveGroup);
 }
 
-// 降水量棒グラフ
 function drawRainfallGraph(cycleStartTimeMs) {
     const rainLayer = document.getElementById("layer-rain-graph");
     const guideLayer = document.getElementById("layer-guide-rain");
@@ -437,7 +431,6 @@ function drawRainfallGraph(cycleStartTimeMs) {
     if (concentricRings.length < 23) return;
 
     const stGraph = window.layerSettings.rainGraph;
-    // ★ 降水量の線と文字を分離
     const stLine = window.layerSettings.guideRainLine || window.layerSettings.guideRain;
     const stText = window.layerSettings.guideRainText || window.layerSettings.guideRain;
 
@@ -524,7 +517,6 @@ function drawRainfallGraph(cycleStartTimeMs) {
                 text.setAttribute("paint-order", "stroke fill");
             }
             
-            // ★ 外側から読めるように常に180度反転
             let textRot = labelAngle + 180;
             text.setAttribute("transform", `rotate(${textRot}, ${ptLabel.x}, ${ptLabel.y})`);
             text.textContent = val + "mm";
@@ -971,8 +963,6 @@ function drawKoyomiEvents(startDate) {
         if (dbRow[1]) {
             const lunarMatch = dbRow[1].match(/旧暦.*?月(.+?)日/);
             const rawLunarDay = lunarMatch ? lunarMatch[1] : "";
-            
-            // ★【先日対応分】「三十」を「丗」に、「二十」を「廿」に変換
             const lunarDay = rawLunarDay.replace("三十", "丗").replace("二十", "廿");
             
             let phaseKey = "normal";
@@ -1126,7 +1116,6 @@ function drawKoyomiEvents(startDate) {
         }
         
         tspanOld.setAttribute("transform", `rotate(${-globalRotation}, ${cx}, ${cy})`);
-        
         tspanOld.textContent = startWafu ? `${startWafu}（旧暦）` : "旧暦取得中";
         wafuTextLayer.appendChild(tspanOld);
         
@@ -1153,8 +1142,90 @@ function drawKoyomiEvents(startDate) {
         }
         
         tspanNew.setAttribute("transform", `rotate(${-globalRotation}, ${cx}, ${cy})`);
-        
         tspanNew.textContent = `${newWafuStr}（新暦）`;
         wafuTextLayer.appendChild(tspanNew);
+    }
+}
+
+// ★ 俳句を放射状に描画する関数
+function drawHaikus(startDate) {
+    const layer = document.getElementById("layer-haiku");
+    if(layer) layer.innerHTML = "";
+    if (concentricRings.length === 0) return;
+
+    const st = window.layerSettings.haikuText;
+    if (!st || st.opacity === 0) return;
+
+    // 二十七宿のさらに外側に配置するため、少し余裕を持たせる（UIで offsetRadius として調整可能）
+    const rBase = concentricRings[concentricRings.length - 1] + 90 + st.offsetRadius;
+    
+    for (let i = 0; i < window.currentMonthDays; i++) {
+        const loopDate = new Date(startDate.getTime() + i * 24 * 60 * 60 * 1000);
+        const dateStr = formatDateStr(loopDate);
+        const haikus = window.haikuDatabase[dateStr] || [];
+        
+        if (haikus.length > 0) {
+            const absoluteSegment = (currentStartSegment + i * 4) % 120;
+            const baseAngle = absoluteSegment * 3;
+            
+            const displayCount = Math.min(haikus.length, 3);
+            const hasMore = haikus.length > 3;
+            
+            // 1日の角度幅(12度)の中にバランス良く散らす
+            let angles = [];
+            if (displayCount === 1) angles = [6];
+            else if (displayCount === 2) angles = [4, 8];
+            else angles = [2.5, 6, 9.5];
+            
+            for(let j=0; j < displayCount; j++) {
+                const angle = baseAngle + angles[j];
+                const pt = polarToCartesian(cx, cy, rBase, angle);
+                
+                const text = document.createElementNS(svgNS, "text");
+                text.setAttribute("x", pt.x);
+                text.setAttribute("y", pt.y);
+                text.setAttribute("fill", st.fill);
+                text.setAttribute("font-size", st.fontSize + "px");
+                text.setAttribute("font-family", st.fontFamily);
+                if(st.fontWeight === "bold") text.setAttribute("font-weight", "bold");
+                text.setAttribute("opacity", st.opacity);
+                // 縦書きに設定し、クリックでモーダルを開けるようにポインターにする
+                text.setAttribute("style", "writing-mode: vertical-rl; cursor: pointer;");
+                
+                if (st.strokeWidth > 0) {
+                    text.setAttribute("stroke", st.stroke);
+                    text.setAttribute("stroke-width", st.strokeWidth);
+                    text.setAttribute("stroke-linejoin", "round");
+                    text.setAttribute("paint-order", "stroke fill");
+                }
+                
+                // 放射状に文字が外を向くように回転（angle + 180）
+                text.setAttribute("transform", `rotate(${angle + 180}, ${pt.x}, ${pt.y})`);
+                text.textContent = haikus[j];
+                
+                // モーダルを開くイベント
+                text.onclick = () => window.openHaikuModal(dateStr, haikus);
+                layer.appendChild(text);
+            }
+            
+            // 3句以上ある場合は「＋〇句」を表示
+            if (hasMore) {
+                const angle = baseAngle + 11.5;
+                const pt = polarToCartesian(cx, cy, rBase + 10, angle);
+                const moreText = document.createElementNS(svgNS, "text");
+                moreText.setAttribute("x", pt.x);
+                moreText.setAttribute("y", pt.y);
+                moreText.setAttribute("fill", "#d25b4e"); 
+                moreText.setAttribute("font-size", (st.fontSize * 0.8) + "px");
+                moreText.setAttribute("font-family", st.fontFamily);
+                moreText.setAttribute("text-anchor", "middle");
+                moreText.setAttribute("dominant-baseline", "middle");
+                moreText.setAttribute("style", "cursor: pointer;");
+                moreText.setAttribute("transform", `rotate(${angle}, ${pt.x}, ${pt.y})`);
+                moreText.textContent = `＋${haikus.length - 3}`;
+                moreText.onclick = () => window.openHaikuModal(dateStr, haikus);
+                layer.appendChild(moreText);
+            }
+        }
     }
 }
