@@ -1,4 +1,4 @@
-// ui.js (UI構築・イベントモジュール) - 軽量化・データ駆動・バグ修正・堅牢化版・カーソル修正版
+// ui.js (UI構築・イベントモジュール) - 軽量化・データ駆動・バグ修正・高画質印刷＆エクスポート対応版
 
 const TEXT_TARGETS = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'wafuText', 'gregorianText', 'dailyRainText', 'guideTime', 'guideTideText', 'guideRainText', 'lunarMansion', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar', 'haikuText'];
 const SHAPE_TARGETS = ['baseSvg', 'lunarShadow', 'astroPins', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTideLine', 'guideRainLine', 'canvasBg'];
@@ -25,6 +25,9 @@ const LAYER_VISIBILITY_MAP = {
     "toggle-wafu-text": ".layer-wafu-text", "toggle-gregorian-text": ".layer-gregorian-text", "toggle-sekki": ".layer-sekki",
     "toggle-kou": ".layer-kou", "toggle-zassetsu": ".layer-zassetsu", "toggle-holiday": ".layer-holiday", "toggle-event-important": ".layer-event-important"
 };
+
+// ▼▼ 新規アイコンの追加（画像エクスポート） ▼▼
+const iconExport = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`;
 
 function initUI() {
     const oldPalette = document.getElementById('palette');
@@ -63,7 +66,8 @@ function initUI() {
         <button id="tool-erase" title="消す (E)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#fff; padding:0; display:flex; justify-content:center; align-items:center;">${iconErase}</button>
         <hr style="border-color:rgba(255,255,255,0.1); width:100%; margin:4px 0;">
         <button id="clearBtn" title="選択色を全消去" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#fff; padding:0; display:flex; justify-content:center; align-items:center;">${iconTrash}</button>
-        <button id="printBtn" title="印刷 (A3)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#38bdf8; padding:0; display:flex; justify-content:center; align-items:center;">${iconPrint}</button>
+        <button id="printBtn" title="印刷 (A3など紙へ)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#38bdf8; padding:0; display:flex; justify-content:center; align-items:center;">${iconPrint}</button>
+        <button id="exportBtn" title="高画質で画像保存 (PNG)" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#38bdf8; padding:0; display:flex; justify-content:center; align-items:center;">${iconExport}</button>
         <hr style="border-color:rgba(255,255,255,0.1); width:100%; margin:4px 0;">
         <button id="homeBtn" title="新月を真上にリセット" style="width:26px; height:26px; border-radius:4px; cursor:pointer; background:transparent; border:1px solid transparent; color:#38bdf8; padding:0; display:flex; justify-content:center; align-items:center;">${iconHome}</button>
     `;
@@ -662,7 +666,120 @@ function initUI() {
         if (document.getElementById('design-panel').style.display === 'block') loadPanelData();
     };
 
-    document.getElementById('printBtn').onclick = () => window.print();
+    // ▼▼ 修正箇所：印刷時のズーム・パンのリセット処理 ▼▼
+    document.getElementById('printBtn').onclick = () => {
+        if(typeof svg === 'undefined' || !svg) return;
+        // 印刷前に現在のズーム・パン状態を保存し、一旦全体表示にリセットする
+        const currentViewBox = svg.getAttribute('viewBox');
+        svg.setAttribute('viewBox', `0 0 1841.3719 2382.9518`);
+        
+        // 印刷ダイアログを呼び出し（CSSの魔法で完璧にフィットします）
+        window.print();
+        
+        // 印刷が終わったら元のズーム・パン状態に戻す
+        svg.setAttribute('viewBox', currentViewBox);
+    };
+
+    // ▼▼ 新機能：高解像度エクスポート（画像保存）のロジック ▼▼
+    document.getElementById('exportBtn').onclick = () => {
+        if(typeof svg === 'undefined' || !svg) return;
+        
+        // ローディング表示
+        const loader = document.createElement('div');
+        loader.style = "position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.8); z-index:9999; display:flex; justify-content:center; align-items:center; color:#d4af37; font-size:20px; font-weight:bold;";
+        loader.innerHTML = "高解像度画像を生成中... しばらくお待ちください";
+        document.body.appendChild(loader);
+
+        setTimeout(() => {
+            try {
+                // SVGをクローンして、画像保存用の加工を行う（元の画面は壊さない）
+                const clone = svg.cloneNode(true);
+                clone.setAttribute('viewBox', '0 0 1841.3719 2382.9518');
+                clone.setAttribute('width', '1841.3719');
+                clone.setAttribute('height', '2382.9518');
+
+                // キャンバスの背景色（透明以外なら）をSVGに埋め込む
+                const bgColor = document.body.style.backgroundColor || window.layerSettings.canvasBg.fill || '#f5f5f0';
+                if (bgColor !== 'transparent' && bgColor !== 'none') {
+                    const bgRect = document.createElementNS(svgNS, "rect");
+                    bgRect.setAttribute('width', '100%');
+                    bgRect.setAttribute('height', '100%');
+                    bgRect.setAttribute('fill', bgColor);
+                    clone.insertBefore(bgRect, clone.firstChild);
+                }
+
+                // 右上の日付テキスト（UI）をSVGの中に描画として合成する
+                const dateTextParts = document.getElementById('cycleDisplay').innerText.split('\n');
+                const titleText = dateTextParts[0].replace('▼', '').trim();
+                const subText = dateTextParts[1] ? dateTextParts[1].trim() : '';
+
+                const textG = document.createElementNS(svgNS, "g");
+                textG.setAttribute('transform', 'translate(1780, 150)'); 
+
+                const text1 = document.createElementNS(svgNS, "text");
+                text1.setAttribute('text-anchor', 'end');
+                text1.setAttribute('font-family', "'Shippori Mincho', serif");
+                text1.setAttribute('font-size', '40px');
+                text1.setAttribute('font-weight', 'bold');
+                text1.setAttribute('fill', '#2c3e50'); // 印刷用の濃い色
+                text1.textContent = titleText;
+                textG.appendChild(text1);
+
+                const text2 = document.createElementNS(svgNS, "text");
+                text2.setAttribute('y', '50');
+                text2.setAttribute('text-anchor', 'end');
+                text2.setAttribute('font-family', "'Shippori Mincho', serif");
+                text2.setAttribute('font-size', '24px');
+                text2.setAttribute('fill', '#555555');
+                text2.textContent = subText;
+                textG.appendChild(text2);
+                clone.appendChild(textG);
+
+                // SVGデータをCanvas経由で超高解像度PNGに変換
+                const svgData = new XMLSerializer().serializeToString(clone);
+                const blob = new Blob([svgData], {type: "image/svg+xml;charset=utf-8"});
+                const url = URL.createObjectURL(blob);
+
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // 超高解像度 (A2, A1でも綺麗に印刷できるよう、元のSVGサイズの約2倍)
+                canvas.width = 3682;
+                canvas.height = 4765;
+
+                const img = new Image();
+                img.onload = () => {
+                    if (bgColor !== 'transparent' && bgColor !== 'none') {
+                        ctx.fillStyle = bgColor;
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    }
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    const pngUrl = canvas.toDataURL('image/png', 1.0);
+                    const a = document.createElement('a');
+                    a.href = pngUrl;
+                    
+                    // ファイル名に年月を入れる（例：PolarCalendar_2026年7月.png）
+                    const safeName = titleText.replace(/\s/g, '');
+                    a.download = `PolarCalendar_${safeName}.png`;
+                    a.click();
+                    
+                    URL.revokeObjectURL(url);
+                    loader.remove();
+                };
+                img.onerror = () => {
+                    alert('画像の生成に失敗しました。');
+                    loader.remove();
+                };
+                img.src = url;
+            } catch(e) {
+                console.error(e);
+                alert('エラーが発生しました。');
+                loader.remove();
+            }
+        }, 100); 
+    };
+    // ▲▲ ここまで ▲▲
 
     const cycleDisplay = document.getElementById('cycleDisplay');
     cycleDisplay.onmouseover = () => { cycleDisplay.style.background = "rgba(255,255,255,0.1)"; };
@@ -701,11 +818,10 @@ function initUI() {
         activeBtn.style.borderColor = '#d4af37';
         activeBtn.style.color = '#000';
 
-        // 【修正箇所】見た目のカーソル切り替えは、手前の #container に直接当てる
-        const cursorTarget = document.getElementById('container') || document.body;
-        if (tool === 'pointer') cursorTarget.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize';
-        else if (tool === 'paint') cursorTarget.style.cursor = 'crosshair';
-        else if (tool === 'erase') cursorTarget.style.cursor = 'cell';
+        const appCont = document.body;
+        if (tool === 'pointer') appCont.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize';
+        else if (tool === 'paint') appCont.style.cursor = 'crosshair';
+        else if (tool === 'erase') appCont.style.cursor = 'cell';
     };
 
     let previousTool = 'pointer';
@@ -879,7 +995,6 @@ function initInteractions() {
         lastPaintedCell = null;
 
         if (currentTool === 'pointer') {
-            // 【修正箇所】mousedown時の見た目の変更対象も #container に向ける
             const cursorTarget = document.getElementById('container') || document.body;
             cursorTarget.style.cursor = interactionMode === 'pan' ? 'grabbing' : 'ew-resize';
             if (interactionMode === 'rotate') {
@@ -980,7 +1095,6 @@ function initInteractions() {
     window.addEventListener('mouseup', () => {
         isInteractionActive = false;
         if (typeof currentTool !== 'undefined' && currentTool === 'pointer') {
-            // 【修正箇所】mouseup時も #container を対象にドラッグ解除
             const cursorTarget = document.getElementById('container') || document.body;
             cursorTarget.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize';
         }
