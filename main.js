@@ -1,12 +1,5 @@
 // main.js (司令塔・初期化モジュール)
 
-window.haikuDatabase = window.haikuDatabase || {}; 
-window.koyomiDatabase = window.koyomiDatabase || {};
-window.apiRainData = window.apiRainData || new Array(720).fill(null);
-window.localRainData = window.localRainData || {};
-window.highLowTidePoints = window.highLowTidePoints || [];
-window.calendarData = window.calendarData || {};
-
 window.defaultLayerSettings = {
     canvasBg: { fill: "#f5f5f0" },
     baseSvg: { stroke: "", opacity: 0.8 },
@@ -40,6 +33,7 @@ window.defaultLayerSettings = {
     eventBuddhism: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#3f3d56", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     eventChurch: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#6b5b4e", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
     eventSonota: { fontFamily: "'Shippori Mincho', serif", fontSize: 6.5, fill: "#555555", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 0 },
+    // ★ 俳句用の初期設定
     haikuText: { fontFamily: "'Shippori Mincho', serif", fontSize: 8, fill: "#2c3e50", fontWeight: "normal", stroke: "#ffffff", strokeWidth: 0, opacity: 1, offsetRadius: 40 },
     lunar: {
         fontFamily: "'Shippori Mincho', serif", fontSize: 11, fontWeight: "normal", opacity: 1, offsetRadius: 0,
@@ -52,6 +46,8 @@ window.defaultLayerSettings = {
         }
     }
 };
+
+window.haikuDatabase = {}; 
 
 function isObject(item) { return (item && typeof item === 'object' && !Array.isArray(item)); }
 function mergeDeep(target, ...sources) {
@@ -93,18 +89,21 @@ window.appSettings = JSON.parse(localStorage.getItem('polarCalendarSettingsV5'))
     months: {}
 };
 window.layerSettings = {}; 
-window.savedThemes = JSON.parse(localStorage.getItem('polarCalendarThemesV1')) || {};
 
 window.loadSettingsForCycle = function(cycleIdx) {
     let base = JSON.parse(JSON.stringify(window.appSettings.global));
     base = mergeDeep(JSON.parse(JSON.stringify(window.defaultLayerSettings)), base);
+    
     let monthData = window.appSettings.months[`cycle_${cycleIdx}`];
-    if (monthData) { window.layerSettings = mergeDeep(base, monthData); } 
-    else { window.layerSettings = base; }
+    if (monthData) {
+        window.layerSettings = mergeDeep(base, monthData);
+    } else {
+        window.layerSettings = base;
+    }
 };
 
 window.saveLayerSettings = () => {
-    const cycleKey = `cycle_${typeof currentCycle !== 'undefined' ? currentCycle : 0}`;
+    const cycleKey = `cycle_${currentCycle}`;
     window.appSettings.months[cycleKey] = JSON.parse(JSON.stringify(window.layerSettings));
     localStorage.setItem('polarCalendarSettingsV5', JSON.stringify(window.appSettings));
 };
@@ -116,6 +115,10 @@ window.applyGlobalSettings = () => {
     alert("現在の色や設定を、すべての月の基本デザインとして適用しました！");
 };
 
+let koyomiDatabase = {};
+const KOYOMI_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRqoX31YV0YAO3Mq4WatmLhjP7uUSF6dPMy3D2H3ktEFDFg1X1gJmoIXkul9JpS4aLgK9Ze3SSbV9BZ/pub?gid=0&single=true&output=csv';
+const HAIKU_CSV_URL = 'https://docs.google.com/spreadsheets/d/1m0y8AOJNx1Ad4I44poPheQAQNki1-QQIwi9wSw8jaBg/export?format=csv&gid=126185184';
+
 function formatDateStr(dateObj) {
     const y = dateObj.getFullYear();
     const m = String(dateObj.getMonth() + 1).padStart(2, '0');
@@ -124,38 +127,31 @@ function formatDateStr(dateObj) {
 }
 
 async function fetchMeteoData(startDateMs) {
-    const loaderEl = document.getElementById('loader');
-    if(loaderEl) loaderEl.style.display = 'flex';
-    
+    if (typeof loader !== 'undefined') loader.style.display = 'flex';
     const dStart = new Date(startDateMs);
     const dEnd = new Date(startDateMs + 30 * 86400000);
     const startStr = formatDateStr(dStart);
     const endStr = formatDateStr(dEnd);
-    
-    window.apiRainData = new Array(720).fill(null);
-    const PALAU_LAT_VAL = typeof PALAU_LAT !== 'undefined' ? PALAU_LAT : 7.3397;
-    const PALAU_LON_VAL = typeof PALAU_LON !== 'undefined' ? PALAU_LON : 134.4733;
-
+    apiRainData = new Array(720).fill(null);
     const isHistorical = dEnd.getTime() < Date.now() - (5 * 86400000);
-    const rainApiUrl = isHistorical ? `https://archive-api.open-meteo.com/v1/archive?latitude=${PALAU_LAT_VAL}&longitude=${PALAU_LON_VAL}&hourly=precipitation&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`
-                                     : `https://api.open-meteo.com/v1/forecast?latitude=${PALAU_LAT_VAL}&longitude=${PALAU_LON_VAL}&hourly=precipitation&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`;
+    const rainApiUrl = isHistorical ? `https://archive-api.open-meteo.com/v1/archive?latitude=${PALAU_LAT}&longitude=${PALAU_LON}&hourly=precipitation&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`
+                                     : `https://api.open-meteo.com/v1/forecast?latitude=${PALAU_LAT}&longitude=${PALAU_LON}&hourly=precipitation&start_date=${startStr}&end_date=${endStr}&timezone=Asia%2FTokyo`;
 
     try {
         const rainRes = await fetch(rainApiUrl);
         if (rainRes.ok) {
             const rainJson = await rainRes.json();
             if(rainJson.hourly && rainJson.hourly.precipitation) {
-                for(let i=0; i<720; i++) window.apiRainData[i] = rainJson.hourly.precipitation[i] || 0;
+                for(let i=0; i<720; i++) apiRainData[i] = rainJson.hourly.precipitation[i] || 0;
             }
         }
     } catch(e) {}
-    
-    if(loaderEl) loaderEl.style.display = 'none';
+    if (typeof loader !== 'undefined') loader.style.display = 'none';
 }
 
 async function loadLocalCSV() {
     try {
-        const res = await fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vRqoX31YV0YAO3Mq4WatmLhjP7uUSF6dPMy3D2H3ktEFDFg1X1gJmoIXkul9JpS4aLgK9Ze3SSbV9BZ/pub?gid=0&single=true&output=csv');
+        const res = await fetch(KOYOMI_CSV_URL);
         if (res.ok) {
             const text = await res.text();
             const lines = text.split('\n');
@@ -165,19 +161,19 @@ async function loadLocalCSV() {
                     let dateKey = row[0].replace(/\//g, '-');
                     const parts = dateKey.split('-');
                     if(parts.length === 3) dateKey = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
-                    window.koyomiDatabase[dateKey] = row;
+                    koyomiDatabase[dateKey] = row;
                 }
             }
         }
     } catch(e) { console.error("暦データの読み込みに失敗:", e); }
 
     try {
-        const res = await fetch('https://docs.google.com/spreadsheets/d/1m0y8AOJNx1Ad4I44poPheQAQNki1-QQIwi9wSw8jaBg/export?format=csv&gid=126185184');
+        const res = await fetch(HAIKU_CSV_URL);
         if (res.ok) {
             const text = await res.text();
             const lines = text.split('\n');
             for (let i = 1; i < lines.length; i++) {
-                const row = parseCSVRow(lines[i]); 
+                const row = parseCSVRow(lines[i]);
                 if (row.length > 11) {
                     const haiku = row[0];
                     const author = row[1];
@@ -205,7 +201,7 @@ async function loadLocalCSV() {
                 if (parts.length >= 2) {
                     const date = parts[0].trim().replace(/\//g, '-');
                     const rain = parseFloat(parts[1].trim());
-                    if (date && !isNaN(rain)) window.localRainData[date] = rain;
+                    if (date && !isNaN(rain)) localRainData[date] = rain;
                 }
             }
         }
@@ -232,100 +228,87 @@ async function loadLocalCSV() {
                     const min = timeParts[1].padStart(2, '0');
                     const timeMs = new Date(`${dateStr}T${h}:${min}:00`).getTime();
                     const tide = parseFloat(parts[2].trim());
-                    if (!isNaN(timeMs) && !isNaN(tide)) window.highLowTidePoints.push({ time: timeMs, tide: tide });
+                    if (!isNaN(timeMs) && !isNaN(tide)) highLowTidePoints.push({ time: timeMs, tide: tide });
                 }
             }
-            window.highLowTidePoints.sort((a, b) => a.time - b.time);
+            highLowTidePoints.sort((a, b) => a.time - b.time);
         }
     } catch(e) {}
 }
 
 async function updateCalendarCycle() {
-    try {
-        const cCycle = typeof currentCycle !== 'undefined' ? currentCycle : 0;
-        if (typeof window.loadSettingsForCycle === 'function') {
-            window.loadSettingsForCycle(cCycle);
-        }
+    if (typeof window.loadSettingsForCycle === 'function') {
+        window.loadSettingsForCycle(currentCycle);
+    }
 
-        document.body.style.backgroundColor = window.layerSettings.canvasBg.fill;
+    document.body.style.backgroundColor = window.layerSettings.canvasBg.fill;
 
-        const sMonth = typeof synodicMonth !== 'undefined' ? synodicMonth : 29.530588853;
-        const bDate = typeof baseDate !== 'undefined' ? baseDate : new Date('2025-12-20T00:00:00+09:00');
-        
-        const totalElapsedDays = cCycle * sMonth;
-        const estimatedStartTimeMs = bDate.getTime() + totalElapsedDays * 24 * 60 * 60 * 1000;
-        let startDate = new Date(estimatedStartTimeMs);
+    const totalElapsedDays = currentCycle * synodicMonth;
+    const estimatedStartTimeMs = baseDate.getTime() + totalElapsedDays * 24 * 60 * 60 * 1000;
+    let startDate = new Date(estimatedStartTimeMs);
 
-        for (let offset = -3; offset <= 3; offset++) {
-            const checkDate = new Date(estimatedStartTimeMs + offset * 86400000);
-            const dateStr = formatDateStr(checkDate);
-            const dbRow = window.koyomiDatabase[dateStr];
-            if (dbRow && dbRow[1]) {
-                const lunarMatch = dbRow[1].match(/旧暦.*?月(.+?)日/);
-                if (lunarMatch && lunarMatch[1] === "一") {
-                    startDate = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate());
-                    break;
-                }
+    for (let offset = -3; offset <= 3; offset++) {
+        const checkDate = new Date(estimatedStartTimeMs + offset * 86400000);
+        const dateStr = formatDateStr(checkDate);
+        const dbRow = koyomiDatabase[dateStr];
+        if (dbRow && dbRow[1]) {
+            const lunarMatch = dbRow[1].match(/旧暦.*?月(.+?)日/);
+            if (lunarMatch && lunarMatch[1] === "一") {
+                startDate = new Date(checkDate.getFullYear(), checkDate.getMonth(), checkDate.getDate());
+                break;
             }
         }
-
-        const cycleStartTimeMs = startDate.getTime();
-        const diffDaysExact = (cycleStartTimeMs - bDate.getTime()) / 86400000;
-        
-        // Update globals if they exist
-        if (typeof currentStartSegment !== 'undefined') {
-            window.currentStartSegment = Math.round((diffDaysExact % 30) / 0.25) % 120;
-            if (window.currentStartSegment < 0) window.currentStartSegment += 120;
-        }
-        if (typeof globalRotation !== 'undefined') {
-            window.globalRotation = -(window.currentStartSegment || 0) * 3;
-        }
-
-        const y = startDate.getFullYear();
-        const m = startDate.getMonth() + 1;
-        const d = startDate.getDate();
-        const cycleDisplay = document.getElementById('cycleDisplay');
-        if (cycleDisplay) {
-            cycleDisplay.innerHTML = `${y}年 ${m}月 <span style="font-size:10px;">▼</span><br><span style="font-size:11px; color:#8b949e;">新月: ${m}月${d}日〜</span>`;
-        }
-
-        if (typeof computeMonthDays === 'function') computeMonthDays(startDate);
-
-        if (typeof drawLunarShadow === 'function') drawLunarShadow(cycleStartTimeMs);
-        if (typeof drawAstronomicalPins === 'function') drawAstronomicalPins(cycleStartTimeMs);
-        if (typeof drawDynamicLines === 'function') drawDynamicLines();
-        if (typeof drawTideGraph === 'function') drawTideGraph(cycleStartTimeMs);
-        if (typeof drawDailyRainStats === 'function') drawDailyRainStats(startDate);
-        if (typeof drawLunarMansions === 'function') drawLunarMansions(cycleStartTimeMs);
-        if (typeof renderSavedData === 'function') renderSavedData();
-        if (typeof drawTimeLabels === 'function') drawTimeLabels();
-        if (typeof drawKoyomiEvents === 'function') drawKoyomiEvents(startDate);
-        if (typeof drawHaikus === 'function') drawHaikus(startDate);
-
-        if (typeof window.masterGroup !== 'undefined' && window.masterGroup) {
-            window.masterGroup.setAttribute('transform', `rotate(${window.globalRotation || 0}, ${typeof cx !== 'undefined'?cx:0}, ${typeof cy !== 'undefined'?cy:0})`);
-        }
-
-        const stBase = window.layerSettings.baseSvg;
-        if (typeof window.bgGroup !== 'undefined' && window.bgGroup) {
-            window.bgGroup.style.opacity = stBase.opacity;
-            Array.from(window.bgGroup.querySelectorAll('*')).forEach(el => {
-                if (stBase.stroke !== "") {
-                    el.setAttribute('stroke', stBase.stroke);
-                } else {
-                    const orig = el.getAttribute('data-orig-stroke');
-                    if (orig) el.setAttribute('stroke', orig);
-                    else el.removeAttribute('stroke');
-                }
-            });
-        }
-
-        fetchMeteoData(cycleStartTimeMs).then(() => {
-            if (typeof drawRainfallGraph === 'function') drawRainfallGraph(cycleStartTimeMs);
-        });
-    } catch(e) {
-        console.error("updateCalendarCycle Error:", e);
     }
+
+    const cycleStartTimeMs = startDate.getTime();
+    const diffDaysExact = (cycleStartTimeMs - baseDate.getTime()) / 86400000;
+    currentStartSegment = Math.round((diffDaysExact % 30) / 0.25) % 120;
+    if (currentStartSegment < 0) currentStartSegment += 120;
+
+    globalRotation = -currentStartSegment * 3;
+
+    const y = startDate.getFullYear();
+    const m = startDate.getMonth() + 1;
+    const d = startDate.getDate();
+    const cycleDisplay = document.getElementById('cycleDisplay');
+    if (cycleDisplay) {
+        cycleDisplay.innerHTML = `${y}年 ${m}月 <span style="font-size:10px;">▼</span><br><span style="font-size:11px; color:#8b949e;">新月: ${m}月${d}日〜</span>`;
+    }
+
+    if (typeof computeMonthDays === 'function') computeMonthDays(startDate);
+
+    if (typeof drawLunarShadow === 'function') drawLunarShadow(cycleStartTimeMs);
+    if (typeof drawAstronomicalPins === 'function') drawAstronomicalPins(cycleStartTimeMs);
+    if (typeof drawDynamicLines === 'function') drawDynamicLines();
+    if (typeof drawTideGraph === 'function') drawTideGraph(cycleStartTimeMs);
+    if (typeof drawDailyRainStats === 'function') drawDailyRainStats(startDate);
+    if (typeof drawLunarMansions === 'function') drawLunarMansions(cycleStartTimeMs);
+    if (typeof renderSavedData === 'function') renderSavedData();
+    if (typeof drawTimeLabels === 'function') drawTimeLabels();
+    if (typeof drawKoyomiEvents === 'function') drawKoyomiEvents(startDate);
+    if (typeof drawHaikus === 'function') drawHaikus(startDate);
+
+    if (masterGroup) {
+        masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
+    }
+
+    const stBase = window.layerSettings.baseSvg;
+    if (bgGroup) {
+        bgGroup.style.opacity = stBase.opacity;
+        Array.from(bgGroup.querySelectorAll('*')).forEach(el => {
+            if (stBase.stroke !== "") {
+                el.setAttribute('stroke', stBase.stroke);
+            } else {
+                const orig = el.getAttribute('data-orig-stroke');
+                if (orig) el.setAttribute('stroke', orig);
+                else el.removeAttribute('stroke');
+            }
+        });
+    }
+
+    fetchMeteoData(cycleStartTimeMs).then(() => {
+        if (typeof drawRainfallGraph === 'function') drawRainfallGraph(cycleStartTimeMs);
+    });
 }
 
 if (typeof initUI === 'function') initUI();
@@ -334,62 +317,69 @@ loadLocalCSV().then(() => {
     fetch('calendar.svg')
         .then(response => response.text())
         .then(svgCode => {
-            const appContainer = document.getElementById('calendar-container') || document.body;
-            if (appContainer) appContainer.innerHTML = svgCode;
+            if (container) container.innerHTML = svgCode;
             
-            window.svg = appContainer.querySelector('svg');
-            if (!window.svg) return;
+            svg = container.querySelector('svg');
+            if (!svg) return;
             
-            const vb = typeof viewBox !== 'undefined' ? viewBox : { x: -841.89 / 2, y: -841.89 / 2, w: 841.89, h: 841.89 };
-            window.svg.setAttribute('viewBox', `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
-            window.svg.querySelectorAll('*[fill="#fff"]').forEach(el => el.setAttribute('fill', 'none'));
-            window.svg.querySelectorAll('text, rect').forEach(el => el.remove());
+            svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+            svg.querySelectorAll('*[fill="#fff"]').forEach(el => el.setAttribute('fill', 'none'));
+            svg.querySelectorAll('text, rect').forEach(el => el.remove());
             
             const radii = [];
-            window.svg.querySelectorAll('circle').forEach(c => {
+            svg.querySelectorAll('circle').forEach(c => {
                 const r = parseFloat(c.getAttribute('r'));
                 const cx_val = parseFloat(c.getAttribute('cx'));
                 const cy_val = parseFloat(c.getAttribute('cy'));
-                const cX = typeof cx !== 'undefined' ? cx : 0;
-                const cY = typeof cy !== 'undefined' ? cy : 0;
-                if (r && Math.abs(cx_val - cX) < 1 && Math.abs(cy_val - cY) < 1) radii.push(r);
+                if (r && Math.abs(cx_val - cx) < 1 && Math.abs(cy_val - cy) < 1) radii.push(r);
             });
-            window.concentricRings = [...new Set(radii)].sort((a, b) => a - b);
+            concentricRings = [...new Set(radii)].sort((a, b) => a - b);
             
-            const svgNS_val = "http://www.w3.org/2000/svg";
-            window.masterGroup = document.createElementNS(svgNS_val, "g");
-            window.masterGroup.setAttribute("id", "master-group");
-            window.bgGroup = document.createElementNS(svgNS_val, "g");
-            window.bgGroup.setAttribute("id", "bg-group");
+            masterGroup = document.createElementNS(svgNS, "g");
+            masterGroup.setAttribute("id", "master-group");
+            bgGroup = document.createElementNS(svgNS, "g");
+            bgGroup.setAttribute("id", "bg-group");
             
-            while (window.svg.firstChild) {
-                const child = window.svg.firstChild;
+            while (svg.firstChild) {
+                const child = svg.firstChild;
                 if (child.nodeType === 1) { 
                     if (child.getAttribute('stroke')) child.setAttribute('data-orig-stroke', child.getAttribute('stroke'));
                     child.querySelectorAll('*').forEach(el => {
                         if (el.getAttribute('stroke')) el.setAttribute('data-orig-stroke', el.getAttribute('stroke'));
                     });
                 }
-                window.bgGroup.appendChild(child);
+                bgGroup.appendChild(child);
             }
-            window.masterGroup.appendChild(window.bgGroup);
-            window.svg.appendChild(window.masterGroup);
+            masterGroup.appendChild(bgGroup);
+            svg.appendChild(masterGroup);
 
             const layerIds = [
-                "layer-shadow", "layer-astronomical-pins", "layer-lines", "layer-data",                 
-                "layer-tide-wave", "layer-rain-graph", "layer-daily-rain-bg", "layer-lunar-mansion",        
-                "layer-solar-dates", "layer-outer-season", "layer-guide-tide", "layer-guide-rain",           
-                "layer-daily-rain-text", "layer-guide-time", "layer-wafu-text", "layer-haiku" 
+                "layer-shadow",               
+                "layer-astronomical-pins",    
+                "layer-lines",                
+                "layer-data",                 
+                "layer-tide-wave",            
+                "layer-rain-graph",           
+                "layer-daily-rain-bg",        
+                "layer-lunar-mansion",        
+                "layer-solar-dates",          
+                "layer-outer-season",         
+                "layer-guide-tide",           
+                "layer-guide-rain",           
+                "layer-daily-rain-text",      
+                "layer-guide-time",           
+                "layer-wafu-text",
+                "layer-haiku" 
             ];
 
-            const defs = document.createElementNS(svgNS_val, "defs");
+            const defs = document.createElementNS(svgNS, "defs");
             defs.setAttribute("id", "text-path-defs");
-            window.masterGroup.appendChild(defs);
+            masterGroup.appendChild(defs);
             
             layerIds.forEach(id => {
-                const g = document.createElementNS(svgNS_val, "g");
+                const g = document.createElementNS(svgNS, "g");
                 g.setAttribute("id", id);
-                window.masterGroup.appendChild(g);
+                masterGroup.appendChild(g);
             });
             
             updateCalendarCycle();
