@@ -711,7 +711,6 @@ function drawKoyomiEvents(startDate) {
         const newWafuStr = startGregorianMonth === endGregorianMonth ? wafuList[startGregorianMonth - 1] : `${wafuList[startGregorianMonth - 1]} ／ ${wafuList[endGregorianMonth - 1]}`;
         wafuTextLayer.appendChild(createStyledText(stGreText, { class: "layer-gregorian-text", x: baseX, y: cy - 850 + (stWafu.fontSize * 0.9) + stGreText.offsetRadius, "text-anchor": "end", transform: `rotate(${-globalRotation}, ${cx}, ${cy})` }, `${newWafuStr}（新暦）`));
     }
-    // ▲▲ ここまで ▲▲
 }
 
 function drawHaikus(startDate) {
