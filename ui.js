@@ -1,6 +1,5 @@
-// ui.js (UI構築・イベントモジュール) - 軽量化・データ駆動版
+// ui.js (UI構築・イベントモジュール) - 軽量化・データ駆動・バグ修正版
 
-// ▼▼ リファクタリング：ターゲットの分類と再描画ルールを定数化 ▼▼
 const TEXT_TARGETS = ['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'wafuText', 'gregorianText', 'dailyRainText', 'guideTime', 'guideTideText', 'guideRainText', 'lunarMansion', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar', 'haikuText'];
 const SHAPE_TARGETS = ['baseSvg', 'lunarShadow', 'astroPins', 'dateLines', 'tideGraph', 'rainGraph', 'dailyRainBg', 'guideTideLine', 'guideRainLine', 'canvasBg'];
 
@@ -16,7 +15,6 @@ const TARGET_NAMES = {
     eventShinto: "神事", eventBuddhism: "仏事", eventChurch: "教会行事", eventSonota: "その他", haikuText: "俳句 (一番外周)"
 };
 
-// ▼▼ リファクタリング：チェックボックスIDと隠す対象のCSSセレクタの対応表 ▼▼
 const LAYER_VISIBILITY_MAP = {
     "toggle-base-svg": "#bg-group", "toggle-lunar-shadow": "#layer-shadow", "toggle-astro-pins": "#layer-astronomical-pins",
     "toggle-layer-lunar": "#layer-lunar-mansion", "toggle-tide-graph": "#layer-tide-wave", "toggle-rain-graph": "#layer-rain-graph",
@@ -27,7 +25,6 @@ const LAYER_VISIBILITY_MAP = {
     "toggle-wafu-text": ".layer-wafu-text", "toggle-gregorian-text": ".layer-gregorian-text", "toggle-sekki": ".layer-sekki",
     "toggle-kou": ".layer-kou", "toggle-zassetsu": ".layer-zassetsu", "toggle-holiday": ".layer-holiday", "toggle-event-important": ".layer-event-important"
 };
-// ▲▲ ここまで ▲▲
 
 function initUI() {
     const oldPalette = document.getElementById('palette');
@@ -161,7 +158,7 @@ function initUI() {
     designPanel.id = 'design-panel';
     designPanel.className = 'panel-ui';
     designPanel.style = "display:none; position:fixed; top:100px; left:50%; background:rgba(25,30,40,0.95); padding:0 20px 20px 20px; border-radius:12px; border:1px solid rgba(212,175,55,0.5); color:#fff; z-index:200; box-shadow:0 10px 40px rgba(0,0,0,0.8); min-width:320px; backdrop-filter:blur(10px);";
-    // ※ HTML文字列部分は変更なしのため省略せずそのまま構築
+    
     designPanel.innerHTML = `
         <div id="dp-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1px solid rgba(212,175,55,0.3); padding:12px 0 10px 0; cursor:grab; user-select:none;">
             <div id="dp-title" style="color:#d4af37; font-weight:bold; font-size:15px;">デザイン設定</div>
@@ -281,6 +278,16 @@ function initUI() {
     `;
     document.body.appendChild(designPanel);
 
+    // ▼▼ 修正1：UIパネル上でのクリックやスクロールがキャンバスに貫通するのを完全にブロック ▼▼
+    const blockEvent = (e) => e.stopPropagation();
+    [navDiv, jumpDiv, toolsDiv, paletteDiv, designPanel].forEach(panel => {
+        if (panel) {
+            panel.addEventListener('mousedown', blockEvent);
+            panel.addEventListener('wheel', blockEvent);
+        }
+    });
+    // ▲▲ ここまで ▲▲
+
     let isDraggingPanel = false;
     let dpStartX = 0, dpStartY = 0;
     const dpHeader = document.getElementById('dp-header');
@@ -353,12 +360,10 @@ function initUI() {
 
     let currentDesignTarget = null;
     
-    // ▼▼ リファクタリング：デザインパネルへのデータ読み込みを整理 ▼▼
     const loadPanelData = () => {
         const st = window.layerSettings[currentDesignTarget];
         if (!st) return;
 
-        // 全行を一旦隠す
         ['dp-row-lunar-phase', 'dp-group-text', 'dp-group-shape', 'dp-row-shape-type', 'dp-row-shape-fill', 'dp-row-shape-stroke', 'dp-row-shape-stroke-width', 'dp-shape-stroke-orig', 'dp-shape-stroke-orig-text', 'dp-row-offset', 'dp-row-lang', 'dp-row-density', 'dp-row-shape-scale', 'dp-row-radius-offset', 'dp-group-mansion-colors'].forEach(id => {
             document.getElementById(id).style.display = 'none';
         });
@@ -483,7 +488,6 @@ function initUI() {
             document.getElementById('dp-shape-stroke-width-val').innerText = pst.shapeStrokeWidth;
         }
     };
-    // ▲▲ ここまで ▲▲
 
     document.getElementById('dp-close').onclick = () => { designPanel.style.display = 'none'; };
     document.getElementById('dp-reset').onclick = () => {
@@ -516,11 +520,8 @@ function initUI() {
         }
     });
 
-    // ▼▼ リファクタリング：再描画のトリガーをグループ化して整理 ▼▼
+    // ▼▼ 修正2：再描画の対象判定を、厳密な一致で振り分ける ▼▼
     const triggerRedraw = (target) => {
-        const needsStartTime = ['tideGraph', 'guideTideLine', 'guideTideText', 'rainGraph', 'guideRainLine', 'guideRainText', 'lunarShadow', 'astroPins', 'lunarMansion'];
-        const needsStartDate = ['dailyRainBg', 'dailyRainText', 'haikuText', 'gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar', 'wafuText', 'gregorianText'];
-        
         if (target === 'baseSvg') {
             const bgGroup = document.getElementById('bg-group');
             if(bgGroup) {
@@ -541,18 +542,24 @@ function initUI() {
         if (target === 'dateLines' && typeof drawDynamicLines === 'function') drawDynamicLines();
         else if (target === 'guideTime' && typeof drawTimeLabels === 'function') drawTimeLabels();
         
-        if (window.lastCycleStartTimeMs && needsStartTime.includes(target)) {
-            if (target.includes('Tide') && typeof drawTideGraph === 'function') drawTideGraph(window.lastCycleStartTimeMs);
-            else if (target.includes('Rain') && typeof drawRainfallGraph === 'function') drawRainfallGraph(window.lastCycleStartTimeMs);
-            else if (target === 'lunarShadow' && typeof drawLunarShadow === 'function') drawLunarShadow(window.lastCycleStartTimeMs);
-            else if (target === 'astroPins' && typeof drawAstronomicalPins === 'function') drawAstronomicalPins(window.lastCycleStartTimeMs);
-            else if (target === 'lunarMansion' && typeof drawLunarMansions === 'function') drawLunarMansions(window.lastCycleStartTimeMs);
+        if (window.lastCycleStartTimeMs) {
+            // 潮汐グループ
+            if (['tideGraph', 'guideTideLine', 'guideTideText'].includes(target) && typeof drawTideGraph === 'function') drawTideGraph(window.lastCycleStartTimeMs);
+            // 降水量（棒線）グループ
+            if (['rainGraph', 'guideRainLine', 'guideRainText'].includes(target) && typeof drawRainfallGraph === 'function') drawRainfallGraph(window.lastCycleStartTimeMs);
+            // 天文学・図形グループ
+            if (target === 'lunarShadow' && typeof drawLunarShadow === 'function') drawLunarShadow(window.lastCycleStartTimeMs);
+            if (target === 'astroPins' && typeof drawAstronomicalPins === 'function') drawAstronomicalPins(window.lastCycleStartTimeMs);
+            if (target === 'lunarMansion' && typeof drawLunarMansions === 'function') drawLunarMansions(window.lastCycleStartTimeMs);
         }
 
-        if (window.lastKoyomiStartDate && needsStartDate.includes(target)) {
-            if (target.includes('dailyRain') && typeof drawDailyRainStats === 'function') drawDailyRainStats(window.lastKoyomiStartDate);
-            else if (target === 'haikuText' && typeof drawHaikus === 'function') drawHaikus(window.lastKoyomiStartDate);
-            else if (typeof drawKoyomiEvents === 'function') drawKoyomiEvents(window.lastKoyomiStartDate);
+        if (window.lastKoyomiStartDate) {
+            // 日別降水量（背景と数値）グループ
+            if (['dailyRainBg', 'dailyRainText'].includes(target) && typeof drawDailyRainStats === 'function') drawDailyRainStats(window.lastKoyomiStartDate);
+            // 俳句グループ
+            if (target === 'haikuText' && typeof drawHaikus === 'function') drawHaikus(window.lastKoyomiStartDate);
+            // 日付・暦グループ
+            if (['gregorian', 'weekday', 'sekki', 'kou', 'zassetsu', 'holiday', 'important', 'eventShinto', 'eventBuddhism', 'eventChurch', 'eventSonota', 'lunar', 'wafuText', 'gregorianText'].includes(target) && typeof drawKoyomiEvents === 'function') drawKoyomiEvents(window.lastKoyomiStartDate);
         }
     };
     // ▲▲ ここまで ▲▲
@@ -637,7 +644,7 @@ function initUI() {
         }
 
         window.saveLayerSettings();
-        triggerRedraw(currentDesignTarget); // リファクタリングした関数を呼び出し
+        triggerRedraw(currentDesignTarget); 
     };
 
     ['dp-lunar-phase', 'dp-font', 'dp-size', 'dp-color', 'dp-bold', 'dp-stroke-color', 'dp-stroke-width', 'dp-shape', 'dp-shape-scale', 'dp-lang', 'dp-density', 'dp-color-east', 'dp-color-south', 'dp-color-west', 'dp-color-north', 'dp-mansion-star-size', 'dp-mansion-bg-color', 'dp-mansion-bg-opacity', 'dp-shape-fill-trans', 'dp-shape-fill', 'dp-shape-stroke-orig', 'dp-shape-stroke', 'dp-shape-stroke-width', 'dp-opacity', 'dp-offset', 'dp-radius-offset'].forEach(id => {
@@ -709,7 +716,7 @@ function initUI() {
             }
         }
 
-        const appCont = document.getElementById('calendar-container') || document.body;
+        const appCont = document.getElementById('container') || document.body;
         if (tool === 'pointer') appCont.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize';
         else if (tool === 'paint') appCont.style.cursor = 'crosshair';
         else if (tool === 'erase') appCont.style.cursor = 'cell';
@@ -790,7 +797,6 @@ function initUI() {
         document.head.appendChild(styleBlock);
     }
 
-    // ▼▼ リファクタリング：表示/非表示の切り替えをマッピング処理化 ▼▼
     const updateLayerVisibility = () => {
         let css = "";
         for (const [toggleId, selector] of Object.entries(LAYER_VISIBILITY_MAP)) {
@@ -803,7 +809,6 @@ function initUI() {
             drawKoyomiEvents(window.lastKoyomiStartDate);
         }
     };
-    // ▲▲ ここまで ▲▲
 
     document.body.addEventListener("change", (e) => {
         if (e.target && e.target.type === 'checkbox' && e.target.id.startsWith('toggle-')) updateLayerVisibility();
@@ -856,7 +861,8 @@ window.openHaikuModal = function(dateStr, haikus) {
 };
 
 function initInteractions() {
-    const appContainer = document.getElementById('calendar-container') || document.body;
+    // 【修正箇所】IDを 'container' に修正し、ドラッグイベントが画面全体に及ぶのを防止
+    const appContainer = document.getElementById('container') || document.body;
     
     appContainer.addEventListener('wheel', (e) => {
         e.preventDefault();
