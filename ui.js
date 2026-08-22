@@ -659,7 +659,6 @@ function initUI() {
             if (typeof drawKoyomiEvents === 'function') drawKoyomiEvents(window.lastKoyomiStartDate);
         }
         
-        // ★ 俳句の更新反映
         if (currentDesignTarget === 'haikuText' && window.lastKoyomiStartDate) {
             if (typeof drawHaikus === 'function') drawHaikus(window.lastKoyomiStartDate);
         }
@@ -838,7 +837,7 @@ function initUI() {
         if(!document.getElementById("toggle-daily-rain-text")?.checked) addHiddenRule("#layer-daily-rain-text");
         if(!document.getElementById("toggle-date-lines")?.checked) addHiddenRule("#layer-lines");
         if(!document.getElementById("toggle-guide-time")?.checked) addHiddenRule("#layer-guide-time");
-        if(!document.getElementById("toggle-haiku-text")?.checked) addHiddenRule("#layer-haiku"); // ★ 俳句の表示・非表示用
+        if(!document.getElementById("toggle-haiku-text")?.checked) addHiddenRule("#layer-haiku"); 
         
         if(!document.getElementById("toggle-guide-tide-line")?.checked) addHiddenRule(".layer-guide-tide-line");
         if(!document.getElementById("toggle-guide-tide-text")?.checked) addHiddenRule(".layer-guide-tide-text");
@@ -916,3 +915,143 @@ window.openHaikuModal = function(dateStr, haikus) {
     void modal.offsetWidth; 
     modal.style.opacity = '1';
 };
+
+function initInteractions() {
+    container.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const zoomFactor = e.deltaY > 0 ? 1.05 : 0.95;
+        const pt = svg.createSVGPoint();
+        pt.x = e.clientX;
+        pt.y = e.clientY;
+        const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+        
+        viewBox.w *= zoomFactor;
+        viewBox.h *= zoomFactor;
+        viewBox.x = svgP.x - (svgP.x - viewBox.x) * zoomFactor;
+        viewBox.y = svgP.y - (svgP.y - viewBox.y) * zoomFactor;
+        
+        svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+    }, { passive: false });
+
+    let isInteractionActive = false;
+    let startPos = { x: 0, y: 0 }, dragDistance = 0;
+    let startGlobalRotation = 0, startAngleOffset = 0;
+    let lastPaintedCell = null;
+
+    container.addEventListener('mousedown', (e) => {
+        dragDistance = 0;
+        isInteractionActive = true;
+        lastPaintedCell = null;
+
+        if (currentTool === 'pointer') {
+            container.style.cursor = interactionMode === 'pan' ? 'grabbing' : 'ew-resize';
+            if (interactionMode === 'rotate') {
+                const pt = svg.createSVGPoint();
+                pt.x = e.clientX;
+                pt.y = e.clientY;
+                const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+                startAngleOffset = Math.atan2(svgP.y - cy, svgP.x - cx) * 180 / Math.PI;
+                startGlobalRotation = globalRotation;
+            } else {
+                startPos = { x: e.clientX, y: e.clientY };
+            }
+        }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (isInteractionActive && currentTool === 'pointer') {
+            if (interactionMode === 'pan') {
+                const dxScreen = startPos.x - e.clientX, dyScreen = startPos.y - e.clientY;
+                dragDistance += Math.abs(dxScreen) + Math.abs(dyScreen);
+                viewBox.x += dxScreen * (viewBox.w / container.clientWidth);
+                viewBox.y += dyScreen * (viewBox.h / container.clientHeight);
+                svg.setAttribute('viewBox', `${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}`);
+                startPos = { x: e.clientX, y: e.clientY };
+            } else if (interactionMode === 'rotate') {
+                const pt = svg.createSVGPoint();
+                pt.x = e.clientX;
+                pt.y = e.clientY;
+                const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+                const currentAngleOffset = Math.atan2(svgP.y - cy, svgP.x - cx) * 180 / Math.PI;
+                
+                let delta = currentAngleOffset - startAngleOffset;
+                if (delta > 180) delta -= 360;
+                if (delta < -180) delta += 360;
+                
+                globalRotation = startGlobalRotation + delta;
+                masterGroup.setAttribute('transform', `rotate(${globalRotation}, ${cx}, ${cy})`);
+                dragDistance += Math.abs(delta) * 5;
+                startGlobalRotation = globalRotation;
+                startAngleOffset = currentAngleOffset;
+            }
+        }
+
+        const pt = svg.createSVGPoint();
+        pt.x = e.clientX;
+        pt.y = e.clientY;
+        const ptM = pt.matrixTransform(masterGroup.getScreenCTM().inverse());
+        const dx = ptM.x - cx, dy = ptM.y - cy;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+        angle = (angle + 90 + 360) % 360;
+        
+        const absSegment = Math.floor(angle / 3);
+        const ringInfo = getRingInfo(distance);
+
+        if (ringInfo) {
+            const relSegment = (absSegment - currentStartSegment + 120) % 120;
+            const day = Math.floor(relSegment / 4) + 1;
+            const timeSlot = relSegment % 4;
+            const timeLabels = ["0:00〜6:00", "6:00〜12:00", "12:00〜18:00", "18:00〜24:00"];
+            
+            statusBar.innerText = `第 ${day} 日目 ｜ ${timeLabels[timeSlot]} ｜ ${ringInfo.name}`;
+            statusBar.style.color = "#fff";
+
+            if (isInteractionActive && (currentTool === 'paint' || currentTool === 'erase')) {
+                const cellKey = `c${currentCycle}_abs${absSegment}_${ringInfo.layerId}`;
+                if (lastPaintedCell !== cellKey) {
+                    if (currentTool === 'erase') delete calendarData[cellKey];
+                    else calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
+                    renderSavedData();
+                    lastPaintedCell = cellKey;
+                }
+            }
+        } else {
+            statusBar.innerText = `キャンバス外`;
+            statusBar.style.color = "#8b949e";
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        isInteractionActive = false;
+        if (currentTool === 'pointer') container.style.cursor = interactionMode === 'pan' ? 'grab' : 'ew-resize';
+        localStorage.setItem('polarCalendarDataV27', JSON.stringify(calendarData));
+    });
+
+    svg.addEventListener('click', (e) => {
+        if (dragDistance > 5 || currentTool === 'pointer') return;
+        const pt = svg.createSVGPoint();
+        pt.x = e.clientX;
+        pt.y = e.clientY;
+        const ptM = pt.matrixTransform(masterGroup.getScreenCTM().inverse());
+        const dx = ptM.x - cx, dy = ptM.y - cy;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+        angle = (angle + 90 + 360) % 360;
+        
+        const absSegment = Math.floor(angle / 3);
+        const ringInfo = getRingInfo(distance);
+        if (!ringInfo) return;
+
+        const cellKey = `c${currentCycle}_abs${absSegment}_${ringInfo.layerId}`;
+        
+        if (currentTool === 'erase') delete calendarData[cellKey];
+        else if (currentTool === 'paint') {
+            calendarData[cellKey] = { color: activeBrush, absSegment: absSegment, rIn: ringInfo.rIn, rOut: ringInfo.rOut };
+        }
+        
+        localStorage.setItem('polarCalendarDataV27', JSON.stringify(calendarData));
+        renderSavedData();
+    });
+}
